@@ -33,7 +33,8 @@ var editorProxy = zen_coding.exec(function(require, _) {
 
 		getCaretPos: function() {
 			var view = activeView();
-			return view.sel().length ? view.sel()[0].begin() : 0;
+			var sel = view.sel();
+			return sel && sel[0] ? sel[0].begin() : 0;
 		},
 
 		setCaretPos: function(pos){
@@ -119,7 +120,7 @@ var editorProxy = zen_coding.exec(function(require, _) {
 
 		getSelection: function() {
 			var view = activeView();
-			return view.sel() ? view.sel()[0] : '';
+			return view.sel() ? view.substr(view.sel()[0]) : '';
 		},
 
 		getFilePath: function() {

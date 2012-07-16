@@ -58,6 +58,6 @@ def create_env(files=[]):
 
 	# expose some methods
 	ctx.locals.log = js_log
-	ctx.pyFile = File()
+	ctx.locals.pyFile = File()
 
 	return ctx

@@ -21,5 +21,6 @@ JSCTX.locals.sublimeReplaceSubstring = replace_substring
 
 
 class RunAction(sublime_plugin.TextCommand):
-    def run(self, edit, action=None, **kw):
-        JSCTX.locals.pyRunAction(action)
+	def run(self, edit, action=None, **kw):
+		JSCTX.locals.pyRunAction(action)
+

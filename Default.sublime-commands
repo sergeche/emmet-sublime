@@ -152,10 +152,10 @@
 	},
 
 	{
-		"caption": "Zen Coding: Encode\\Decode Image to base64",
+		"caption": "Zen Coding: Encode\\Decode Image to data:URL",
 		"command": "run_action",
 		"args": {
-			"action": "encode_decode_base64"
+			"action": "encode_decode_data_url"
 		}
 	},
 

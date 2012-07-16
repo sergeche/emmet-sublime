@@ -23,7 +23,9 @@ class File():
 		except:
 			pass
 		
-		return content
+		# return as array of character codes since PyV8 may corrupt
+		# binary data when python string is translated into JS string
+		return [ord(ch) for ch in content]
 
 	def locate_file(self, editor_file, file_name):
 		"""

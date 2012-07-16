@@ -10,7 +10,9 @@ function pyRunAction(name) {
 zen_coding.define('file', function(require, _) {
 	return {
 		read: function(path) {
-			return pyFile.read(path);
+			return _.map(pyFile.read(path) || [], function(b) {
+				return String.fromCharCode(b);
+			}).join('');
 		},
 
 		locateFile: function(editorFile, fileName) {
