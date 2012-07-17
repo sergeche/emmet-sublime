@@ -165,5 +165,74 @@
 		"args": {
 			"action": "update_image_size"
 		}
+	},
+
+	{
+		"keys": ["tab"],
+		"command": "expand_abbreviation_by_tab",
+		"context": [
+			{
+				"key": "selector",
+				"match_all": true,
+				"operand": "source.css, text.xml, text.html, string",
+				"operator": "equal"
+			}, {
+				"key": "selection_empty",
+				"match_all": true
+			}, {
+				"key": "has_next_field",
+				"operator": "equal",
+				"operand": false,
+				"match_all": true
+			}, {
+				"key": "setting.disable_tab_abbreviations",
+				"operator": "equal",
+				"operand": false,
+				"match_all": true
+			}, {
+				"key": "auto_complete_visible",
+				"operand": false,
+				"operator": "equal",
+				"match_all": true
+			}, {
+				"key": "is_abbreviation",
+				"match_all": true
+			}
+		]
+	},
+
+	// behaviour of tab key when autocomplete popup is visible
+	{
+		"keys": ["tab"],
+		"command": "expand_abbreviation_by_tab",
+		"context": [
+			{
+				"key": "selector",
+				"match_all": true,
+				"operand": "source.css, text.xml, text.html, string",
+				"operator": "equal"
+			}, {
+				"key": "selection_empty",
+				"match_all": true
+			}, {
+				"key": "has_next_field",
+				"operator": "equal",
+				"operand": false,
+				"match_all": true
+			}, {
+				"key": "auto_complete_visible",
+				"operator": "equal",
+				"operand": true,
+				"match_all": true
+			}, {
+				"key": "setting.disable_tab_abbreviations_on_auto_complete",
+				"operator": "equal",
+				"operand": false,
+				"match_all": true
+			}, {
+				"key": "is_abbreviation",
+				"match_all": true
+			}
+		]
 	}
 ]

@@ -4893,6 +4893,7 @@ zen_coding.define('profile', function(require, _) {
 	createProfile('html', {self_closing_tag: false});
 	createProfile('xml', {self_closing_tag: true, tag_nl: true});
 	createProfile('plain', {tag_nl: false, indent: false, place_cursor: false});
+	createProfile('line', {tag_nl: false, indent: false});
 	
 	return  {
 		/**

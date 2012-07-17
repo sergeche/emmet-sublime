@@ -111,7 +111,7 @@ var editorProxy = zen_coding.exec(function(require, _) {
 				return 'html';
 			}
 			
-			return 'plain';
+			return 'line';
 		},
 
 		prompt: function(title) {
