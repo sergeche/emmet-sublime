@@ -55,20 +55,7 @@ var editorProxy = zen_coding.exec(function(require, _) {
 			// by default, abbreviation parser generates all unlinked (un-mirrored)
 			// tabstops as ${0}, so we have upgrade all caret tabstops with unique
 			// positions but make sure that all other tabstops are not linked accidentally
-			var base = 1000;
-			var zeroBase = 0;
-			value = require('tabStops').processText(value, {
-				tabstop: function(data) {
-					var group = parseInt(data.group, 10);
-					if (group === 0)
-						group = ++zeroBase;
-					else
-						group += base;
-
-					return '${' + group + (data.placeholder ? ':' + data.placeholder : '') + '}';
-				}
-			});
-
+			value = pyUpdateTabStops(value);
 			sublimeReplaceSubstring(start, end, value);
 		},
 
@@ -128,3 +115,56 @@ var editorProxy = zen_coding.exec(function(require, _) {
 		}
 	};
 });
+
+function pyUpdateTabStops(value) {
+	var base = 1000;
+	var zeroBase = 0;
+	return zen_coding.require('tabStops').processText(value, {
+		tabstop: function(data) {
+			var group = parseInt(data.group, 10);
+			if (group === 0)
+				group = ++zeroBase;
+			else
+				group += base;
+
+			return '${' + group + (data.placeholder ? ':' + data.placeholder : '') + '}';
+		}
+	})
+}
+
+function pyExpandAbbreviationAsYouType(abbr) {
+	var info = zen_coding.require('editorUtils').outputInfo(editorProxy);
+	var result = zen_coding.expandAbbreviation(abbr, info.syntax, info.profile, 
+					zen_coding.require('actionUtils').captureContext(editorProxy));
+	return pyUpdateTabStops(result);
+}
+
+function pyWrapAsYouType(abbr, content) {
+	var info = zen_coding.require('editorUtils').outputInfo(editorProxy);
+	var result = zen_coding.require('wrapWithAbbreviation').wrap(abbr, content, info.syntax, info.profile);
+	return pyUpdateTabStops(result);
+}
+
+function pyCaptureWrappingRange() {
+	var info = zen_coding.require('editorUtils').outputInfo(editorProxy);
+	var range = editorProxy.getSelectionRange();
+	var startOffset = range.start;
+	var endOffset = range.end;
+	
+	if (startOffset == endOffset) {
+		// no selection, find tag pair
+		var matcher = zen_coding.require('html_matcher');
+		range = matcher(info.content, startOffset, info.profile);
+		
+		if (!range || range[0] == -1) // nothing to wrap
+			return null;
+		
+		/** @type Range */
+		var utils = zen_coding.require('utils');
+		var narrowedSel = utils.narrowToNonSpace(info.content, range[0], range[1] - range[0]);
+		startOffset = narrowedSel.start;
+		endOffset = narrowedSel.end;
+	}
+
+	return [startOffset, endOffset];
+}

@@ -168,6 +168,30 @@
 	},
 
 	{
+		"command": "zen_as_you_type",
+		"keys": ["ctrl+alt+enter"],
+		"context": [
+			{
+				"key": "setting.is_widget", 
+				"operand": false, 
+				"operator": "equal"
+			}
+		]
+	},
+
+	{
+		"command": "wrap_zen_as_you_type",
+		"keys": ["ctrl+alt+w"],
+		"context": [
+			{
+				"key": "setting.is_widget", 
+				"operand": false, 
+				"operator": "equal"
+			}
+		]
+	},
+
+	{
 		"keys": ["tab"],
 		"command": "expand_abbreviation_by_tab",
 		"context": [
