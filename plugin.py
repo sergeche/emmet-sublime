@@ -25,7 +25,7 @@ def replace_substring(start, end, value, no_indent=False):
 		line = view.substr(view.line(view.sel()[0]))
 		value = unindent_text(value, get_line_padding(line))
 
-	view.run_command('insert_snippet', {'contents': value})
+	view.run_command('insert_snippet', {'contents': value.decode('utf-8')})
 	view.end_edit(edit)
 
 def unindent_text(text, pad):
@@ -89,7 +89,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 				if view.substr(trailing).isspace():
 					view.erase(self.edit, trailing)
 
-		view.run_command('insert_snippet', { 'contents': value })
+		view.run_command('insert_snippet', { 'contents': value.decode('utf-8') })
 
 	def insert(self, abbr):
 		view = self.view
@@ -102,7 +102,10 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 		def inner_insert():
 			self.edit = edit = view.begin_edit()
 			cmd_input  = self.filter_input(abbr) or ''
-			self.erase = self.run_command(view, cmd_input) is not False
+			try:
+				self.erase = self.run_command(view, cmd_input) is not False
+			except:
+				pass
 			view.end_edit(edit)
 
 		self.undo()

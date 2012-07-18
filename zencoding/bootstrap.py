@@ -48,12 +48,24 @@ def create_env(files=[]):
 	core_files = ['zencoding.js', 'python-wrapper.js']
 	files_to_load = [] + core_files + files
 
+	# WinXP unable to eval JS in unicode object (while other OSes requires unicode)
+	# let's figure out if we can eval unicode
+	use_unicode = True
+	try:
+		ctx.eval(u'(function(){return;})()')
+	except:
+		use_unicode = False
+
+
 	for file_name in files_to_load:
-		f = codecs.open(make_path(base_path, file_name), 'r', 'utf-8')
+		if use_unicode:
+			f = codecs.open(make_path(base_path, file_name), 'r', 'utf-8')
+		else:
+			f = open(make_path(base_path, file_name), 'r')
+			
+		# f = open(make_path(base_path, file_name), 'r')
 		# f = file(package_file(file_name))
-		source = f.read()
-		# sublime.status_message(source)
-		ctx.eval(source)
+		ctx.eval(f.read())
 		f.close()
 
 	# expose some methods
