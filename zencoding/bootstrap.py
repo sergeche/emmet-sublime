@@ -14,7 +14,8 @@ from file import File
 SUPPORTED_PLATFORMS = {
 	"Darwin": "PyV8/osx",
 	"Linux": "PyV8/linux",
-	"Windows": "PyV8/win32"
+	"Windows": "PyV8/win32",
+	"Windows64": "PyV8/win64"
 }
 
 def make_path(base, filename):
@@ -30,7 +31,12 @@ def create_env(files=[]):
 	@return JS context to run Zen Coding actions
 	"""
 	base_path = os.path.abspath(os.path.dirname(__file__))
-	platform_supported = SUPPORTED_PLATFORMS.get(platform.system())
+	is_64bit = sys.maxsize > 2**32
+	system_name = platform.system()
+	if system_name == 'Windows' and is_64bit:
+		system_name = 'Windows64'
+
+	platform_supported = SUPPORTED_PLATFORMS.get(system_name)
 	if not platform_supported:
 		raise Exception, '''
 			Sorry, the v8 engine for this platform are not built yet. 
