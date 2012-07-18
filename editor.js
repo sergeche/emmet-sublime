@@ -56,7 +56,7 @@ var editorProxy = zen_coding.exec(function(require, _) {
 			// tabstops as ${0}, so we have upgrade all caret tabstops with unique
 			// positions but make sure that all other tabstops are not linked accidentally
 			value = pyUpdateTabStops(value);
-			sublimeReplaceSubstring(start, end, value);
+			sublimeReplaceSubstring(start, end, value, noIndent);
 		},
 
 		getContent: function() {

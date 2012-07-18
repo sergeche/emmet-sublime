@@ -11,14 +11,22 @@ __authors__ = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
 def active_view():
 	return sublime.active_window().active_view()
 
-def replace_substring(start, end, value):
-    view = active_view()
-    edit = view.begin_edit()
+def replace_substring(start, end, value, no_indent=False):
+	view = active_view()
+	edit = view.begin_edit()
 
-    view.sel().clear()
-    view.sel().add(sublime.Region(start, end or start))
-    view.run_command('insert_snippet', {'contents': value})
-    view.end_edit(edit)
+	view.sel().clear()
+	view.sel().add(sublime.Region(start, end or start))
+
+	# XXX a bit naive indentation control. It handles most common
+	# `no_indent` usages like replacing CSS rule content, but may not
+	# produce expected result in all possible situations
+	if no_indent:
+		line = view.substr(view.line(view.sel()[0]))
+		value = unindent_text(value, get_line_padding(line))
+
+	view.run_command('insert_snippet', {'contents': value})
+	view.end_edit(edit)
 
 def unindent_text(text, pad):
 	"""
