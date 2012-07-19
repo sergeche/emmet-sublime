@@ -7,6 +7,37 @@ function pyRunAction(name) {
 	return zen_coding.require('actions').run(name, editorProxy);
 }
 
+function pyAddUserSnippets(snippets, reset) {
+	var res = zen_coding.require('resources');
+	var utils = zen_coding.require('utils');
+	var curSnippets = {};
+	if (!reset) {
+		curSnippets = res.getVocabulary('user') || {};	
+	}
+
+	res.setVocabulary(utils.deepMerge(curSnippets, snippets), 'user');
+}
+
+function pyMergeJSON() {
+	var base = {};
+	var utils = zen_coding.require('utils');
+	_.each(arguments, function(item) {
+		base = utils.deepMerge(base, item);
+	});
+
+	return base;
+}
+
+function pySetUserSnippets() {
+	var snippets = pyMergeJSON.apply(this, arguments);
+	zen_coding.require('resources').setVocabulary(snippets, 'user')
+}
+
+function pySetUserPreferences() {
+	var prefs = pyMergeJSON.apply(this, arguments);
+	zen_coding.require('preferences').load(prefs);
+}
+
 zen_coding.define('file', function(require, _) {
 	return {
 		read: function(path) {

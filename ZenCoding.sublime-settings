@@ -1,0 +1,12 @@
+{
+    // Copy any modified settings to `User/ZenCoding.sublime-settings`
+    // otherwise modifications will not survive updates.
+
+    // disable expanding abbreviation by Tab key
+    "disable_tab_abbreviations": false,
+
+    // disable expanding abbreviation by Tab key when autocomplete popup is visible
+    "disable_tab_abbreviations_on_auto_complete": false,
+
+    "extensions_path": "~/zencoding"
+}

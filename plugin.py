@@ -1,6 +1,6 @@
 import sublime
 import sublime_plugin
-import zencoding.bootstrap
+from zencoding.context import Context
 import re
 
 __version__     = '1.0'
@@ -50,16 +50,19 @@ def get_line_padding(line):
 	m = re.match(r'^(\s+)', line)
 	return m and m.group(0) or ''
 
+# load settings
+settings = sublime.load_settings('ZenCoding.sublime-settings')
+
 # create JS environment
-JSCTX = zencoding.bootstrap.create_env(['../editor.js'])
+ctx = Context(files=['../editor.js'], ext_path=settings.get('extensions_path', None))
 
 # provide some contributions to JS
-JSCTX.locals.sublime = sublime
-JSCTX.locals.sublimeReplaceSubstring = replace_substring
+ctx.js().locals.sublime = sublime
+ctx.js().locals.sublimeReplaceSubstring = replace_substring
 
 class RunAction(sublime_plugin.TextCommand):
 	def run(self, edit, action=None, **kw):
-		JSCTX.locals.pyRunAction(action)
+		ctx.js().locals.pyRunAction(action)
 
 
 class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
@@ -71,7 +74,7 @@ class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
 
 class TabExpandHandler(sublime_plugin.EventListener):
 	def on_query_context(self, view, key, op, operand, match_all):
-		return key == 'is_abbreviation' and JSCTX.locals.pyRunAction('expand_abbreviation')
+		return key == 'is_abbreviation' and ctx.js().locals.pyRunAction('expand_abbreviation')
 		
 
 class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
@@ -132,7 +135,7 @@ class ZenAsYouType(CommandsAsYouTypeBase):
 
 	def filter_input(self, abbr):
 		try:
-			return JSCTX.locals.pyExpandAbbreviationAsYouType(abbr)
+			return ctx.js().locals.pyExpandAbbreviationAsYouType(abbr)
 		except Exception:
 			"dont litter the console"
 
@@ -143,7 +146,7 @@ class WrapZenAsYouType(CommandsAsYouTypeBase):
 
 	def setup(self):
 		# capture wrapping content
-		r = JSCTX.locals.pyCaptureWrappingRange()
+		r = ctx.js().locals.pyCaptureWrappingRange()
 		if not r:
 			return # nothing to wrap
 
@@ -159,6 +162,6 @@ class WrapZenAsYouType(CommandsAsYouTypeBase):
 
 	def filter_input(self, abbr):
 		try:
-			return JSCTX.locals.pyWrapAsYouType(abbr, self.selection)
+			return ctx.js().locals.pyWrapAsYouType(abbr, self.selection)
 		except Exception:
 			"dont litter the console"
