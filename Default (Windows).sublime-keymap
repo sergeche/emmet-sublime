@@ -52,7 +52,12 @@
 		"command": "run_action",
 		"args": {
 			"action": "toggle_comment"
-		}
+		},
+		"context": [{
+			"key": "selector",
+			"operand": "source.css, text.xml, text.html",
+			"operator": "equal"
+		}]
 	},
 
 	{
@@ -198,7 +203,7 @@
 			{
 				"key": "selector",
 				"match_all": true,
-				"operand": "source.css, text.xml, text.html, string",
+				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html, text.haml, string",
 				"operator": "equal"
 			}, {
 				"key": "selection_empty",
@@ -233,7 +238,7 @@
 			{
 				"key": "selector",
 				"match_all": true,
-				"operand": "source.css, text.xml, text.html, string",
+				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html, text.haml, string",
 				"operator": "equal"
 			}, {
 				"key": "selection_empty",
