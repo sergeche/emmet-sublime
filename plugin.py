@@ -3,10 +3,10 @@ import sublime_plugin
 from zencoding.context import Context
 import re
 
-__version__     = '1.0'
+__version__      = '1.0'
 __core_version__ = '0.8'
-__authors__ = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
-               '"Nicholas Dudfield" <ndudfield@gmail.com>']
+__authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
+                    '"Nicholas Dudfield" <ndudfield@gmail.com>']
 
 def active_view():
 	return sublime.active_window().active_view()
@@ -58,8 +58,6 @@ def update_settings():
 
 # load settings
 settings = sublime.load_settings('ZenCoding.sublime-settings')
-# settings.add_on_change('snippets', update_settings)
-# settings.add_on_change('preferences', update_settings)
 settings.add_on_change('extensions_path', update_settings)
 
 # provide some contributions to JS
