@@ -50,15 +50,28 @@ def get_line_padding(line):
 	m = re.match(r'^(\s+)', line)
 	return m and m.group(0) or ''
 
+def update_settings():
+	ctx.set_ext_path(settings.get('extensions_path', None))
+	ctx.set_snippets(settings.get('snippets', {}))
+	ctx.set_preferences(settings.get('preferences', {}))
+
+
 # load settings
 settings = sublime.load_settings('ZenCoding.sublime-settings')
-
-# create JS environment
-ctx = Context(files=['../editor.js'], ext_path=settings.get('extensions_path', None))
+# settings.add_on_change('snippets', update_settings)
+# settings.add_on_change('preferences', update_settings)
+settings.add_on_change('extensions_path', update_settings)
 
 # provide some contributions to JS
-ctx.js().locals.sublime = sublime
-ctx.js().locals.sublimeReplaceSubstring = replace_substring
+contrib = {
+	'sublime': sublime, 
+	'sublimeReplaceSubstring': replace_substring
+}
+
+# create JS environment
+ctx = Context(['../editor.js'], settings.get('extensions_path', None), contrib)
+
+update_settings()
 
 class RunAction(sublime_plugin.TextCommand):
 	def run(self, edit, action=None, **kw):

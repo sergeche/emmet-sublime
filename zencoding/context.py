@@ -71,10 +71,12 @@ class Context():
 	"""
 	Creates Zen Coding JS core context
 	@param files: Additional files to load with JS core
-	@param ext_path: Path to Zen Coding extensions
+	@param path: Path to Zen Coding extensions
+	@param contrib: Python objects to contribute to JS execution context
 	"""
-	def __init__(self, files=[], ext_path=None):
+	def __init__(self, files=[], path=None, contrib=None):
 		self._ctx = None
+		self._contrib = contrib
 
 		# detect reader encoding
 		# self._use_unicode = should_use_unicode()
@@ -85,51 +87,58 @@ class Context():
 		files_to_load = [] + core_files + files
 		core_src = [self.read_js_file(make_path(f)) for f in files_to_load]
 		self._core_ext = PyV8.JSExtension('core/javascript', glue.join(core_src))
-		self._addon_ext = None
 
-		self.ext_path = os.path.abspath(os.path.expanduser(ext_path)) if ext_path else None
 		self._ext_snippets = {}
 		self._ext_prefs = {}
+		self._ext_path = None
 
-		if self.ext_path:
-			self._load_extensions(self.ext_path)
+		self.set_ext_path(path)
+
 		
+	def get_ext_path(self):
+		return self._ext_path
 
-	def _load_extensions(self, path):
-		ext_src = []
-		glue = u'\n' if self._use_unicode else '\n'
+	def set_ext_path(self, val):
+		val = os.path.abspath(os.path.expanduser(val)) if val else None
 
-		print('Loading Zen Coding extensions from %s' % path)
+		if val == self._ext_path:
+			return
 
-		for dirname, dirnames, filenames in os.walk(path):
-			for filename in filenames:
-				abspath = os.path.join(dirname, filename)
-				filename = filename.lower()
-				name, ext = os.path.splitext(filename)
+		self.reset()
 
-				if ext == '.js':
-					ext_src.append(self.read_js_file(abspath))
-				elif filename == 'snippets.json':
-					self._ext_snippets = json.loads(self.read_js_file(abspath))
-				elif filename == 'preferences.json':
-					self._ext_prefs = json.loads(self.read_js_file(abspath))
+		self._ext_path = val
+		if os.path.isdir(self._ext_path):
+			# load extensions
+			print('Loading Zen Coding extensions from %s' % self._ext_path)
+			for dirname, dirnames, filenames in os.walk(self._ext_path):
+				for filename in filenames:
+					abspath = os.path.join(dirname, filename)
+					filename = filename.lower()
+					name, ext = os.path.splitext(filename)
 
-		if ext_src:
-			self._addon_ext = PyV8.JSExtension('addon/javascript', glue.join(ext_src))
+					if ext == '.js':
+						self.eval_js_file(abspath)
+					elif filename == 'snippets.json':
+						self._ext_snippets = json.loads(self.read_js_file(abspath))
+						self.set_snippets()
+					elif filename == 'preferences.json':
+						self._ext_prefs = json.loads(self.read_js_file(abspath))
+						self.set_preferences()
 
 	def js(self):
 		"Returns JS context"
 		if not self._ctx:
-			ext = ['core/javascript']
-			if self._addon_ext:
-				ext.append('addon/javascript')
-
-			self._ctx = PyV8.JSContext(extensions=ext)
+			self._ctx = PyV8.JSContext(extensions=['core/javascript'])
 			self._ctx.enter()
 
 			# expose some methods
 			self._ctx.locals.log = js_log
 			self._ctx.locals.pyFile = File()
+
+			if self._contrib:
+				for k in self._contrib:
+					self._ctx.locals[k] = self._contrib[k]
+
 
 			self.set_snippets(self._ext_snippets)
 			self.set_snippets(self._ext_prefs)

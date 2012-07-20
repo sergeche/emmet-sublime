@@ -52,7 +52,12 @@
 		"command": "run_action",
 		"args": {
 			"action": "toggle_comment"
-		}
+		},
+		"context": [{
+			"key": "selector",
+			"operand": "source.css, text.xml, text.html",
+			"operator": "equal"
+		}]
 	},
 
 	{

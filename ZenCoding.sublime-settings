@@ -1,12 +1,24 @@
 {
-    // Copy any modified settings to `User/ZenCoding.sublime-settings`
-    // otherwise modifications will not survive updates.
+	// Copy any modified settings to `User/ZenCoding.sublime-settings`
+	// otherwise modifications will not survive updates.
 
-    // disable expanding abbreviation by Tab key
-    "disable_tab_abbreviations": false,
+	// disable expanding abbreviation by Tab key
+	"disable_tab_abbreviations": false,
 
-    // disable expanding abbreviation by Tab key when autocomplete popup is visible
-    "disable_tab_abbreviations_on_auto_complete": false,
+	// disable expanding abbreviation by Tab key when autocomplete popup is visible
+	"disable_tab_abbreviations_on_auto_complete": false,
 
-    "extensions_path": "~/zencoding"
+	"extensions_path": "~/zencoding",
+
+	"snippets": {
+		// custom snippets definitions, as per https://github.com/sergeche/zen-coding/blob/v0.7.1/snippets.json
+		// "html": {
+		// 	"abbreviations": {
+		// 		"example": "<div class='example' title='Custom element example'>"
+		// 	}
+		// }
+	},
+	"preferences": {
+		// custom core preferences
+	}
 }
