@@ -9,6 +9,7 @@ from file import File
 SUPPORTED_PLATFORMS = {
 	"Darwin": "PyV8/osx",
 	"Linux": "PyV8/linux",
+	"Linux64": "PyV8/linux64",
 	"Windows": "PyV8/win32",
 	"Windows64": "PyV8/win64"
 }
@@ -19,6 +20,8 @@ def cross_platform():
 	system_name = platform.system()
 	if system_name == 'Windows' and is_64bit:
 		system_name = 'Windows64'
+	if system_name == 'Linux' and is_64bit:
+		system_name = 'Linux64'
 
 	platform_supported = SUPPORTED_PLATFORMS.get(system_name)
 	if not platform_supported:
