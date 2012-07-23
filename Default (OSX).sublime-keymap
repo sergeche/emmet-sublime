@@ -278,5 +278,10 @@
 				"operand": false
 			}
 		]
+	},
+
+	{
+		"keys": ["super+shift+r"],
+		"command": "rename_tag"
 	}
 ]

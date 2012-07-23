@@ -116,10 +116,14 @@ var editorProxy = zen_coding.exec(function(require, _) {
 	};
 });
 
+function require(name) {
+	return zen_coding.require(name);
+}
+
 function pyUpdateTabStops(value) {
 	var base = 1000;
 	var zeroBase = 0;
-	return zen_coding.require('tabStops').processText(value, {
+	return require('tabStops').processText(value, {
 		tabstop: function(data) {
 			var group = parseInt(data.group, 10);
 			if (group === 0)
@@ -133,38 +137,59 @@ function pyUpdateTabStops(value) {
 }
 
 function pyExpandAbbreviationAsYouType(abbr) {
-	var info = zen_coding.require('editorUtils').outputInfo(editorProxy);
-	var result = zen_coding.expandAbbreviation(abbr, info.syntax, info.profile, 
-					zen_coding.require('actionUtils').captureContext(editorProxy));
+	var info = require('editorUtils').outputInfo(editorProxy);
+	var result = expandAbbreviation(abbr, info.syntax, info.profile, 
+					require('actionUtils').captureContext(editorProxy));
 	return pyUpdateTabStops(result);
 }
 
 function pyWrapAsYouType(abbr, content) {
-	var info = zen_coding.require('editorUtils').outputInfo(editorProxy);
-	var result = zen_coding.require('wrapWithAbbreviation').wrap(abbr, content, info.syntax, info.profile);
+	var info = require('editorUtils').outputInfo(editorProxy);
+	var result = require('wrapWithAbbreviation').wrap(abbr, content, info.syntax, info.profile);
 	return pyUpdateTabStops(result);
 }
 
 function pyCaptureWrappingRange() {
-	var info = zen_coding.require('editorUtils').outputInfo(editorProxy);
+	var info = require('editorUtils').outputInfo(editorProxy);
 	var range = editorProxy.getSelectionRange();
 	var startOffset = range.start;
 	var endOffset = range.end;
 	
 	if (startOffset == endOffset) {
 		// no selection, find tag pair
-		var matcher = zen_coding.require('html_matcher');
+		var matcher = require('html_matcher');
 		range = matcher(info.content, startOffset, info.profile);
 		
 		if (!range || range[0] == -1) // nothing to wrap
 			return null;
 		
 		/** @type Range */
-		var utils = zen_coding.require('utils');
+		var utils = require('utils');
 		var narrowedSel = utils.narrowToNonSpace(info.content, range[0], range[1] - range[0]);
 		startOffset = narrowedSel.start;
 		endOffset = narrowedSel.end;
 	}
 
 	return [startOffset, endOffset];
+}
+
+function pyGetTagNameRanges() {
+	var ranges = [];
+	var info = require('editorUtils').outputInfo(editorProxy);
+		
+	// search for tag
+	try {
+		var pair = require('html_matcher').getTags(info.content, editorProxy.getCaretPos(), info.profile);
+		if (pair && pair[0]) {
+			var openingTag = info.content.substring(pair[0].start, pair[0].end);
+			var tagName = /^<([\w\-\:]+)/i.exec(openingTag)[1];
+			ranges.push([pair[0].start + 1, pair[0].start + 1 + tagName.length]);
+
+			if (pair[1]) {
+				ranges.push([pair[1].start + 2, pair[1].start + 2 + tagName.length]);
+			}
+		}
+	} catch (e) {}
+
+	return ranges;
 }
