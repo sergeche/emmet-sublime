@@ -263,5 +263,20 @@
 				"match_all": true
 			}
 		]
+	}, 
+
+	// insert linebreak with formatting
+	{
+		"keys": ["enter"],
+		"command": "handle_enter_key",
+		"context": [
+			{
+				"key": "selector",
+				"operand": "text.html"
+			}, {
+				"key": "auto_complete_visible",
+				"operand": false
+			}
+		]
 	}
 ]

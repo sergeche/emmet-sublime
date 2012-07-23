@@ -10,6 +10,9 @@
 
 	"extensions_path": "~/zencoding",
 
+	// exit tabstop mode when enter key is pressed
+	"clear_fields_on_enter_key": true,
+
 	"snippets": {
 		// custom snippets definitions, as per https://github.com/sergeche/zen-coding/blob/v0.7.1/snippets.json
 		// "html": {
