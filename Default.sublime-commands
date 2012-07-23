@@ -165,5 +165,10 @@
 		"args": {
 			"action": "update_image_size"
 		}
+	},
+
+	{
+		"caption": "Zen Coding: Rename Tag",
+		"command": "rename_tag"
 	}
 ]
