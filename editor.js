@@ -138,7 +138,7 @@ function pyUpdateTabStops(value) {
 
 function pyExpandAbbreviationAsYouType(abbr) {
 	var info = require('editorUtils').outputInfo(editorProxy);
-	var result = expandAbbreviation(abbr, info.syntax, info.profile, 
+	var result = zen_coding.expandAbbreviation(abbr, info.syntax, info.profile, 
 					require('actionUtils').captureContext(editorProxy));
 	return pyUpdateTabStops(result);
 }
