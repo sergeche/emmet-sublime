@@ -1,4 +1,5 @@
 *.py[co]
+*.tmLanguage.cache
 
 # Packages
 *.egg
