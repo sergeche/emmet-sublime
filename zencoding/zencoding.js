@@ -6,7 +6,7 @@
 //     For all details and documentation:
 //     http://documentcloud.github.com/underscore
 
-(function() {
+var _ = (function() {
 
   // Baseline setup
   // --------------
@@ -1055,12 +1055,12 @@
   wrapper.prototype.value = function() {
     return this._wrapped;
   };
-
-}).call(this);
+  return _;
+}).call({});
 /**
  * Core Zen Coding object, available in global scope
  */
-(function(global, _) {
+var zen_coding = (function(global, _) {
 	var defaultSyntax = 'html';
 	var defaultProfile = 'plain';
 	
@@ -1130,7 +1130,7 @@
 	 */
 	var moduleLoader = null;
 	
-	global.zen_coding = {
+	return {
 		/**
 		 * Simple, AMD-like module definition. The module will be added into
 		 * <code>zen_coding</code> object and will be available via
@@ -1179,6 +1179,9 @@
 		extend: function(protoProps, classProps) {
 			var child = inherits(this, protoProps, classProps);
 			child.extend = this.extend;
+			// a hack required to WSH inherit `toString` method
+			if (protoProps.hasOwnProperty('toString'))
+				child.prototype.toString = protoProps.toString;
 			return child;
 		},
 		
@@ -7110,6 +7113,27 @@ zen_coding.define('cssEditTree', function(require, _) {
 	}
 	
 	/**
+	 * A bit hacky way to identify invalid CSS property definition: when user
+	 * starts writing new abbreviation in CSS rule, he actually creates invalid
+	 * CSS property definition and this method tries to identify such abbreviation
+	 * and prevent it from being added to CSS edit tree 
+	 * @param {TokenIterator} it
+	 */
+	function isValidIdentifier(it) {
+//		return true;
+		var tokens = it.tokens;
+		for (var i = it._i + 1, il = tokens.length; i < il; i++) {
+			if (tokens[i].type == ':')
+				return true;
+			
+			if (tokens[i].type == 'identifier' || tokens[i].type == 'line')
+				return false;
+		}
+		
+		return false;
+	}
+	
+	/**
 	 * @class
 	 * @extends EditContainer
 	 */
@@ -7134,7 +7158,7 @@ zen_coding.define('cssEditTree', function(require, _) {
 	 		// consume properties
 	 		var propertyRange, valueRange, token;
 			while (token = it.next()) {
-				if (token.type == 'identifier') {
+				if (token.type == 'identifier' && isValidIdentifier(it)) {
 					propertyRange = range(token);
 					valueRange = findValueRange(it);
 					var end = (it.current() && it.current().type == ';') 
@@ -11901,7 +11925,7 @@ zen_coding.require('actions').add('select_line', function(editor) {
 			"bxz": "box-sizing:|;",
 			"bxz:cb": "box-sizing:content-box;",
 			"bxz:bb": "box-sizing:border-box;",
-			"bxsh": "box-shadow:|;",
+			"bxsh": "box-shadow:${1:hoff} ${2:voff} ${3:radius} ${4:color};",
 			"bxsh:n": "box-shadow:none;",
 			"m": "margin:|;",
 			"m:a": "margin:auto;",
