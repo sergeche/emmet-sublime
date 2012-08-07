@@ -14,8 +14,9 @@ SUPPORTED_PLATFORMS = {
 	"Windows64": "PyV8/win64"
 }
 
+BASE_PATH = os.path.abspath(os.path.dirname(__file__))
+
 def cross_platform():
-	base_path = os.path.abspath(os.path.dirname(__file__))
 	is_64bit = sys.maxsize > 2**32
 	system_name = platform.system()
 	if system_name == 'Windows' and is_64bit:
@@ -29,10 +30,10 @@ def cross_platform():
 			Sorry, the v8 engine for this platform are not built yet. 
 			Maybe you need to build v8 follow the guide of lib/PyV8/README.md. 
 		'''
-	lib_path = os.path.join(base_path, platform_supported)
+	lib_path = os.path.join(BASE_PATH, platform_supported)
 	if not lib_path in sys.path:
 		sys.path.append(lib_path)
-		sys.path.append(base_path)
+		sys.path.append(BASE_PATH)
 
 cross_platform()
 
@@ -44,7 +45,7 @@ except Exception, e:
 		Maybe you need to build v8 follow the guide of lib/PyV8/README.md. 
 	''' 
 
-core_files = ['zencoding.js', 'python-wrapper.js']
+core_files = ['zencoding-app.js', 'python-wrapper.js']
 
 def should_use_unicode():
 	"""
@@ -64,8 +65,7 @@ def should_use_unicode():
 	return use_unicode
 
 def make_path(filename):
-	base = os.path.abspath(os.path.dirname(__file__))
-	return os.path.normpath(os.path.join(base, filename))
+	return os.path.normpath(os.path.join(BASE_PATH, filename))
 
 def js_log(message):
 	print(message)
@@ -91,10 +91,7 @@ class Context():
 		core_src = [self.read_js_file(make_path(f)) for f in files_to_load]
 		self._core_ext = PyV8.JSExtension('core/javascript', glue.join(core_src))
 
-		self._ext_snippets = {}
-		self._ext_prefs = {}
 		self._ext_path = None
-
 		self.set_ext_path(path)
 
 		
@@ -112,27 +109,24 @@ class Context():
 		self._ext_path = val
 		if os.path.isdir(self._ext_path):
 			# load extensions
+			ext_files = []
 			print('Loading Zen Coding extensions from %s' % self._ext_path)
 			for dirname, dirnames, filenames in os.walk(self._ext_path):
 				for filename in filenames:
-					abspath = os.path.join(dirname, filename)
-					filename = filename.lower()
-					name, ext = os.path.splitext(filename)
+					ext_files.append(os.path.join(dirname, filename))
 
-					if ext == '.js':
-						self.eval_js_file(abspath)
-					elif filename == 'snippets.json':
-						self._ext_snippets = json.loads(self.read_js_file(abspath))
-						self.set_snippets()
-					elif filename == 'preferences.json':
-						self._ext_prefs = json.loads(self.read_js_file(abspath))
-						self.set_preferences()
+			self.js().locals.pyLoadExtensions(ext_files)
 
 	def js(self):
 		"Returns JS context"
 		if not self._ctx:
 			self._ctx = PyV8.JSContext(extensions=['core/javascript'])
 			self._ctx.enter()
+
+			self._ctx.locals.pyResetUserData()
+
+			# load default snippets
+			self._ctx.locals.pyLoadSystemSnippets(self.read_js_file(make_path('snippets.json')))
 
 			# expose some methods
 			self._ctx.locals.log = js_log
@@ -142,11 +136,11 @@ class Context():
 				for k in self._contrib:
 					self._ctx.locals[k] = self._contrib[k]
 
-
-			self.set_snippets(self._ext_snippets)
-			self.set_snippets(self._ext_prefs)
-
 		return self._ctx
+
+	def load_user_data(self, data):
+		"Loads user data payload from JSON"
+		self.js().locals.pyLoadUserData(data)
 
 	def reset(self):
 		"Resets JS execution context"
@@ -170,9 +164,3 @@ class Context():
 
 	def eval_js_file(self, file_path):
 		self.eval(self.read_js_file(file_path))
-
-	def set_snippets(self, snippets={}):
-		self.js().locals.pySetUserSnippets(self._ext_snippets, snippets)
-
-	def set_preferences(self, prefs={}):
-		self.js().locals.pySetUserPreferences(self._ext_prefs, prefs)

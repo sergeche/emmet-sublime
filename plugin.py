@@ -2,6 +2,7 @@ import sublime
 import sublime_plugin
 from zencoding.context import Context
 import re
+import json
 
 __version__      = '1.0'
 __core_version__ = '0.8'
@@ -52,8 +53,17 @@ def get_line_padding(line):
 
 def update_settings():
 	ctx.set_ext_path(settings.get('extensions_path', None))
-	ctx.set_snippets(settings.get('snippets', {}))
-	ctx.set_preferences(settings.get('preferences', {}))
+
+	keys = ['snippets', 'preferences', 'syntaxProfiles', 'profiles']
+	payload = {}
+	for k in keys:
+		data = settings.get(k, None)
+		if data:
+			payload[k] = data
+
+	print(payload)
+	ctx.reset()
+	ctx.load_user_data(json.dumps(payload))
 
 
 # load settings

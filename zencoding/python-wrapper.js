@@ -7,35 +7,21 @@ function pyRunAction(name) {
 	return zen_coding.require('actions').run(name, editorProxy);
 }
 
-function pyAddUserSnippets(snippets, reset) {
-	var res = zen_coding.require('resources');
-	var utils = zen_coding.require('utils');
-	var curSnippets = {};
-	if (!reset) {
-		curSnippets = res.getVocabulary('user') || {};	
-	}
-
-	res.setVocabulary(utils.deepMerge(curSnippets, snippets), 'user');
+function pyLoadSystemSnippets(data) {
+	zen_coding.require('bootstrap').loadSystemSnippets(data);
 }
 
-function pyMergeJSON() {
-	var base = {};
-	var utils = zen_coding.require('utils');
-	_.each(arguments, function(item) {
-		base = utils.deepMerge(base, item);
-	});
-
-	return base;
+function pyLoadUserData(data) {
+	zen_coding.require('bootstrap').loadUserData(data);
 }
 
-function pySetUserSnippets() {
-	var snippets = pyMergeJSON.apply(this, arguments);
-	zen_coding.require('resources').setVocabulary(snippets, 'user')
+function pyLoadExtensions(fileList) {
+	zen_coding.require('bootstrap').loadExtensions(fileList);
 }
 
-function pySetUserPreferences() {
-	var prefs = pyMergeJSON.apply(this, arguments);
-	zen_coding.require('preferences').load(prefs);
+function pyResetUserData() {
+	zen_coding.require('bootstrap').resetSnippets();
+	zen_coding.require('preferences').reset();
 }
 
 zen_coding.define('file', function(require, _) {
