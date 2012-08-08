@@ -13,7 +13,7 @@ You should remove or disable previous Zen Coding plugin, installed from Package 
 
 ## Things to test
 
-Zen Coding v0.8 is not announced yet, but you get a quick look at new features and help me test and improve them.
+Zen Coding v0.8 is not announced yet, but you can get a quick look at new features and help me test and improve them.
 
 ### CSS
 
