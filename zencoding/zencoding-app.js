@@ -9625,6 +9625,14 @@ zen_coding.define('cssResolver', function(require, _) {
 			'Defines a symbol that should be placed between CSS property and ' 
 			+ 'value when expanding CSS abbreviations.');
 	
+	prefs.define('css.autoInsertVendorPrefixes', true,
+			'Automatically generate vendor-prefixed copies of expanded CSS ' 
+			+ 'property. By default, Zen Coding will generate vendor-prefixed ' +
+			+ 'properties only when you put dash before abbreviation ' 
+			+ '(e.g. <code>-bxsh</code>). With this option enabled, you don’t ' 
+			+ 'need dashes before abbreviations: Zen Coding will produce ' 
+			+ 'vendor-prefixed properties for you.');
+	
 	var descTemplate = _.template('A comma-separated list of CSS properties that may have ' 
 		+ '<code><%= vendor %></code> vendor prefix. This list is used to generate '
 		+ 'a list of prefixed properties when expanding <code>-property</code> '
@@ -9688,10 +9696,13 @@ zen_coding.define('cssResolver', function(require, _) {
 			};
 		}
 		
-		var pair = snippet.split(':', 2);
+		var pair = snippet.split(':');
+		
 		return {
-			name: utils.trim(pair[0]),
-			value: utils.trim(pair[1])
+			name: utils.trim(pair.shift()),
+			// replace ${0} tabstop since to produce valid vendor-prefixed values
+			// where possible
+			value: utils.trim(pair.join(':')).replace(/^(\$\{0\}|\$0)(\s*;?)$/, '\$$2')
 		};
 	}
 	
@@ -9717,7 +9728,7 @@ zen_coding.define('cssResolver', function(require, _) {
 	 * @param {String} property CSS property name
 	 * @returns {Array}
 	 */
-	function findPrefixes(property) {
+	function findPrefixes(property, noAutofill) {
 		var result = [];
 		_.each(vendorPrefixes, function(obj, prefix) {
 			if (hasPrefix(property, prefix)) {
@@ -9725,7 +9736,7 @@ zen_coding.define('cssResolver', function(require, _) {
 			}
 		});
 		
-		if (!result.length) {
+		if (!result.length && !noAutofill) {
 			// add all non-obsolete prefixes
 			_.each(vendorPrefixes, function(obj, prefix) {
 				if (!obj.obsolete)
@@ -10064,11 +10075,12 @@ zen_coding.define('cssResolver', function(require, _) {
 		 * Expands abbreviation into a snippet
 		 * @param {String} abbr Abbreviation name to expand
 		 * @param {String} value Abbreviation value
-		 * @returns {Array} Array of CSS properties and values or predefined
+		 * @returns {Object} Array of CSS properties and values or predefined
 		 * snippet (string or element)
 		 */
 		expand: function(abbr, value) {
 			var resources = require('resources');
+			var autoInsertPrefixes = prefs.get('css.autoInsertVendorPrefixes');
 			
 			// check if snippet should be transformed to !important
 			var isImportant;
@@ -10078,8 +10090,9 @@ zen_coding.define('cssResolver', function(require, _) {
 			
 			// check if we have abbreviated resource
 			var snippet = resources.getSnippet('css', abbr);
-			if (snippet)
+			if (snippet && !autoInsertPrefixes) {
 				return transformSnippet(snippet, isImportant);
+			}
 			
 			// no abbreviated resource, parse abbreviation
 			var prefixData = this.extractPrefixes(abbr);
@@ -10108,20 +10121,20 @@ zen_coding.define('cssResolver', function(require, _) {
 			
 			snippetObj.value = value || snippetObj.value;
 			
-			if (abbrData.prefixes) {
-				var prefixes = abbrData.prefixes == 'all' 
-					? findPrefixes(snippetObj.name)
-					: abbrData.prefixes;
-					
+			var prefixes = abbrData.prefixes == 'all' || autoInsertPrefixes 
+				? findPrefixes(snippetObj.name, autoInsertPrefixes && abbrData.prefixes != 'all')
+				: abbrData.prefixes;
+				
 				_.each(prefixes, function(p) {
 					if (p in vendorPrefixes) {
 						result.push(transformSnippet(
-							vendorPrefixes[p].transformName(snippetObj.name) 
-							+ ':' + snippetObj.value,
-							isImportant));
+								vendorPrefixes[p].transformName(snippetObj.name) 
+								+ ':' + snippetObj.value,
+								isImportant));
 						
 					}
 				});
+			if (abbrData.prefixes || autoInsertPrefixes) {
 			}
 			
 			// put the original property
