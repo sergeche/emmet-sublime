@@ -1,6 +1,6 @@
 # Zen Coding for Sublime Text 2 plugin
 
-A work-in-progress official plugin for Sublime Text 2 with upcoming Zen Coding v0.8 core. This plugin will evetually replace current plugin: https://github.com/sublimator/ZenCoding
+A work-in-progress official plugin for Sublime Text 2 with upcoming Zen Coding v0.8 core. This plugin will eventually replace current plugin: https://github.com/sublimator/ZenCoding
 
 *Warning:* this plugin may not work at all in some OSes since it written in JavaScript and uses [PyV8](http://code.google.com/p/pyv8/) and [Google V8](https://developers.google.com/v8/) binaries to run. These binaries must be compiled individually for every OS.
 
