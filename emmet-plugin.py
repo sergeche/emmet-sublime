@@ -3,13 +3,12 @@ import sublime_plugin
 from emmet.context import Context
 import re
 import json
+import os.path
 
 __version__      = '1.0'
 __core_version__ = '1.0'
 __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
                     '"Nicholas Dudfield" <ndudfield@gmail.com>']
-
-print("load")
 
 def active_view():
 	return sublime.active_window().active_view()
@@ -63,10 +62,11 @@ def update_settings():
 		if data:
 			payload[k] = data
 
-	print(payload)
 	ctx.reset()
 	ctx.load_user_data(json.dumps(payload))
 
+BASE_PATH = os.path.abspath(os.path.dirname(__file__))
+EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
 
 # load settings
 settings = sublime.load_settings('Emmet.sublime-settings')
@@ -80,8 +80,6 @@ contrib = {
 
 # create JS environment
 ctx = Context(['../editor.js'], settings.get('extensions_path', None), contrib)
-
-print(ctx)
 
 update_settings()
 
@@ -106,6 +104,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 	history = {}
 	filter_input = lambda s, i: i
 	selection = ''
+	grammar = EMMET_GRAMMAR
 
 	def setup(self):
 		pass
@@ -152,6 +151,16 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 
 		panel.sel().clear()
 		panel.sel().add(sublime.Region(0, panel.size()))
+
+		if self.grammar:
+			panel.set_syntax_file(self.grammar)
+			setting = panel.settings().set
+
+			setting('line_numbers',   False)
+			setting('gutter',         False)
+			setting('auto_complete',  False)
+			setting('tab_completion', False)
+			setting('auto_id_class',  True)
 
 
 class ExpandAsYouType(CommandsAsYouTypeBase):
