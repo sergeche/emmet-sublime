@@ -39,6 +39,6 @@ If you’re writing a lot of BEM code, you may want to make `bem` filter default
 * Better Tab key handling.
 * Many aspects of Emmet core can be configured in `Emmet.sublime-settings` file: create a copy of this file into ST2’ _Users_ folder and put there you snippets, preferences, output profiles etc.
 * “Lorem ipsum” generator: just expand `lorem` or `lipsum` abbreviation (optionally with number suffix, indicating word count: `lorem10`) to generate random sentences. More examples in [unit tests](https://github.com/sergeche/zen-coding/blob/v0.7.1/javascript/unittest/tests/generators.js). 
-* Implicit tag names: you don’t need to write tag names for most common structures, Zen Coding will resolve them for you depending on parent’s tag name. Check out these abbreviations: `.test`, `em>.test`, `ul>.item*3`, `table>.row$*2>.cell$*3`.
+* Implicit tag names: you don’t need to write tag names for most common structures, Emmet will resolve them for you depending on parent’s tag name. Check out these abbreviations: `.test`, `em>.test`, `ul>.item*3`, `table>.row$*2>.cell$*3`.
 * New operator to climb one level up: `^`. Check out these abbreviations: `.header>.nav^.logo`,  `.header>.wrap>.nav^^.logo`.
-* Extensions support: you can easily extend Zen Coding with new actions and filters or customize existing ones. In `ZenCoding.sublime-settings`, define `extensions_path` setting and Emmet will load all `.js` and `.json` files in specified folder at startup.
+* Extensions support: you can easily extend Emmet with new actions and filters or customize existing ones. In `Emmet.sublime-settings`, define `extensions_path` setting and Emmet will load all `.js` and `.json` files in specified folder at startup.
