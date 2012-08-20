@@ -9700,9 +9700,9 @@ zen_coding.define('cssResolver', function(require, _) {
 		
 		return {
 			name: utils.trim(pair.shift()),
-			// replace ${0} tabstop since to produce valid vendor-prefixed values
+			// replace ${0} tabstop to produce valid vendor-prefixed values
 			// where possible
-			value: utils.trim(pair.join(':')).replace(/^(\$\{0\}|\$0)(\s*;?)$/, '\$$2')
+			value: utils.trim(pair.join(':')).replace(/^(\$\{0\}|\$0)(\s*;?)$/, '${1}$2')
 		};
 	}
 	
@@ -10134,8 +10134,6 @@ zen_coding.define('cssResolver', function(require, _) {
 						
 					}
 				});
-			if (abbrData.prefixes || autoInsertPrefixes) {
-			}
 			
 			// put the original property
 			result.push(transformSnippet(snippetObj.name + ':' + snippetObj.value, isImportant));
