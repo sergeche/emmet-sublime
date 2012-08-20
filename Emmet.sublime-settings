@@ -1,5 +1,5 @@
 {
-	// Copy any modified settings to `User/ZenCoding.sublime-settings`
+	// Copy any modified settings to `User/Emmet.sublime-settings`
 	// otherwise modifications will not survive updates.
 
 	// disable expanding abbreviation by Tab key
@@ -8,7 +8,7 @@
 	// disable expanding abbreviation by Tab key when autocomplete popup is visible
 	"disable_tab_abbreviations_on_auto_complete": false,
 
-	"extensions_path": "~/zencoding",
+	"extensions_path": "~/emmet",
 
 	// exit tabstop mode when enter key is pressed
 	"clear_fields_on_enter_key": true,

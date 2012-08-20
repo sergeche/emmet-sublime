@@ -173,7 +173,7 @@
 	},
 
 	{
-		"command": "zen_as_you_type",
+		"command": "expand_as_you_type",
 		"keys": ["ctrl+alt+enter"],
 		"context": [
 			{
@@ -185,7 +185,7 @@
 	},
 
 	{
-		"command": "wrap_zen_as_you_type",
+		"command": "wrap_as_you_type",
 		"keys": ["ctrl+alt+w"],
 		"context": [
 			{

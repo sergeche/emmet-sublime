@@ -1,6 +1,6 @@
 [
 	{
-		"caption": "Zen Coding: Expand Abbreviation",
+		"caption": "Emmet: Expand Abbreviation",
 		"command": "run_action",
 		"args": {
 			"action": "expand_abbreviation"
@@ -8,7 +8,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Match Pair (outward)",
+		"caption": "Emmet: Match Pair (outward)",
 		"command": "run_action",
 		"args": {
 			"action": "match_pair_outward"
@@ -16,7 +16,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Match Pair (inward)",
+		"caption": "Emmet: Match Pair (inward)",
 		"command": "run_action",
 		"args": {
 			"action": "match_pair_inward"
@@ -24,7 +24,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Next Edit Point",
+		"caption": "Emmet: Next Edit Point",
 		"command": "run_action",
 		"args": {
 			"action": "next_edit_point"
@@ -32,7 +32,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Previous Edit Point",
+		"caption": "Emmet: Previous Edit Point",
 		"command": "run_action",
 		"args": {
 			"action": "prev_edit_point"
@@ -40,7 +40,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Merge Lines",
+		"caption": "Emmet: Merge Lines",
 		"command": "run_action",
 		"args": {
 			"action": "merge_lines"
@@ -48,7 +48,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Toggle Comment",
+		"caption": "Emmet: Toggle Comment",
 		"command": "run_action",
 		"args": {
 			"action": "toggle_comment"
@@ -56,7 +56,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Split\\Join Tag",
+		"caption": "Emmet: Split\\Join Tag",
 		"command": "run_action",
 		"args": {
 			"action": "split_join_tag"
@@ -64,7 +64,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Remove Tag",
+		"caption": "Emmet: Remove Tag",
 		"command": "run_action",
 		"args": {
 			"action": "remove_tag"
@@ -72,7 +72,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Evaluate Math Expression",
+		"caption": "Emmet: Evaluate Math Expression",
 		"command": "run_action",
 		"args": {
 			"action": "evaluate_math_expression"
@@ -80,7 +80,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Increment Number by 1",
+		"caption": "Emmet: Increment Number by 1",
 		"command": "run_action",
 		"args": {
 			"action": "increment_number_by_1"
@@ -88,7 +88,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Decrement Number by 1",
+		"caption": "Emmet: Decrement Number by 1",
 		"command": "run_action",
 		"args": {
 			"action": "decrement_number_by_1"
@@ -96,7 +96,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Increment Number by 0.1",
+		"caption": "Emmet: Increment Number by 0.1",
 		"command": "run_action",
 		"args": {
 			"action": "increment_number_by_01"
@@ -104,7 +104,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Decrement Number by 0.1",
+		"caption": "Emmet: Decrement Number by 0.1",
 		"command": "run_action",
 		"args": {
 			"action": "decrement_number_by_01"
@@ -112,7 +112,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Increment Number by 10",
+		"caption": "Emmet: Increment Number by 10",
 		"command": "run_action",
 		"args": {
 			"action": "increment_number_by_10"
@@ -120,7 +120,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Decrement Number by 10",
+		"caption": "Emmet: Decrement Number by 10",
 		"command": "run_action",
 		"args": {
 			"action": "decrement_number_by_10"
@@ -128,7 +128,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Select Next Item",
+		"caption": "Emmet: Select Next Item",
 		"command": "run_action",
 		"args": {
 			"action": "select_next_item"
@@ -136,7 +136,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Select Previous Item",
+		"caption": "Emmet: Select Previous Item",
 		"command": "run_action",
 		"args": {
 			"action": "select_previous_item"
@@ -144,7 +144,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Reflect CSS Value",
+		"caption": "Emmet: Reflect CSS Value",
 		"command": "run_action",
 		"args": {
 			"action": "reflect_css_value"
@@ -152,7 +152,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Encode\\Decode Image to data:URL",
+		"caption": "Emmet: Encode\\Decode Image to data:URL",
 		"command": "run_action",
 		"args": {
 			"action": "encode_decode_data_url"
@@ -160,7 +160,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Update Image Size",
+		"caption": "Emmet: Update Image Size",
 		"command": "run_action",
 		"args": {
 			"action": "update_image_size"
@@ -168,7 +168,7 @@
 	},
 
 	{
-		"caption": "Zen Coding: Rename Tag",
+		"caption": "Emmet: Rename Tag",
 		"command": "rename_tag"
 	}
 ]

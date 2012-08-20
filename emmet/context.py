@@ -72,9 +72,9 @@ def js_log(message):
 
 class Context():
 	"""
-	Creates Zen Coding JS core context
+	Creates Emmet JS core context
 	@param files: Additional files to load with JS core
-	@param path: Path to Zen Coding extensions
+	@param path: Path to Emmet extensions
 	@param contrib: Python objects to contribute to JS execution context
 	"""
 	def __init__(self, files=[], path=None, contrib=None):
@@ -110,7 +110,7 @@ class Context():
 		if os.path.isdir(self._ext_path):
 			# load extensions
 			ext_files = []
-			print('Loading Zen Coding extensions from %s' % self._ext_path)
+			print('Loading Emmet extensions from %s' % self._ext_path)
 			for dirname, dirnames, filenames in os.walk(self._ext_path):
 				for filename in filenames:
 					ext_files.append(os.path.join(dirname, filename))

@@ -1,13 +1,15 @@
 import sublime
 import sublime_plugin
-from zencoding.context import Context
+from emmet.context import Context
 import re
 import json
 
 __version__      = '1.0'
-__core_version__ = '0.8'
+__core_version__ = '1.0'
 __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
                     '"Nicholas Dudfield" <ndudfield@gmail.com>']
+
+print("load")
 
 def active_view():
 	return sublime.active_window().active_view()
@@ -17,7 +19,7 @@ def replace_substring(start, end, value, no_indent=False):
 	edit = view.begin_edit()
 
 	view.sel().clear()
-	view.sel().add(sublime.Region(start, end or start))
+	view.sel().add(sublime.Region(start, end or start)) 
 
 	# XXX a bit naive indentation control. It handles most common
 	# `no_indent` usages like replacing CSS rule content, but may not
@@ -67,7 +69,7 @@ def update_settings():
 
 
 # load settings
-settings = sublime.load_settings('ZenCoding.sublime-settings')
+settings = sublime.load_settings('Emmet.sublime-settings')
 settings.add_on_change('extensions_path', update_settings)
 
 # provide some contributions to JS
@@ -78,6 +80,8 @@ contrib = {
 
 # create JS environment
 ctx = Context(['../editor.js'], settings.get('extensions_path', None), contrib)
+
+print(ctx)
 
 update_settings()
 
@@ -150,7 +154,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 		panel.sel().add(sublime.Region(0, panel.size()))
 
 
-class ZenAsYouType(CommandsAsYouTypeBase):
+class ExpandAsYouType(CommandsAsYouTypeBase):
 	default_input = 'div'
 	input_message = "Enter Abbreviation: "
 
@@ -161,7 +165,7 @@ class ZenAsYouType(CommandsAsYouTypeBase):
 			"dont litter the console"
 
 
-class WrapZenAsYouType(CommandsAsYouTypeBase):
+class WrapAsYouType(CommandsAsYouTypeBase):
 	default_input = 'div'
 	input_message = "Enter Wrap Abbreviation: "
 
