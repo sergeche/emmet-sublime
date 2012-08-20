@@ -1,0 +1,22 @@
+{
+    // ---------------------------  README -----------------------------------
+    //  Copy these key/values to User/Preferences.sublime-settings
+    //  They have NO effect here
+
+    // If `true` will disable bindings like ctrl+alt+n etc
+    // Handy for our italian friends :)
+    "alt_gr"        : false,
+
+    // If `true` will insert id="$1" snippet on pressing '#', similar on '.'
+    // Useful for `raw html`, but annoying for some templating langs.
+    "auto_id_class" : false,
+
+    // disable expanding abbreviation by Tab key
+    "disable_tab_abbreviations": false,
+
+    // disable expanding abbreviation by Tab key when autocomplete popup is visible
+    "disable_tab_abbreviations_on_auto_complete": false,
+
+    // exit tabstop mode when enter key is pressed
+    "clear_fields_on_enter_key": true
+}

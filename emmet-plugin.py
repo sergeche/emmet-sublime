@@ -160,7 +160,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 			setting('gutter',         False)
 			setting('auto_complete',  False)
 			setting('tab_completion', False)
-			setting('auto_id_class',  True)
+			# setting('auto_id_class',  True)
 
 
 class ExpandAsYouType(CommandsAsYouTypeBase):
@@ -222,3 +222,19 @@ class RenameTag(sublime_plugin.TextCommand):
 			for r in ranges:
 				view.sel().add(sublime.Region(r[0], r[1]))
 			view.show(view.sel())
+
+class EmmetInsertAttribute(sublime_plugin.TextCommand):
+	def run(self, edit, attribute=None, **kw):
+		if not attribute:
+			return
+
+		view = active_view()
+		prefix = ''
+		if view.sel():
+			sel = view.sel()[0]
+			if not view.substr(sublime.Region(sel.begin() - 1, sel.begin())).isspace():
+				prefix = ' '
+
+		view.run_command('insert_snippet', {'contents': '%s%s="$1"' % (prefix, attribute)})
+
+

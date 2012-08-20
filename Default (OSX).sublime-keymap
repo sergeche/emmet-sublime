@@ -283,5 +283,41 @@
 	{
 		"keys": ["super+shift+r"],
 		"command": "rename_tag"
+	},
+
+	{
+		"keys": ["#"],
+		"command": "emmet_insert_attribute",
+		"args": {"attribute": "id"},
+		"context": [
+			{
+				"key": "selector",
+				"match_all": true,
+				"operand": "text.html meta.tag -string -punctuation.definition.tag.begin.html -meta.scope.between-tag-pair.html -source -meta.tag.template.value.twig",
+				"operator": "equal"
+			}, {
+				"key": "setting.auto_id_class",
+				"operator": "equal",
+				"operand": true
+			}
+		]
+	},
+
+	{
+		"keys": ["."],
+		"command": "emmet_insert_attribute",
+		"args": {"attribute": "class"},
+		"context": [
+			{
+				"key": "selector",
+				"match_all": true,
+				"operand": "text.html meta.tag -string -punctuation.definition.tag.begin.html -meta.scope.between-tag-pair.html -source -meta.tag.template.value.twig",
+				"operator": "equal"
+			}, {
+				"key": "setting.auto_id_class",
+				"operator": "equal",
+				"operand": true
+			}
+		]
 	}
 ]
