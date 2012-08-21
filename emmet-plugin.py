@@ -149,6 +149,11 @@ class TabExpandHandler(sublime_plugin.EventListener):
 			self.completion_handler(view)):
 			return False
 
+		# let's see if Tab key expander should be desabled for current scope
+		banned_scopes = settings.get('disable_tab_abbreviations_for_scopes', '')
+		if banned_scopes and view.match_selector(view.sel()[0].b, banned_scopes):
+			return False
+
 		return ctx.js().locals.pyRunAction('expand_abbreviation')
 
 	def on_query_completions(self, view, prefix, locations):
