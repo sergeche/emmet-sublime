@@ -2,16 +2,17 @@
 	// Copy any modified settings to `User/Emmet.sublime-settings`
 	// otherwise modifications will not survive updates.
 
-	// disable expanding abbreviation by Tab key
-	"disable_tab_abbreviations": false,
-
-	// disable expanding abbreviation by Tab key when autocomplete popup is visible
-	"disable_tab_abbreviations_on_auto_complete": false,
-
 	"extensions_path": "~/emmet",
 
+	// disable completions of HTML attributes
+	// with this option disabled, you can get attribute list completions
+	// inside opening HTML tags.
+	// WARNING: with this option disabled, Tab key expander will not
+	// work inside opening HTML attributes
+	"disable_completions": false,
+
 	// exit tabstop mode when enter key is pressed
-	"clear_fields_on_enter_key": true,
+    "clear_fields_on_enter_key": true,
 
 	"snippets": {
 		// custom snippets definitions, as per https://github.com/sergeche/zen-coding/blob/v0.7.1/snippets.json
