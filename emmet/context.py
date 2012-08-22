@@ -82,14 +82,8 @@ class Context():
 		self._contrib = contrib
 
 		# detect reader encoding
-		# self._use_unicode = should_use_unicode()
-		self._use_unicode = False
-		glue = u'\n' if self._use_unicode else '\n'
-		
-		# create reusable extensions so we can easily reload JS context
-		files_to_load = [] + core_files + files
-		core_src = [self.read_js_file(make_path(f)) for f in files_to_load]
-		self._core_ext = PyV8.JSExtension('core/javascript', glue.join(core_src))
+		self._use_unicode = should_use_unicode()
+		self._core_files = [] + core_files + files
 
 		self._ext_path = None
 		self.set_ext_path(path)
@@ -120,8 +114,12 @@ class Context():
 	def js(self):
 		"Returns JS context"
 		if not self._ctx:
-			self._ctx = PyV8.JSContext(extensions=['core/javascript'])
+			glue = u'\n' if self._use_unicode else '\n'
+			core_src = [self.read_js_file(make_path(f)) for f in self._core_files]
+			
+			self._ctx = PyV8.JSContext()
 			self._ctx.enter()
+			self._ctx.eval(glue.join(core_src))
 
 			self._ctx.locals.pyResetUserData()
 
