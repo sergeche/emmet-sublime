@@ -8800,7 +8800,7 @@ zen_coding.exec(function(require, _) {
 				var tagContent = tagContentRange.substring(info.content);
 				
 				tagContent = utils.unindentString(tagContent, startLinePad);
-				editor.replaceContent(utils.getCaretPlaceholder() + tagContent, pair[0].start, pair[1].end);
+				editor.replaceContent(utils.getCaretPlaceholder() + utils.escapeText(tagContent), pair[0].start, pair[1].end);
 			}
 			
 			return true;

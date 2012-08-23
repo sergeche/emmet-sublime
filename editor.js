@@ -145,6 +145,7 @@ function pyExpandAbbreviationAsYouType(abbr) {
 
 function pyWrapAsYouType(abbr, content) {
 	var info = require('editorUtils').outputInfo(editorProxy);
+	content = require('utils').escapeText(content);
 	var result = require('wrapWithAbbreviation').wrap(abbr, content, info.syntax, info.profile);
 	return pyUpdateTabStops(result);
 }

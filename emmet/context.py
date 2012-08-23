@@ -45,7 +45,7 @@ except Exception, e:
 		Maybe you need to build v8 follow the guide of lib/PyV8/README.md. 
 	''' 
 
-core_files = ['zencoding-app.js', 'python-wrapper.js']
+core_files = ['emmet-app.js', 'python-wrapper.js']
 
 def should_use_unicode():
 	"""
