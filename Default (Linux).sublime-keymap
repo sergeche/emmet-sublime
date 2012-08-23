@@ -272,7 +272,7 @@
 		"context": [
 			{
 				"key": "selector",
-				"operand": "text.html"
+				"operand": "text.html -source.php"
 			}, {
 				"key": "auto_complete_visible",
 				"operand": false
