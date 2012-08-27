@@ -142,6 +142,8 @@ class TabExpandHandler(sublime_plugin.EventListener):
 		if key != 'is_abbreviation':
 			return False
 
+		# print(view.syntax_name(view.sel()[0].begin()))
+
 		# we need to filter out attribute completions if 
 		# 'disable_completions' option is not active
 		if (not settings.get('disable_completions', False) and 

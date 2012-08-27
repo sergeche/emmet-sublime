@@ -206,6 +206,11 @@
 				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html, text.haml, string",
 				"operator": "equal"
 			}, {
+				"key": "selector",
+				"match_all": true,
+				"operand": "source.php",
+				"operator": "not_equal"
+			}, {
 				"key": "selection_empty",
 				"match_all": true
 			}, {
