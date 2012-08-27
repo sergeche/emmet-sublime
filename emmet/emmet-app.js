@@ -4787,6 +4787,10 @@ zen_coding.define('profile', function(require, _) {
 		// each tag on new line
 		tag_nl: 'decide',
 		
+		// with tag_nl === true, defines if leaf node (e.g. node with no children)
+		// should have formatted line breaks
+		tag_nl_leaf: false,
+		
 		place_cursor: true,
 		
 		// indent tags
@@ -9651,7 +9655,7 @@ zen_coding.define('cssResolver', function(require, _) {
 		prefs.define('css.' + k + 'Properties', v, descTemplate({vendor: k}));
 	});
 	
-	prefs.define('css.unitlessProperties', 'z-index, line-height', 
+	prefs.define('css.unitlessProperties', 'z-index, line-height, opacity', 
 			'The list of properties whose values ​​must not contain units.');
 	
 	function isNumeric(ch) {
@@ -11299,7 +11303,7 @@ zen_coding.exec(function(require, _){
 			
 		// formatting output
 		if (profile.tag_nl !== false) {
-			var forceNl = profile.tag_nl === true;
+			var forceNl = profile.tag_nl === true && (profile.tag_nl_leaf || item.children.length);
 			
 			// formatting block-level elements
 			if (!item.isTextNode()) {
