@@ -1,7 +1,7 @@
 [
 	{
 		"keys": ["ctrl+e"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "expand_abbreviation"
 		}
@@ -9,7 +9,7 @@
 
 	{
 		"keys": ["ctrl+shift+n"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "match_pair_outward"
 		}
@@ -17,7 +17,7 @@
 
 	{
 		"keys": ["ctrl+shift+t"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "match_pair_inward"
 		}
@@ -25,7 +25,7 @@
 
 	{
 		"keys": ["ctrl+period"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "next_edit_point"
 		}
@@ -33,7 +33,7 @@
 
 	{
 		"keys": ["ctrl+,"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "prev_edit_point"
 		}
@@ -41,7 +41,7 @@
 
 	{
 		"keys": ["ctrl+j"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "merge_lines"
 		}
@@ -49,7 +49,7 @@
 
 	{
 		"keys": ["ctrl+alt+/"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "toggle_comment"
 		},
@@ -62,7 +62,7 @@
 
 	{
 		"keys": ["shift+ctrl+j"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "split_join_tag"
 		}
@@ -70,7 +70,7 @@
 
 	{
 		"keys": ["ctrl+shift+u"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "remove_tag"
 		}
@@ -78,7 +78,7 @@
 
 	{
 		"keys": ["ctrl+alt+shift+="],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "evaluate_math_expression"
 		}
@@ -86,7 +86,7 @@
 
 	{
 		"keys": ["ctrl+0"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "increment_number_by_1"
 		}
@@ -94,7 +94,7 @@
 
 	{
 		"keys": ["ctrl+9"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "decrement_number_by_1"
 		}
@@ -102,7 +102,7 @@
 
 	{
 		"keys": ["ctrl+alt+0"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "increment_number_by_01"
 		}
@@ -110,7 +110,7 @@
 
 	{
 		"keys": ["ctrl+alt+9"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "decrement_number_by_01"
 		}
@@ -118,7 +118,7 @@
 
 	{
 		"keys": ["ctrl+alt+shift+0"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "increment_number_by_10"
 		}
@@ -126,7 +126,7 @@
 
 	{
 		"keys": ["ctrl+alt+shift+9"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "decrement_number_by_10"
 		}
@@ -134,7 +134,7 @@
 
 	{
 		"keys": ["ctrl+shift+period"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "select_next_item"
 		}
@@ -142,7 +142,7 @@
 
 	{
 		"keys": ["ctrl+shift+,"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "select_previous_item"
 		}
@@ -150,7 +150,7 @@
 
 	{
 		"keys": ["ctrl+alt+shift+v"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "reflect_css_value"
 		}
@@ -158,7 +158,7 @@
 
 	{
 		"keys": ["ctrl+shift+alt+6"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "encode_decode_data_url"
 		}
@@ -166,7 +166,7 @@
 
 	{
 		"keys": ["ctrl+alt+shift+m"],
-		"command": "run_action",
+		"command": "run_emmet_action",
 		"args": {
 			"action": "update_image_size"
 		}

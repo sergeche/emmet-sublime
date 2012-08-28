@@ -12,7 +12,7 @@ from emmet.context import Context
 __version__      = '1.0'
 __core_version__ = '1.0'
 __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
-                    '"Nicholas Dudfield" <ndudfield@gmail.com>']
+					'"Nicholas Dudfield" <ndudfield@gmail.com>']
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
@@ -22,7 +22,7 @@ def active_view():
 
 def replace_substring(start, end, value, no_indent=False):
 	view = active_view()
-	edit = view.begin_edit()
+	# edit = view.begin_edit()
 
 	view.sel().clear()
 	view.sel().add(sublime.Region(start, end or start)) 
@@ -35,7 +35,7 @@ def replace_substring(start, end, value, no_indent=False):
 		value = unindent_text(value, get_line_padding(line))
 
 	view.run_command('insert_snippet', {'contents': value.decode('utf-8')})
-	view.end_edit(edit)
+	# view.end_edit(edit)
 
 def unindent_text(text, pad):
 	"""
@@ -89,10 +89,45 @@ update_settings()
 
 sublime.set_timeout(cmpl.remove_html_completions, 2000)
 
-class RunAction(sublime_plugin.TextCommand):
+class RunEmmetAction(sublime_plugin.TextCommand):
 	def run(self, edit, action=None, **kw):
-		ctx.js().locals.pyRunAction(action)
+		run_action(lambda i, sel: ctx.js().locals.pyRunAction(action))
+		# ctx.js().locals.pyRunAction(action)
 
+def run_action(action, view=None):
+	"Runs Emmet action in multiselection mode"
+	if not view:
+		view = active_view()
+
+	region_key = '__emmet__'
+	sels = list(view.sel())
+	r = ctx.js().locals.pyRunAction
+	result = False
+
+	edit = view.begin_edit()
+	max_sel_ix = len(sels) - 1
+
+	for i, sel in enumerate(reversed(sels)):
+		view.sel().clear()
+		view.sel().add(sel)
+		# run action
+		# result = r(name) or result
+		result = action(max_sel_ix - i, sel) or result
+
+		# remember resulting selections
+		view.add_regions(region_key,
+				(view.get_regions(region_key) + list(view.sel())) , '')
+
+	# output all saved regions as selection
+	view.sel().clear()
+	for sel in view.get_regions(region_key):
+		view.sel().add(sel)
+
+	view.erase_regions(region_key)
+
+	view.end_edit(edit)
+
+	return result
 
 class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
 	def run(self, edit, **kw):
@@ -156,7 +191,8 @@ class TabExpandHandler(sublime_plugin.EventListener):
 		if banned_scopes and view.match_selector(view.sel()[0].b, banned_scopes):
 			return False
 
-		return ctx.js().locals.pyRunAction('expand_abbreviation')
+		return run_action(lambda i, sel: ctx.js().locals.pyRunAction('expand_abbreviation'))
+		# return ctx.js().locals.pyRunAction('expand_abbreviation')
 
 	def on_query_completions(self, view, prefix, locations):
 		if ( not self.correct_syntax(view) or
@@ -198,16 +234,20 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 			return
 
 		def inner_insert():
-			self.edit = edit = view.begin_edit()
-			cmd_input  = self.filter_input(abbr) or ''
-			try:
-				self.erase = self.run_command(view, cmd_input) is not False
-			except:
-				pass
-			view.end_edit(edit)
+			self._real_insert(abbr)
 
 		self.undo()
 		sublime.set_timeout(inner_insert, 0)
+
+	def _real_insert(self, abbr):
+		view = self.view
+		self.edit = edit = view.begin_edit()
+		cmd_input = self.filter_input(abbr) or ''
+		try:
+			self.erase = self.run_command(view, cmd_input) is not False
+		except:
+			pass
+		view.end_edit(edit)
 
 	def undo(self):
 		if self.erase:
@@ -250,26 +290,50 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 	input_message = "Enter Wrap Abbreviation: "
 
 	def setup(self):
-		# capture wrapping content
-		r = ctx.js().locals.pyCaptureWrappingRange()
-		if not r:
-			return # nothing to wrap
-
 		view = active_view()
+		
+		if len(view.sel()) == 1:
+			# capture wrapping context (parent HTML element) 
+			# if there is only one selection
+			r = ctx.js().locals.pyCaptureWrappingRange()
+			if not r:
+				return # nothing to wrap
+
+			view.sel().clear()
+			view.sel().add(sublime.Region(r[0], r[1]))
+			view.show(view.sel())
+
+		# remember all selected ranges
+		self._sels = list(view.sel())
+		self._sel_items = []
+
+		for sel in self._sels:
+			# selection should be unindented in order to get desired result
+			line = view.substr(view.line(sel))
+			s = view.substr(sel)
+			self._sel_items.append(unindent_text(s, get_line_padding(line)))
+
+	# override method to correctly wrap abbreviations
+	def _real_insert(self, abbr):
+		view = self.view
+		self.edit = edit = view.begin_edit()
+		self.erase = True
+
+		# restore selections
 		view.sel().clear()
-		view.sel().add(sublime.Region(r[0], r[1]))
-		view.show(view.sel())
+		for sel in self._sels:
+			view.sel().add(sel)
 
-		# selection should be unindented in order to get desired result
-		line = view.substr(view.line(view.sel()[0]))
-		s = view.substr(view.sel()[0])
-		self.selection = unindent_text(s, get_line_padding(line))
+		def ins(i, sel):
+			try:
+				output = ctx.js().locals.pyWrapAsYouType(abbr, self._sel_items[i])
+				self.run_command(view, output)
+			except Exception:
+				"dont litter the console"
 
-	def filter_input(self, abbr):
-		try:
-			return ctx.js().locals.pyWrapAsYouType(abbr, self.selection)
-		except Exception:
-			"dont litter the console"
+		run_action(ins, view)
+		view.end_edit(edit)
+
 
 class HandleEnterKey(sublime_plugin.TextCommand):
 	def run(self, edit, **kw):
