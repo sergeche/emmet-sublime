@@ -6,8 +6,9 @@ A work-in-progress official plugin for Sublime Text 2 with upcoming Emmet toolki
 
 ## How to install
 
-1. Clone git repo into your packages folder (in ST2, find Browse Packages... menu item to open this folder)
-2. Restart ST2 editor
+1. Package Control: Add Repository `https://github.com/sergeche/emmet-sublime`
+2. Package Control: Install Package `emmet-sublime`
+3. Restart ST2 editor
 
 You should remove or disable previous Zen Coding plugin, installed from Package Control, in order to operate properly.
 
