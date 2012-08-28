@@ -93,7 +93,13 @@ class Context():
 		return self._ext_path
 
 	def set_ext_path(self, val):
-		val = os.path.abspath(os.path.expanduser(val)) if val else None
+		try:
+			if val and val[:1] == '~':
+				val = os.path.expanduser(val)
+
+			val = os.path.abspath(val)
+		except Exception, e:
+			return
 
 		if val == self._ext_path:
 			return
