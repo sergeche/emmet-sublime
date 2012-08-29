@@ -9874,11 +9874,13 @@ zen_coding.define('cssResolver', function(require, _) {
 		if (abbr) {
 			var content = zen_coding.expandAbbreviation(abbr, syntax, profile);
 			if (content) {
+				var replaceFrom = caretPos - abbr.length;
+				var replaceTo = caretPos;
 				if (editor.getContent().charAt(caretPos) == ';') {
-					content = content.replace(/;+$/, '');
+					replaceTo++;
 				}
 				
-				editor.replaceContent(content, caretPos - abbr.length, caretPos);
+				editor.replaceContent(content, replaceFrom, replaceTo);
 				return true;
 			}
 		}
