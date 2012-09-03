@@ -1409,21 +1409,22 @@ zen_coding.define('abbreviationParser', function(require, _) {
 		 * @returns {AbbreviationNode}
 		 */
 		find: function(fn) {
-			if (!_.isFunction(fn)) {
-				var elemName = fn.toLowerCase();
-				fn = function(item) {return item.name().toLowerCase() == elemName;};
-			}
-			
-			var result = null;
-			_.find(this.children, function(child) {
-				if (fn(child)) {
-					return result = child;
-				}
-				
-				return result = child.find(fn);
-			});
-			
-			return result;
+			return this.findAll(fn)[0];
+//			if (!_.isFunction(fn)) {
+//				var elemName = fn.toLowerCase();
+//				fn = function(item) {return item.name().toLowerCase() == elemName;};
+//			}
+//			
+//			var result = null;
+//			_.find(this.children, function(child) {
+//				if (fn(child)) {
+//					return result = child;
+//				}
+//				
+//				return result = child.find(fn);
+//			});
+//			
+//			return result;
 		},
 		
 		/**
@@ -2196,16 +2197,30 @@ zen_coding.exec(function(require, _) {
 		
 		// do a shallow copy because the children list can be modified during
 		// resource matching
-		_.each(_.clone(node.children), function(child) {
+		_.each(_.clone(node.children), /** @param {AbbreviationNode} child */ function(child) {
 			var r = resources.getMatchedResource(child, syntax);
 			if (_.isString(r)) {
 				child.data('resource', elements.create('snippet', r));
 			} else if (elements.is(r, 'reference')) {
 				// it’s a reference to another abbreviation:
 				// parse it and insert instead of current child
+				/** @type AbbreviationNode */
 				var subtree = parser.parse(r.data, {
 					syntax: syntax
 				});
+				
+				// if context element should be repeated, check if we need to 
+				// transfer repeated element to specific child node
+				if (child.repeatCount > 1) {
+					var repeatedChildren = subtree.findAll(function(node) {
+						return node.hasImplicitRepeat;
+					});
+					
+					_.each(repeatedChildren, function(node) {
+						node.repeatCount = child.repeatCount;
+						node.hasImplicitRepeat = false;
+					});
+				}
 				
 				// move child‘s children into the deepest child of new subtree
 				var deepestChild = subtree.deepestChild();
@@ -9191,7 +9206,7 @@ zen_coding.exec(function(require, _) {
 		var caretPos = editor.getCaretPos();
 		var nl = utils.getNewline();
 		
-		if (info.syntax == 'html') {
+		if (_.include(['html', 'xml', 'xsl'], info.syntax)) {
 			var pad = res.getVariable('indentation');
 			// let's see if we're breaking newly created tag
 			var pair = require('html_matcher').getTags(info.content, caretPos, info.profile);
@@ -9667,7 +9682,7 @@ zen_coding.define('cssResolver', function(require, _) {
 		prefs.define('css.' + k + 'Properties', v, descTemplate({vendor: k}));
 	});
 	
-	prefs.define('css.unitlessProperties', 'z-index, line-height, opacity', 
+	prefs.define('css.unitlessProperties', 'z-index, line-height, opacity, font-weight', 
 			'The list of properties whose values ​​must not contain units.');
 	
 	function isNumeric(ch) {
