@@ -1058,9 +1058,9 @@ var _ = (function() {
   return _;
 }).call({});
 /**
- * Core Zen Coding object, available in global scope
+ * Core Emmet object, available in global scope
  */
-var zen_coding = (function(global, _) {
+var emmet = (function(global, _) {
 	var defaultSyntax = 'html';
 	var defaultProfile = 'plain';
 	
@@ -1133,11 +1133,11 @@ var zen_coding = (function(global, _) {
 	return {
 		/**
 		 * Simple, AMD-like module definition. The module will be added into
-		 * <code>zen_coding</code> object and will be available via
-		 * <code>zen_coding.require(name)</code> or <code>zen_coding[name]</code>
+		 * <code>emmet</code> object and will be available via
+		 * <code>emmet.require(name)</code> or <code>emmet[name]</code>
 		 * @param {String} name
 		 * @param {Function} factory
-		 * @memberOf zen_coding
+		 * @memberOf emmet
 		 */
 		define: function(name, factory) {
 			// do not let redefine existing properties
@@ -1149,7 +1149,7 @@ var zen_coding = (function(global, _) {
 		},
 		
 		/**
-		 * Returns reference to Zen Coding module
+		 * Returns reference to Emmet module
 		 * @param {String} name Module name
 		 */
 		require: function(name) {
@@ -1186,7 +1186,7 @@ var zen_coding = (function(global, _) {
 		},
 		
 		/**
-		 * The essential function that expands Zen Coding abbreviation
+		 * The essential function that expands Emmet abbreviation
 		 * @param {String} abbr Abbreviation to parse
 		 * @param {String} syntax Abbreviation's context syntax
 		 * @param {String} profile Output profile (or its name)
@@ -1250,7 +1250,7 @@ var zen_coding = (function(global, _) {
 		}
 	};
 })(this, _);/**
- * Zen Coding abbreviation parser.
+ * Emmet abbreviation parser.
  * Takes string abbreviation and recursively parses it into a tree. The parsed 
  * tree can be transformed into a string representation with 
  * <code>toString()</code> method. Note that string representation is defined
@@ -1269,7 +1269,7 @@ var zen_coding = (function(global, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('abbreviationParser', function(require, _) {
+emmet.define('abbreviationParser', function(require, _) {
 	var reValidName = /^[\w\-\$\:@\!]+\+?$/i;
 	var reWord = /[\w\-:\$]/;
 	
@@ -2182,7 +2182,7 @@ zen_coding.define('abbreviationParser', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */ 
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	/**
 	 * Finds matched resources for child nodes of passed <code>node</code> 
 	 * element. A matched resource is a reference to <i>snippets.json</i> entry
@@ -2244,7 +2244,7 @@ zen_coding.exec(function(require, _) {
 	 * @param {AbbreviationNode} tree
 	 */
 	require('abbreviationParser').addPreprocessor(function(tree, options) {
-		var syntax = options.syntax || zen_coding.defaultSyntax();
+		var syntax = options.syntax || emmet.defaultSyntax();
 		matchResources(tree, syntax);
 	});
 	
@@ -2255,7 +2255,7 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	var parser = require('abbreviationParser');
 	var outputPlaceholder = '$#';
 	
@@ -2404,10 +2404,10 @@ zen_coding.exec(function(require, _) {
 });/**
  * Resolves tag names in abbreviations with implied name
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	/**
 	 * Resolves implicit node names in parsed tree
-	 * @param {ZenNode} tree
+	 * @param {AbbreviationNode} tree
 	 */
 	function resolveNodeNames(tree) {
 		var tagName = require('tagName');
@@ -2427,7 +2427,7 @@ zen_coding.exec(function(require, _) {
  * @link https://github.com/stoyan/etc/tree/master/cssex
  */
 
-zen_coding.define('cssParser', function(require, _) {
+emmet.define('cssParser', function(require, _) {
 var walker, tokens = [], isOp, isNameChar, isDigit;
     
     // walks around the source
@@ -2801,7 +2801,7 @@ var walker, tokens = [], isOp, isNameChar, isDigit;
     	/**
     	 * @param source
     	 * @returns
-    	 * @memberOf zen_coding.cssParser
+    	 * @memberOf emmet.cssParser
     	 */
         lex: function (source) {
             walker.init(source);
@@ -2854,7 +2854,7 @@ var walker, tokens = [], isOp, isNameChar, isDigit;
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('xmlParser', function(require, _) {
+emmet.define('xmlParser', function(require, _) {
 	var Kludges = {
 		autoSelfClosers : {},
 		implicitlyClosed : {},
@@ -3158,7 +3158,7 @@ zen_coding.define('xmlParser', function(require, _) {
 
 	return {
 		/**
-		 * @memberOf zen_coding.xmlParser
+		 * @memberOf emmet.xmlParser
 		 * @returns
 		 */
 		parse: function(data, offset) {
@@ -3180,11 +3180,11 @@ zen_coding.define('xmlParser', function(require, _) {
 	};
 });
 /**
- * Utility module for Zen Coding
+ * Utility module for Emmet
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('utils', function(require, _) {
+emmet.define('utils', function(require, _) {
 	/** 
 	 * Special token used as a placeholder for caret positions inside 
 	 * generated output 
@@ -3447,7 +3447,7 @@ zen_coding.define('utils', function(require, _) {
 		 * Replace variables like ${var} in string
 		 * @param {String} str
 		 * @param {Object} vars Variable set (defaults to variables defined in 
-		 * <code>zen_settings</code>) or variable resolver (<code>Function</code>)
+		 * <code>snippets.json</code>) or variable resolver (<code>Function</code>)
 		 * @return {String}
 		 */
 		replaceVariables: function(str, vars) {
@@ -3461,7 +3461,7 @@ zen_coding.define('utils', function(require, _) {
 				variable: function(data) {
 					var newValue = resolver(data.token, data.name, data);
 					if (newValue === null) {
-						// try to find variable in zen_settings
+						// try to find variable in resources
 						newValue = res.getVariable(data.name);
 					}
 					
@@ -3509,7 +3509,7 @@ zen_coding.define('utils', function(require, _) {
 		},
 		
 		/**
-		 * Escapes special characters used in Zen Coding, like '$', '|', etc.
+		 * Escapes special characters used in Emmet, like '$', '|', etc.
 		 * Use this method before passing to actions like "Wrap with Abbreviation"
 		 * to make sure that existing special characters won't be altered
 		 * @param {String} text
@@ -3520,7 +3520,7 @@ zen_coding.define('utils', function(require, _) {
 		},
 		
 		/**
-		 * Unescapes special characters used in Zen Coding, like '$', '|', etc.
+		 * Unescapes special characters used in Emmet, like '$', '|', etc.
 		 * @param {String} text
 		 * @return {String}
 		 */
@@ -3749,7 +3749,7 @@ zen_coding.define('utils', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('range', function(require, _) {
+emmet.define('range', function(require, _) {
 	/**
 	 * @type Range
 	 * @constructor
@@ -3891,7 +3891,7 @@ zen_coding.define('range', function(require, _) {
 		 * as two first indexes or object with 'start' and 'end' properties
 		 * @param {Number} len Range length or string to produce range from
 		 * @returns {Range}
-		 * @memberOf zen_coding.range
+		 * @memberOf emmet.range
 		 */
 		create: function(start, len) {
 			if (_.isUndefined(start) || start === null)
@@ -3918,7 +3918,7 @@ zen_coding.define('range', function(require, _) {
 	};
 });/**
  * Utility module that provides ordered storage of function handlers. 
- * Many Zen Coding module's functionality can be extended/overridden by custom
+ * Many Emmet modules' functionality can be extended/overridden by custom
  * function. This modules provides unified storage of handler functions, their 
  * management and execution
  * 
@@ -3927,7 +3927,7 @@ zen_coding.define('range', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('handlerList', function(require, _) {
+emmet.define('handlerList', function(require, _) {
 	/**
 	 * @type HandlerList
 	 * @constructor
@@ -4014,7 +4014,7 @@ zen_coding.define('handlerList', function(require, _) {
 });/**
  * Helper class for convenient token iteration
  */
-zen_coding.define('tokenIterator', function(require, _) {
+emmet.define('tokenIterator', function(require, _) {
 	/**
 	 * @type TokenIterator
 	 * @param {Array} tokens
@@ -4091,7 +4091,7 @@ zen_coding.define('tokenIterator', function(require, _) {
 });/**
  * A trimmed version of CodeMirror's StringStream module for string parsing
  */
-zen_coding.define('stringStream', function(require, _) {
+emmet.define('stringStream', function(require, _) {
 	/**
 	 * @type StringStream
 	 * @constructor
@@ -4291,7 +4291,7 @@ zen_coding.define('stringStream', function(require, _) {
 		}
 	};
 });/**
- * Parsed resources (snippets, abbreviations, variables, etc.) for Zen Coding.
+ * Parsed resources (snippets, abbreviations, variables, etc.) for Emmet.
  * Contains convenient method to get access for snippets with respect of 
  * inheritance. Also provides ability to store data in different vocabularies
  * ('system' and 'user') for fast and safe resource update
@@ -4303,7 +4303,7 @@ zen_coding.define('stringStream', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('resources', function(require, _) {
+emmet.define('resources', function(require, _) {
 	var VOC_SYSTEM = 'system';
 	var VOC_USER = 'user';
 		
@@ -4317,20 +4317,20 @@ zen_coding.define('resources', function(require, _) {
 	var resolvers = require('handlerList').create();
 	
 	/**
-	 * Check if specified resource is parsed by Zen Coding
+	 * Check if specified resource is parsed by Emmet
 	 * @param {Object} obj
 	 * @return {Boolean}
 	 */
 	function isParsed(obj) {
-		return obj && obj.__zen_parsed__;
+		return obj && obj.__emmet_parsed__;
 	}
 	
 	/**
-	 * Marks object as parsed by Zen Coding
+	 * Marks object as parsed by Emmet
 	 * @param {Object}
 	 */
 	function setParsed(obj) {
-		obj.__zen_parsed__ = true;
+		obj.__emmet_parsed__ = true;
 	}
 	
 	/**
@@ -4616,12 +4616,12 @@ zen_coding.define('resources', function(require, _) {
 		}
 	};
 });/**
- * Module describes and performs Zen Coding actions. The actions themselves are
+ * Module describes and performs Emmet actions. The actions themselves are
  * defined in <i>actions</i> folder
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('actions', function(require, _, zc) {
+emmet.define('actions', function(require, _, zc) {
 	var actions = {};
 	
 	/**
@@ -4673,16 +4673,16 @@ zen_coding.define('actions', function(require, _, zc) {
 		},
 		
 		/**
-		 * Runs Zen Coding action. For list of available actions and their
+		 * Runs Emmet action. For list of available actions and their
 		 * arguments see <i>actions</i> folder.
 		 * @param {String} name Action name 
 		 * @param {Array} args Additional arguments. It may be array of arguments
-		 * or inline arguments. The first argument should be <code>zen_editor</code> instance
+		 * or inline arguments. The first argument should be <code>IEmmetEditor</code> instance
 		 * @returns {Boolean} Status of performed operation, <code>true</code>
 		 * means action was performed successfully.
 		 * @example
-		 * zen_coding.require('actions').run('expand_abbreviation', zen_editor);  
-		 * zen_coding.require('actions').run('wrap_with_abbreviation', [zen_editor, 'div']);  
+		 * emmet.require('actions').run('expand_abbreviation', editor);  
+		 * emmet.require('actions').run('wrap_with_abbreviation', [editor, 'div']);  
 		 */
 		run: function(name, args) {
 			if (!_.isArray(args)) {
@@ -4691,9 +4691,9 @@ zen_coding.define('actions', function(require, _, zc) {
 			
 			var action = this.get(name);
 			if (action) {
-				return action.fn.apply(zen_coding, args);
+				return action.fn.apply(emmet, args);
 			} else {
-				zen_coding.log('Action "%s" is not defined', name);
+				emmet.log('Action "%s" is not defined', name);
 				return false;
 			}
 		},
@@ -4791,7 +4791,7 @@ zen_coding.define('actions', function(require, _, zc) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('profile', function(require, _) {
+emmet.define('profile', function(require, _) {
 	var profiles = {};
 	
 	var defaultProfile = {
@@ -4922,7 +4922,7 @@ zen_coding.define('profile', function(require, _) {
 		 * Creates new output profile and adds it into internal dictionary
 		 * @param {String} name Profile name
 		 * @param {Object} options Profile options
-		 * @memberOf zen_coding.profile
+		 * @memberOf emmet.profile
 		 * @returns {Object} New profile
 		 */
 		create: function(name, options) {
@@ -4988,7 +4988,7 @@ zen_coding.define('profile', function(require, _) {
  * @param {Underscore} _
  * @author Sergey Chikuyonok (serge.che@gmail.com) <http://chikuyonok.ru>
  */
-zen_coding.define('editorUtils', function(require, _) {
+emmet.define('editorUtils', function(require, _) {
 	return  {
 		/**
 		 * Check if cursor is placed inside XHTML tag
@@ -5019,7 +5019,7 @@ zen_coding.define('editorUtils', function(require, _) {
 		/**
 		 * Sanitizes incoming editor data and provides default values for
 		 * output-specific info
-		 * @param {IZenEditor} editor
+		 * @param {IEmmetEditor} editor
 		 * @param {String} syntax
 		 * @param {String} profile
 		 */
@@ -5034,7 +5034,7 @@ zen_coding.define('editorUtils', function(require, _) {
 		
 		/**
 		 * Unindent content, thus preparing text for tag wrapping
-		 * @param {IZenEditor} editor Editor instance
+		 * @param {IEmmetEditor} editor Editor instance
 		 * @param {String} text
 		 * @return {String}
 		 */
@@ -5044,7 +5044,7 @@ zen_coding.define('editorUtils', function(require, _) {
 		
 		/**
 		 * Returns padding of current editor's line
-		 * @param {IZenEditor} Editor instance
+		 * @param {IEmmetEditor} Editor instance
 		 * @return {String}
 		 */
 		getCurrentLinePadding: function(editor) {
@@ -5053,12 +5053,12 @@ zen_coding.define('editorUtils', function(require, _) {
 	};
 });
 /**
- * Utility methods for Zen Coding actions
+ * Utility methods for Emmet actions
  * @param {Function} require
  * @param {Underscore} _
  * @author Sergey Chikuyonok (serge.che@gmail.com) <http://chikuyonok.ru>
  */
-zen_coding.define('actionUtils', function(require, _) {
+emmet.define('actionUtils', function(require, _) {
 	return {
 		mimeTypes: {
 			'gif' : 'image/gif',
@@ -5074,7 +5074,7 @@ zen_coding.define('actionUtils', function(require, _) {
 		 * Extracts abbreviations from text stream, starting from the end
 		 * @param {String} str
 		 * @return {String} Abbreviation or empty string
-		 * @memberOf zen_coding.actionUtils
+		 * @memberOf emmet.actionUtils
 		 */
 		extractAbbreviation: function(str) {
 			var curOffset = str.length;
@@ -5142,7 +5142,7 @@ zen_coding.define('actionUtils', function(require, _) {
 		/**
 		 * Gets image size from image byte stream.
 		 * @author http://romeda.org/rePublish/
-		 * @param {String} stream Image byte stream (use <code>zen_file.read()</code>)
+		 * @param {String} stream Image byte stream (use <code>IEmmetFile.read()</code>)
 		 * @return {Object} Object with <code>width</code> and <code>height</code> properties
 		 */
 		getImageSize: function(stream) {
@@ -5197,7 +5197,7 @@ zen_coding.define('actionUtils', function(require, _) {
 		/**
 		 * Captures context XHTML element from editor under current caret position.
 		 * This node can be used as a helper for abbreviation extraction
-		 * @param {IZenEditor} editor
+		 * @param {IEmmetEditor} editor
 		 * @returns {TreeNode}
 		 */
 		captureContext: function(editor) {
@@ -5239,7 +5239,7 @@ zen_coding.define('actionUtils', function(require, _) {
 		 * On each character a <code>fn</code> function will be called and must 
 		 * return <code>true</code> if current character meets requirements, 
 		 * <code>false</code> otherwise
-		 * @param {IZenEditor} editor
+		 * @param {IEmmetEditor} editor
 		 * @param {Function} fn Function to test each character of expression
 		 * @return {Range}
 		 */
@@ -5261,7 +5261,7 @@ zen_coding.define('actionUtils', function(require, _) {
 		},
 		
 		/**
-		 * @param {IZenEditor} editor
+		 * @param {IEmmetEditor} editor
 		 * @param {Object} data
 		 * @returns {Boolean}
 		 */
@@ -5281,7 +5281,7 @@ zen_coding.define('actionUtils', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('abbreviationUtils', function(require, _) {
+emmet.define('abbreviationUtils', function(require, _) {
 	return {
 		/**
 		 * Check if passed abbreviation node has matched snippet resource
@@ -5389,7 +5389,7 @@ zen_coding.define('abbreviationUtils', function(require, _) {
  * @author Sergey Chikuyonok (serge.che@gmail.com)
  * @link http://chikuyonok.ru
  */
-zen_coding.define('base64', function(require, _) {
+emmet.define('base64', function(require, _) {
 	var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
 	
 	return {
@@ -5398,7 +5398,7 @@ zen_coding.define('base64', function(require, _) {
 		 * @author Tyler Akins (http://rumkin.com)
 		 * @param {String} input
 		 * @returns {String}
-		 * @memberOf zen_coding.base64
+		 * @memberOf emmet.base64
 		 */
 		encode : function(input) {
 			var output = [];
@@ -5767,13 +5767,13 @@ zen_coding.define('base64', function(require, _) {
 	HTMLPairMatcher.last_match = last_match;
 	
 	try {
-		zen_coding.define('html_matcher', function() {
+		emmet.define('html_matcher', function() {
 			return HTMLPairMatcher;
 		});
 	} catch(e){}
 	
 })();/**
- * Utility module for handling tabstops tokens generated by Zen Coding's 
+ * Utility module for handling tabstops tokens generated by Emmet's 
  * "Expand Abbreviation" action. The main <code>extract</code> method will take
  * raw text (for example: <i>${0} some ${1:text}</i>), find all tabstops 
  * occurrences, replace them with tokens suitable for your editor of choice and 
@@ -5785,7 +5785,7 @@ zen_coding.define('base64', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _  
  */
-zen_coding.define('tabStops', function(require, _) {
+emmet.define('tabStops', function(require, _) {
 	/**
 	 * Global placeholder value, automatically incremented by 
 	 * <code>variablesResolver()</code> function
@@ -5845,7 +5845,7 @@ zen_coding.define('tabStops', function(require, _) {
 		 * @param {Object} options List of processor options:<br>
 		 * 
 		 * <b>replaceCarets</b> : <code>Boolean</code> — replace all default
-		 * caret placeholders (like <i>{%::zen-caret::%}</i>) with <i>${0:caret}</i><br>
+		 * caret placeholders (like <i>{%::emmet-caret::%}</i>) with <i>${0:caret}</i><br>
 		 * 
 		 * <b>escape</b> : <code>Function</code> — function that handle escaped
 		 * characters (mostly '$'). By default, it returns the character itself 
@@ -6006,7 +6006,7 @@ zen_coding.define('tabStops', function(require, _) {
 		
 		/**
 		 * Upgrades tabstops in output node in order to prevent naming conflicts
-		 * @param {ZenNode} node
+		 * @param {AbbreviationNode} node
 		 * @param {Number} offset Tab index offset
 		 * @returns {Number} Maximum tabstop index in element
 		 */
@@ -6037,7 +6037,7 @@ zen_coding.define('tabStops', function(require, _) {
 		 * module. This callback will replace variable definitions (like 
 		 * ${var_name}) with their value defined in <i>resource</i> module,
 		 * or outputs tabstop with variable name otherwise.
-		 * @param {ZenNode} node Context node
+		 * @param {AbbreviationNode} node Context node
 		 * @returns {Function}
 		 */
 		variablesResolver: function(node) {
@@ -6104,7 +6104,7 @@ zen_coding.define('tabStops', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _ 
  */
-zen_coding.define('preferences', function(require, _) {
+emmet.define('preferences', function(require, _) {
 	var preferences = {};
 	var defaults = {};
 	var _dbgDefaults = null;
@@ -6315,7 +6315,7 @@ zen_coding.define('preferences', function(require, _) {
  * @param {Underscore} _
  * @author Sergey Chikuyonok (serge.che@gmail.com) <http://chikuyonok.ru>
  */
-zen_coding.define('filters', function(require, _) {
+emmet.define('filters', function(require, _) {
 	/** List of registered filters */
 	var registeredFilters = {};
 	
@@ -6344,14 +6344,14 @@ zen_coding.define('filters', function(require, _) {
 		
 		/**
 		 * Apply filters for final output tree
-		 * @param {ZenNode} tree Output tree
+		 * @param {AbbreviationNode} tree Output tree
 		 * @param {Array} filters List of filters to apply. Might be a 
 		 * <code>String</code>
 		 * @param {Object} profile Output profile, defined in <i>profile</i> 
 		 * module. Filters defined it profile are not used, <code>profile</code>
 		 * is passed to filter function
-		 * @memberOf zen_coding.filters
-		 * @returns {ZenNode}
+		 * @memberOf emmet.filters
+		 * @returns {AbbreviationNode}
 		 */
 		apply: function(tree, filters, profile) {
 			var utils = require('utils');
@@ -6407,11 +6407,11 @@ zen_coding.define('filters', function(require, _) {
 		}
 	};
 });/**
- * Module that contains factories for element types used by Zen Coding
+ * Module that contains factories for element types used by Emmet
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('elements', function(require, _) {
+emmet.define('elements', function(require, _) {
 	var factories = {};
 	var reAttrs = /([\w\-]+)\s*=\s*(['"])(.*?)\2/g;
 	
@@ -6482,7 +6482,7 @@ zen_coding.define('elements', function(require, _) {
 	 */
 	result.add('element', function(elementName, attrs, isEmpty) {
 		var ret = {
-			/** @memberOf __zenDataElement */
+			/** @memberOf __emmetDataElement */
 			name: elementName,
 			is_empty: !!isEmpty
 		};
@@ -6551,7 +6551,7 @@ zen_coding.define('elements', function(require, _) {
  * @constructor
  * @memberOf __editTreeDefine
  */
-zen_coding.define('editTree', function(require, _, core) {
+emmet.define('editTree', function(require, _, core) {
 	var range = require('range').create;
 	
 	/**
@@ -6970,7 +6970,7 @@ zen_coding.define('editTree', function(require, _, core) {
  * @param {Function} require
  * @param {Underscore} _ 
  */
-zen_coding.define('cssEditTree', function(require, _) {
+emmet.define('cssEditTree', function(require, _) {
 	var defaultOptions = {
 		styleBefore: '\n\t',
 		styleSeparator: ': ',
@@ -7351,7 +7351,7 @@ zen_coding.define('cssEditTree', function(require, _) {
 		 * Parses CSS rule into editable tree
 		 * @param {String} source
 		 * @param {Object} options
-		 * @memberOf zen_coding.cssEditTree
+		 * @memberOf emmet.cssEditTree
 		 * @returns {EditContainer}
 		 */
 		parse: function(source, options) {
@@ -7461,7 +7461,7 @@ zen_coding.define('cssEditTree', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _ 
  */
-zen_coding.define('xmlEditTree', function(require, _) {
+emmet.define('xmlEditTree', function(require, _) {
 	var defaultOptions = {
 		styleBefore: ' ',
 		styleSeparator: '=',
@@ -7628,7 +7628,7 @@ zen_coding.define('xmlEditTree', function(require, _) {
 		 * Parses HTML element into editable tree
 		 * @param {String} source
 		 * @param {Object} options
-		 * @memberOf zen_coding.htmlEditTree
+		 * @memberOf emmet.htmlEditTree
 		 * @returns {EditContainer}
 		 */
 		parse: function(source, options) {
@@ -7709,7 +7709,7 @@ zen_coding.define('xmlEditTree', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('expandAbbreviation', function(require, _) {
+emmet.define('expandAbbreviation', function(require, _) {
 	/**
 	 * @type HandlerList List of registered handlers
 	 */
@@ -7721,7 +7721,7 @@ zen_coding.define('expandAbbreviation', function(require, _) {
 	var actions = require('actions');
 	/**
 	 * 'Expand abbreviation' editor action 
-	 * @param {IZenEditor} editor Editor instance
+	 * @param {IEmmetEditor} editor Editor instance
 	 * @param {String} syntax Syntax type (html, css, etc.)
 	 * @param {String} profile Output profile name (html, xml, xhtml)
 	 * @return {Boolean} Returns <code>true</code> if abbreviation was expanded 
@@ -7741,7 +7741,7 @@ zen_coding.define('expandAbbreviation', function(require, _) {
 	/**
 	 * A special version of <code>expandAbbreviation</code> function: if it can't
 	 * find abbreviation, it will place Tab character at caret position
-	 * @param {IZenEditor} editor Editor instance
+	 * @param {IEmmetEditor} editor Editor instance
 	 * @param {String} syntax Syntax type (html, css, etc.)
 	 * @param {String} profile Output profile name (html, xml, xhtml)
 	 */
@@ -7754,7 +7754,7 @@ zen_coding.define('expandAbbreviation', function(require, _) {
 	/**
 	 * Extracts abbreviation from current caret 
 	 * position and replaces it with formatted output 
-	 * @param {IZenEditor} editor Editor instance
+	 * @param {IEmmetEditor} editor Editor instance
 	 * @param {String} syntax Syntax type (html, css, etc.)
 	 * @param {String} profile Output profile name (html, xml, xhtml)
 	 * @return {Boolean} Returns <code>true</code> if abbreviation was expanded 
@@ -7765,7 +7765,7 @@ zen_coding.define('expandAbbreviation', function(require, _) {
 		var abbr = module.findAbbreviation(editor);
 			
 		if (abbr) {
-			var content = zen_coding.expandAbbreviation(abbr, syntax, profile, 
+			var content = emmet.expandAbbreviation(abbr, syntax, profile, 
 					require('actionUtils').captureContext(editor));
 			if (content) {
 				editor.replaceContent(content, caretPos - abbr.length, caretPos);
@@ -7802,7 +7802,7 @@ zen_coding.define('expandAbbreviation', function(require, _) {
 		
 		/**
 		 * Search for abbreviation in editor from current caret position
-		 * @param {IZenEditor} editor Editor instance
+		 * @param {IEmmetEditor} editor Editor instance
 		 * @return {String}
 		 */
 		findAbbreviation: function(editor) {
@@ -7825,10 +7825,10 @@ zen_coding.define('expandAbbreviation', function(require, _) {
  * @constructor
  * @memberOf __wrapWithAbbreviationDefine
  */
-zen_coding.define('wrapWithAbbreviation', function(require, _) {
+emmet.define('wrapWithAbbreviation', function(require, _) {
 	/**
 	 * Wraps content with abbreviation
-	 * @param {IZenEditor} Editor instance
+	 * @param {IEmmetEditor} Editor instance
 	 * @param {String} abbr Abbreviation to wrap with
 	 * @param {String} syntax Syntax type (html, css, etc.)
 	 * @param {String} profile Output profile name (html, xml, xhtml)
@@ -7836,7 +7836,7 @@ zen_coding.define('wrapWithAbbreviation', function(require, _) {
 	require('actions').add('wrap_with_abbreviation', function (editor, abbr, syntax, profile) {
 		var info = require('editorUtils').outputInfo(editor, syntax, profile);
 		var utils = require('utils');
-		/** @type zen_coding.editorUtils */
+		/** @type emmet.editorUtils */
 		var editorUtils = require('editorUtils');
 		var matcher = require('html_matcher');
 		
@@ -7880,7 +7880,7 @@ zen_coding.define('wrapWithAbbreviation', function(require, _) {
 		/**
 		 * Wraps passed text with abbreviation. Text will be placed inside last
 		 * expanded element
-		 * @memberOf zen_coding.wrapWithAbbreviation
+		 * @memberOf emmet.wrapWithAbbreviation
 		 * @param {String} abbr Abbreviation
 		 * @param {String} text Text to wrap
 		 * @param {String} syntax Document type (html, xml, etc.). Default is 'html'
@@ -7888,13 +7888,13 @@ zen_coding.define('wrapWithAbbreviation', function(require, _) {
 		 * @return {String}
 		 */
 		wrap: function(abbr, text, syntax, profile) {
-			/** @type zen_coding.filters */
+			/** @type emmet.filters */
 			var filters = require('filters');
-			/** @type zen_coding.utils */
+			/** @type emmet.utils */
 			var utils = require('utils');
 			
-			syntax = syntax || zen_coding.defaultSyntax();
-			profile = profile || zen_coding.defaultProfile();
+			syntax = syntax || emmet.defaultSyntax();
+			profile = profile || emmet.defaultProfile();
 			
 			require('tabStops').resetTabstopIndex();
 			
@@ -7922,10 +7922,10 @@ zen_coding.define('wrapWithAbbreviation', function(require, _) {
  * @memberOf __toggleCommentAction
  * @constructor
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	/**
 	 * Toggle HTML comment on current selection or tag
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 * @return {Boolean} Returns <code>true</code> if comment was toggled
 	 */
 	function toggleHTMLComment(editor) {
@@ -7947,7 +7947,7 @@ zen_coding.exec(function(require, _) {
 
 	/**
 	 * Simple CSS commenting
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 * @return {Boolean} Returns <code>true</code> if comment was toggled
 	 */
 	function toggleCSSComment(editor) {
@@ -8042,7 +8042,7 @@ zen_coding.exec(function(require, _) {
 
 	/**
 	 * Generic comment toggling routine
-	 * @param {zen_editor} editor
+	 * @param {IEmmetEditor} editor
 	 * @param {String} commentStart Comment start token
 	 * @param {String} commentEnd Comment end token
 	 * @param {Range} range Selection range
@@ -8101,7 +8101,7 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Toggle comment on current editor's selection or HTML tag/CSS rule
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 */
 	require('actions').add('toggle_comment', function(editor) {
 		var info = require('editorUtils').outputInfo(editor);
@@ -8131,10 +8131,10 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	/**
 	 * Search for new caret insertion point
-	 * @param {zen_editor} editor Editor instance
+	 * @param {IEmmetEditor} editor Editor instance
 	 * @param {Number} inc Search increment: -1 — search left, 1 — search right
 	 * @param {Number} offset Initial offset relative to current caret position
 	 * @return {Number} Returns -1 if insertion point wasn't found
@@ -8197,12 +8197,12 @@ zen_coding.exec(function(require, _) {
 		return nextPoint;
 	}
 	
-	/** @type zen_coding.actions */
+	/** @type emmet.actions */
 	var actions = require('actions');
 	
 	/**
 	 * Move caret to previous edit point
-	 * @param {IZenEditor} editor Editor instance
+	 * @param {IEmmetEditor} editor Editor instance
 	 */
 	actions.add('prev_edit_point', function(editor) {
 		var curPos = editor.getCaretPos();
@@ -8222,7 +8222,7 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Move caret to next edit point
-	 * @param {IZenEditor} editor Editor instance
+	 * @param {IEmmetEditor} editor Editor instance
 	 */
 	actions.add('next_edit_point', function(editor) {
 		var newPoint = findNewEditPoint(editor, 1);
@@ -8238,12 +8238,12 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	var startTag = /^<([\w\:\-]+)((?:\s+[\w\-:]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/;
 	
 	/**
 	 * Generic function for searching for items to select
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 * @param {Boolean} isBackward Search backward (search forward otherwise)
 	 * @param {Function} extractFn Function that extracts item content
 	 * @param {Function} rangeFn Function that search for next token range
@@ -8287,7 +8287,7 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Find next HTML item
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 */
 	function findNextHTMLItem(editor) {
 		var isFirst = true;
@@ -8305,7 +8305,7 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Find previous HTML item
-	 * @param {zen_editor} editor
+	 * @param {IEmmetEditor} editor
 	 */
 	function findPrevHTMLItem(editor) {
 		return findItem(editor, true, getOpeningTagFromPosition, function (tag, offset, selRange) {
@@ -8698,14 +8698,14 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
-	/** @type zen_coding.actions */
+emmet.exec(function(require, _) {
+	/** @type emmet.actions */
 	var actions = require('actions');
 	var matcher = require('html_matcher');
 	
 	/**
 	 * Find and select HTML tag pair
-	 * @param {IZenEditor} editor Editor instance
+	 * @param {IEmmetEditor} editor Editor instance
 	 * @param {String} direction Direction of pair matching: 'in' or 'out'. 
 	 * Default is 'out'
 	 */
@@ -8771,7 +8771,7 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Moves caret to matching opening or closing tag
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 */
 	actions.add('matching_pair', function(editor) {
 		var content = String(editor.getContent());
@@ -8807,7 +8807,7 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _ 
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	require('actions').add('remove_tag', function(editor) {
 		var utils = require('utils');
 		var info = require('editorUtils').outputInfo(editor);
@@ -8846,14 +8846,14 @@ zen_coding.exec(function(require, _) {
  * @memberOf __splitJoinTagAction
  * @constructor
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	/**
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 * @param {Object} profile
 	 * @param {Object} htmlMatch
 	 */
 	function joinTag(editor, profile, htmlMatch) {
-		/** @type zen_coding.utils */
+		/** @type emmet.utils */
 		var utils = require('utils');
 		
 		var closingSlash = (profile.self_closing_tag === true) ? '/' : ' /';
@@ -8872,7 +8872,7 @@ zen_coding.exec(function(require, _) {
 	}
 	
 	function splitTag(editor, profile, htmlMatch) {
-		/** @type zen_coding.utils */
+		/** @type emmet.utils */
 		var utils = require('utils');
 		
 		var nl = utils.getNewline();
@@ -8912,7 +8912,7 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('reflectCSSValue', function(require, _) {
+emmet.define('reflectCSSValue', function(require, _) {
 	/**
 	 * @type HandlerList List of registered handlers
 	 */
@@ -8925,7 +8925,7 @@ zen_coding.define('reflectCSSValue', function(require, _) {
 	}, {label: 'CSS/Reflect Value'});
 	
 	function doCSSReflection(editor) {
-		/** @type zen_coding.cssEditTree */
+		/** @type emmet.cssEditTree */
 		var cssEditTree = require('cssEditTree');
 		var outputInfo = require('editorUtils').outputInfo(editor);
 		var caretPos = editor.getCaretPos();
@@ -9054,7 +9054,7 @@ zen_coding.define('reflectCSSValue', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _ 
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	require('actions').add('evaluate_math_expression', function(editor) {
 		var actionUtils = require('actionUtils');
 		var utils = require('utils');
@@ -9092,11 +9092,11 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	/**
 	 * Extract number from current caret position of the <code>editor</code> and
 	 * increment it by <code>step</code>
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 * @param {Number} step Increment step (may be negative)
 	 */
 	function incrementNumber(editor, step) {
@@ -9177,9 +9177,9 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	var actions = require('actions');
-	/** @type zen_coding.preferences */
+	/** @type emmet.preferences */
 	var prefs = require('preferences');
 	
 	// setup default preferences
@@ -9194,12 +9194,12 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Inserts newline character with proper indentation in specific positions only.
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 * @return {Boolean} Returns <code>true</code> if line break was inserted 
 	 */
 	actions.add('insert_formatted_line_break_only', function(editor) {
 		var utils = require('utils');
-		/** @type zen_coding.resources */
+		/** @type emmet.resources */
 		var res = require('resources');
 		
 		var info = require('editorUtils').outputInfo(editor);
@@ -9261,7 +9261,7 @@ zen_coding.exec(function(require, _) {
 	 * Inserts newline character with proper indentation. This action is used in
 	 * editors that doesn't have indentation control (like textarea element) to 
 	 * provide proper indentation
-	 * @param {IZenEditor} editor Editor instance
+	 * @param {IEmmetEditor} editor Editor instance
 	 */
 	actions.add('insert_formatted_line_break', function(editor) {
 		if (!actions.run('insert_formatted_line_break_only', editor)) {
@@ -9298,7 +9298,7 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	require('actions').add('merge_lines', function(editor) {
 		var matcher = require('html_matcher');
 		var utils = require('utils');
@@ -9336,7 +9336,7 @@ zen_coding.exec(function(require, _) {
 	});
 });/**
  * Encodes/decodes image under cursor to/from base64
- * @param {IZenEditor} editor
+ * @param {IEmmetEditor} editor
  * @since 0.65
  * 
  * @memberOf __base64ActionDefine
@@ -9344,7 +9344,7 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	require('actions').add('encode_decode_data_url', function(editor) {
 		var data = String(editor.getSelection());
 		var caretPos = editor.getCaretPos();
@@ -9395,9 +9395,8 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Encodes image to base64
-	 * @requires zen_file
 	 * 
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 * @param {String} imgPath Path to image
 	 * @param {Number} pos Caret position where image is located in the editor
 	 * @return {Boolean}
@@ -9433,7 +9432,7 @@ zen_coding.exec(function(require, _) {
 
 	/**
 	 * Decodes base64 string back to file.
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 * @param {String} data Base64-encoded file content
 	 * @param {Number} pos Caret position where image is located in the editor
 	 */
@@ -9462,10 +9461,10 @@ zen_coding.exec(function(require, _) {
  * @constructor
  * @memberOf __updateImageSizeAction
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	/**
 	 * Updates image size of &lt;img src=""&gt; tag
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 */
 	function updateImageSizeHTML(editor) {
 		var offset = editor.getCaretPos();
@@ -9493,7 +9492,7 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Updates image size of CSS property
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 */
 	function updateImageSizeCSS(editor) {
 		var offset = editor.getCaretPos();
@@ -9524,7 +9523,7 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Returns image dimensions for source
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 * @param {String} src Image source (path or data:url)
 	 */
 	function getImageSizeForSource(editor, src) {
@@ -9566,8 +9565,8 @@ zen_coding.exec(function(require, _) {
  * <br><br>
  * <b>Abbreviation handling</b><br>
  * 
- * By default, Zen Coding search for snippet definition for provided abbreviation.
- * If snippet wasn't found, Zen Coding automatically generates tag with 
+ * By default, Emmet searches for matching snippet definition for provided abbreviation.
+ * If snippet wasn't found, Emmet automatically generates element with 
  * abbreviation's name. For example, <code>foo</code> abbreviation will generate
  * <code>&lt;foo&gt;&lt;/foo&gt;</code> output.
  * <br><br>
@@ -9606,13 +9605,13 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('cssResolver', function(require, _) {
+emmet.define('cssResolver', function(require, _) {
 	/** Back-reference to module */
 	var module = null;
 	
 	var prefixObj = {
 		/** Real vendor prefix name */
-		prefix: 'zen',
+		prefix: 'emmet',
 		
 		/** 
 		 * Indicates this prefix is obsolete and should't be used when user 
@@ -9658,10 +9657,10 @@ zen_coding.define('cssResolver', function(require, _) {
 	
 	prefs.define('css.autoInsertVendorPrefixes', true,
 			'Automatically generate vendor-prefixed copies of expanded CSS ' 
-			+ 'property. By default, Zen Coding will generate vendor-prefixed ' +
+			+ 'property. By default, Emmet will generate vendor-prefixed ' +
 			+ 'properties only when you put dash before abbreviation ' 
 			+ '(e.g. <code>-bxsh</code>). With this option enabled, you don’t ' 
-			+ 'need dashes before abbreviations: Zen Coding will produce ' 
+			+ 'need dashes before abbreviations: Emmet will produce ' 
 			+ 'vendor-prefixed properties for you.');
 	
 	var descTemplate = _.template('A comma-separated list of CSS properties that may have ' 
@@ -9874,7 +9873,7 @@ zen_coding.define('cssResolver', function(require, _) {
 	 * (like Sublime Text 2) may insert semicolons automatically when user types
 	 * abbreviation. After expansion, user receives a double semicolon. This
 	 * handler automatically removes semicolon from generated content in such cases.
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 * @param {String} syntax
 	 * @param {String} profile
 	 */
@@ -9887,7 +9886,7 @@ zen_coding.define('cssResolver', function(require, _) {
 		var abbr = ea.findAbbreviation(editor);
 			
 		if (abbr) {
-			var content = zen_coding.expandAbbreviation(abbr, syntax, profile);
+			var content = emmet.expandAbbreviation(abbr, syntax, profile);
 			if (content) {
 				var replaceFrom = caretPos - abbr.length;
 				var replaceTo = caretPos;
@@ -10211,7 +10210,7 @@ zen_coding.define('cssResolver', function(require, _) {
 		
 		/**
 		 * Same as <code>expand</code> method but transforms output into a 
-		 * Zen Coding snippet
+		 * Emmet snippet
 		 * @param {String} abbr
 		 * @param {String} value
 		 * @returns {String}
@@ -10238,7 +10237,7 @@ zen_coding.define('cssResolver', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('cssGradient', function(require, _) {
+emmet.define('cssGradient', function(require, _) {
 	var defaultLinearDirections = ['top', 'to bottom', '0deg'];
 	
 	var reDeg = /\d+deg/i;
@@ -10510,7 +10509,7 @@ zen_coding.define('cssGradient', function(require, _) {
 	
 	// XXX register expand abbreviation handler
 	/**
-	 * @param {IZenEditor} editor
+	 * @param {IEmmetEditor} editor
 	 * @param {String} syntax
 	 * @param {String} profile
 	 */
@@ -10692,7 +10691,7 @@ zen_coding.define('cssGradient', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	/** @type HandlerList */
 	var generators = require('handlerList').create();
 	var resources = require('resources');
@@ -10733,7 +10732,7 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.define('tagName', function(require, _) {
+emmet.define('tagName', function(require, _) {
 	var elementTypes = {
 		empty: 'area,base,basefont,br,col,frame,hr,img,input,isindex,link,meta,param,embed,keygen,command'.split(','),
 		blockLevel: 'address,applet,blockquote,button,center,dd,del,dir,div,dl,dt,fieldset,form,frameset,hr,iframe,ins,isindex,li,link,map,menu,noframes,noscript,object,ol,p,pre,script,table,tbody,td,tfoot,th,thead,tr,ul,h1,h2,h3,h4,h5,h6'.split(','),
@@ -10886,7 +10885,7 @@ zen_coding.define('tagName', function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	var prefs = require('preferences');
 	prefs.define('bem.elementSeparator', '__', 'Class name’s element separator.');
 	prefs.define('bem.modifierSeparator', '_', 'Class name’s modifier separator.');
@@ -11101,7 +11100,7 @@ zen_coding.exec(function(require, _) {
 	 * </li>
 	 * </ul>
 	 * 
-	 * @param {ZenNode} tree
+	 * @param {AbbreviationNode} tree
 	 * @param {Object} profile
 	 */
 	function process(tree, profile) {
@@ -11140,9 +11139,9 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	// define some preferences
-	/** @type zen_coding.preferences */
+	/** @type emmet.preferences */
 	var prefs = require('preferences');
 	
 	prefs.define('filter.commentAfter', 
@@ -11159,7 +11158,7 @@ zen_coding.exec(function(require, _) {
 			+ 'and <code>after</code> strings. If attribute doesn\'t exists, the ' 
 			+ 'empty string will be returned.</li>'
 			
-			+ '<li><code>node</code> – current node (instance of <code>ZenNode</code>)</li>'
+			+ '<li><code>node</code> – current node (instance of <code>AbbreviationNode</code>)</li>'
 			
 			+ '<li><code>name</code> – name of current tag</li>'
 			
@@ -11240,7 +11239,7 @@ zen_coding.exec(function(require, _) {
  * Filter for escaping unsafe XML characters: <, >, &
  * @author Sergey Chikuyonok (serge.che@gmail.com)
  * @link http://chikuyonok.ru
- */zen_coding.exec(function(require, _) {
+ */emmet.exec(function(require, _) {
 	var charMap = {
 		'<': '&lt;',
 		'>': '&gt;',
@@ -11276,7 +11275,7 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _){
+emmet.exec(function(require, _){
 	var placeholder = '%s';
 	
 	function getIndentation() {
@@ -11425,7 +11424,7 @@ zen_coding.exec(function(require, _){
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	var childToken = '${child}';
 	
 	function transformClassName(className) {
@@ -11467,7 +11466,7 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Test if passed node has block-level sibling element
-	 * @param {ZenNode} item
+	 * @param {AbbreviationNode} item
 	 * @return {Boolean}
 	 */
 	function hasBlockSibling(item) {
@@ -11517,7 +11516,7 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Processes simplified tree, making it suitable for output as HTML structure
-	 * @param {ZenNode} tree
+	 * @param {AbbreviationNode} tree
 	 * @param {Object} profile
 	 * @param {Number} level Depth level
 	 */
@@ -11547,7 +11546,7 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	/**
 	 * Creates HTML attributes string from tag according to profile settings
 	 * @param {AbbreviationNode} node
@@ -11609,7 +11608,7 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Processes simplified tree, making it suitable for output as HTML structure
-	 * @param {ZenNode} tree
+	 * @param {AbbreviationNode} tree
 	 * @param {Object} profile
 	 * @param {Number} level Depth level
 	 */
@@ -11639,7 +11638,7 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	var rePad = /^\s+/;
 	var reNl = /[\n\r]/g;
 	
@@ -11677,7 +11676,7 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	require('preferences').define('filter.trimRegexp', '[\\s|\\u00a0]*[\\d|#|\\-|\*|\\u2022]+\\.?\\s*',
 			'Regular expression used to remove list markers (numbers, dashes, ' 
 			+ 'bullets, etc.) in <code>t</code> (trim) filter. The trim filter '
@@ -11709,7 +11708,7 @@ zen_coding.exec(function(require, _) {
  * @memberOf __xslFilterDefine
  * @param {Function} require
  * @param {Underscore} _
- */zen_coding.exec(function(require, _) {
+ */emmet.exec(function(require, _) {
 	var tags = {
 		'xsl:variable': 1,
 		'xsl:with-param': 1
@@ -11717,7 +11716,7 @@ zen_coding.exec(function(require, _) {
 	
 	/**
 	 * Removes "select" attribute from node
-	 * @param {ZenNode} node
+	 * @param {AbbreviationNode} node
 	 */
 	function trimAttribute(node) {
 		node.start = node.start.replace(/\s+select\s*=\s*(['"]).*?\1/, '');
@@ -11753,7 +11752,7 @@ zen_coding.exec(function(require, _) {
  * @constructor
  * @memberOf __loremIpsumGeneratorDefine
  */
-zen_coding.exec(function(require, _) {
+emmet.exec(function(require, _) {
 	/**
 	 * @param {AbbreviationNode} tree
 	 * @param {Object} options
@@ -11911,7 +11910,7 @@ zen_coding.exec(function(require, _) {
  * @param {Function} require
  * @param {Underscore} _  
  */
-zen_coding.define('bootstrap', function(require, _) {
+emmet.define('bootstrap', function(require, _) {
 	
 	/**
 	 * Returns file name part from path
@@ -11935,14 +11934,14 @@ zen_coding.define('bootstrap', function(require, _) {
 	
 	return {
 		/**
-		 * Loads Zen Coding extensions. Extensions are simple .js files that
-		 * uses Zen Coding modules and resources to create new actions, modify
+		 * Loads Emmet extensions. Extensions are simple .js files that
+		 * uses Emmet modules and resources to create new actions, modify
 		 * existing ones etc.
 		 * @param {Array} fileList List of absolute paths to files in extensions 
 		 * folder. Back-end app should not filter this list (e.g. by extension) 
 		 * but return it "as-is" so bootstrap can decide how to load contents 
 		 * of each file.
-		 * This method requires a <code>file</code> module of <code>IZenFile</code> 
+		 * This method requires a <code>file</code> module of <code>IEmmetFile</code> 
 		 * interface to be implemented.
 		 */
 		loadExtensions: function(fileList) {
@@ -11954,7 +11953,7 @@ zen_coding.define('bootstrap', function(require, _) {
 						try {
 							eval(file.read(f));
 						} catch (e) {
-							zen_coding.log('Unable to eval "' + f + '" file: '+ e);
+							emmet.log('Unable to eval "' + f + '" file: '+ e);
 						}
 						break;
 					case 'json':

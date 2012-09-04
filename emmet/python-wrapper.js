@@ -4,27 +4,27 @@
  * in concrete plugin implementation.
  */
 function pyRunAction(name) {
-	return zen_coding.require('actions').run(name, editorProxy);
+	return emmet.require('actions').run(name, editorProxy);
 }
 
 function pyLoadSystemSnippets(data) {
-	zen_coding.require('bootstrap').loadSystemSnippets(data);
+	emmet.require('bootstrap').loadSystemSnippets(data);
 }
 
 function pyLoadUserData(data) {
-	zen_coding.require('bootstrap').loadUserData(data);
+	emmet.require('bootstrap').loadUserData(data);
 }
 
 function pyLoadExtensions(fileList) {
-	zen_coding.require('bootstrap').loadExtensions(fileList);
+	emmet.require('bootstrap').loadExtensions(fileList);
 }
 
 function pyResetUserData() {
-	zen_coding.require('bootstrap').resetSnippets();
-	zen_coding.require('preferences').reset();
+	emmet.require('bootstrap').resetSnippets();
+	emmet.require('preferences').reset();
 }
 
-zen_coding.define('file', function(require, _) {
+emmet.define('file', function(require, _) {
 	return {
 		read: function(path) {
 			return _.map(pyFile.read(path) || [], function(b) {
