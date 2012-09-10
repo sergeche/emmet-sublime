@@ -4,6 +4,7 @@ import sublime_plugin
 import re
 import json
 import os.path
+import traceback
 
 import completions as cmpl
 from completions.meta import HTML_ELEMENTS_ATTRIBUTES, HTML_ATTRIBUTES_VALUES
@@ -107,16 +108,22 @@ def run_action(action, view=None):
 	edit = view.begin_edit()
 	max_sel_ix = len(sels) - 1
 
-	for i, sel in enumerate(reversed(sels)):
-		view.sel().clear()
-		view.sel().add(sel)
-		# run action
-		# result = r(name) or result
-		result = action(max_sel_ix - i, sel) or result
+	try:
+		for i, sel in enumerate(reversed(sels)):
+			view.sel().clear()
+			view.sel().add(sel)
+			# run action
+			# result = r(name) or result
+			result = action(max_sel_ix - i, sel) or result
 
-		# remember resulting selections
-		view.add_regions(region_key,
-				(view.get_regions(region_key) + list(view.sel())) , '')
+			# remember resulting selections
+			view.add_regions(region_key,
+					(view.get_regions(region_key) + list(view.sel())) , '')
+	except Exception, e:
+		view.erase_regions(region_key)
+		print(traceback.format_exc())
+		return
+	
 
 	# output all saved regions as selection
 	view.sel().clear()

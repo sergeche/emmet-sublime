@@ -7385,7 +7385,7 @@ emmet.define('cssEditTree', function(require, _) {
 			var result = '';
 			var len = content.length;
 			var offset = pos;
-			var stopChars = '{}/\\<>';
+			var stopChars = '{}/\\<>\n\r';
 			var bracePos = -1, ch;
 			
 			// search left until we find rule edge
@@ -10246,7 +10246,7 @@ emmet.define('cssGradient', function(require, _) {
 	// XXX define preferences
 	/** @type preferences */
 	var prefs = require('preferences');
-	prefs.define('css.gradient.prefixes', 'webkit, moz, ms, o',
+	prefs.define('css.gradient.prefixes', 'webkit, moz, o',
 			'A comma-separated list of vendor-prefixes for which values should ' 
 			+ 'be generated.');
 	
