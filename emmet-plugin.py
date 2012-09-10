@@ -343,7 +343,7 @@ class HandleEnterKey(sublime_plugin.TextCommand):
 
 		# let's see if we have to insert formatted linebreak
 		scope = view.syntax_name(view.sel()[0].begin())
-		if sublime.score_selector(scope, 'meta.scope.between-tag-pair.html') > 0:
+		if sublime.score_selector(scope, 'meta.scope.between-tag-pair.html, meta.scope.between-tag-pair.xml') > 0:
 			view.run_command('insert_snippet', {'contents': '\n\t${0}\n'})
 		else:
 			view.run_command('insert_snippet', {'contents': '\n${0}'})
