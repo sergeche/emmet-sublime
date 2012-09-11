@@ -1064,6 +1064,14 @@ var emmet = (function(global, _) {
 	var defaultSyntax = 'html';
 	var defaultProfile = 'plain';
 	
+	if (!_) {
+		try {
+			_ = require('underscore');
+		} catch(e) {
+			console.log(e);
+		}
+	}
+	
 	/** List of registered modules */
 	var modules = {
 		_: _
@@ -1249,7 +1257,16 @@ var emmet = (function(global, _) {
 			moduleLoader = fn;
 		}
 	};
-})(this, _);/**
+})(this, this._);
+
+// export core for Node.JS
+if (typeof exports !== 'undefined') {
+	if (typeof module !== 'undefined' && module.exports) {
+		exports = module.exports = emmet;
+	}
+	exports.emmet = emmet;
+}
+/**
  * Emmet abbreviation parser.
  * Takes string abbreviation and recursively parses it into a tree. The parsed 
  * tree can be transformed into a string representation with 
@@ -2493,7 +2510,8 @@ var walker, tokens = [], isOp, isNameChar, isDigit;
 
     // utility helpers
     isNameChar = function (c) {
-        return (c === '_' || c === '-' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+    	// be more tolerate for name tokens: allow & character for LESS syntax
+        return (c == '&' || c === '_' || c === '-' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
     };
 
     isDigit = function (ch) {
@@ -11943,6 +11961,7 @@ emmet.define('bootstrap', function(require, _) {
 		 * of each file.
 		 * This method requires a <code>file</code> module of <code>IEmmetFile</code> 
 		 * interface to be implemented.
+		 * @memberOf bootstrap
 		 */
 		loadExtensions: function(fileList) {
 			var file = require('file');
