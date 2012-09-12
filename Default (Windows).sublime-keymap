@@ -203,13 +203,8 @@
 			{
 				"key": "selector",
 				"match_all": true,
-				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html.basic, text.haml, string",
+				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html.basic - source.php - keyword.control.php, text.haml, string",
 				"operator": "equal"
-			}, {
-				"key": "selector",
-				"match_all": true,
-				"operand": "source\\.php",
-				"operator": "regex_contains"
 			}, {
 				"key": "selection_empty",
 				"match_all": true
@@ -243,13 +238,8 @@
 			{
 				"key": "selector",
 				"match_all": true,
-				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html.basic, text.haml, string",
+				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html.basic - source.php - keyword.control.php, text.haml, string",
 				"operator": "equal"
-			}, {
-				"key": "selector",
-				"match_all": true,
-				"operand": "source\\.php",
-				"operator": "regex_contains"
 			}, {
 				"key": "selection_empty",
 				"match_all": true
