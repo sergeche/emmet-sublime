@@ -48,3 +48,7 @@ If you’re writing a lot of BEM code, you may want to make `bem` filter default
 * Implicit tag names: you don’t need to write tag names for most common structures, Emmet will resolve them for you depending on parent’s tag name. Check out these abbreviations: `.test`, `em>.test`, `ul>.item*3`, `table>.row$*2>.cell$*3`.
 * New operator to climb one level up: `^`. Check out these abbreviations: `.header>.nav^.logo`,  `.header>.wrap>.nav^^.logo`.
 * Extensions support: you can easily extend Emmet with new actions and filters or customize existing ones. In `Emmet.sublime-settings`, define `extensions_path` setting and Emmet will load all `.js` and `.json` files in specified folder at startup.
+
+### “Help! My snippets doesn’t work anymore in HTML/CSS files!”
+
+By default, Emmet overrides Tab key behaviour and expands its own abbreviations instead native snippets. You can either disable this feature in user preferences (add `"disable_tab_abbreviations": true` setting into your _Settings — User_ file) or move your snippets to Emmet as described [here](https://github.com/sergeche/emmet-sublime/issues/16#issuecomment-8427268). I’m investigating possibility to expand native snippets via Emmet Tab key handler.
