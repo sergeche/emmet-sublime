@@ -14,6 +14,13 @@
     // disable expanding abbreviation by Tab key
     "disable_tab_abbreviations": false,
 
+    // Enables default Emmet keymap. Many users complain that Emmet actions
+    // (especially ones that bound to Alt key) behave incorrectly in 
+    // non-English keyboard layouts. Set this setting to `false` in
+    // Users’s Preferences.sublime-settings to disable all default
+    // keybindings at once
+    "enable_emmet_keymap": true,
+
     // disable expanding abbreviation by Tab key when autocomplete popup is visible
     "disable_tab_abbreviations_on_auto_complete": false
 }
