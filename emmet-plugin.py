@@ -260,6 +260,16 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 		if self.erase:
 			sublime.set_timeout(lambda: self.view.run_command('undo'), 0)
 
+	def remember_sels(self, view):
+		self._sels = list(view.sel())
+		self._sel_items = []
+
+		for sel in self._sels:
+			# selection should be unindented in order to get desired result
+			line = view.substr(view.line(sel))
+			s = view.substr(sel)
+			self._sel_items.append(unindent_text(s, get_line_padding(line)))
+
 	def run(self, edit, **args):
 		self.setup()
 		self.erase = False
@@ -280,18 +290,6 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 			setting('tab_completion', False)
 			# setting('auto_id_class',  True)
 
-
-class ExpandAsYouType(CommandsAsYouTypeBase):
-	default_input = 'div'
-	input_message = "Enter Abbreviation: "
-
-	def filter_input(self, abbr):
-		try:
-			return ctx.js().locals.pyExpandAbbreviationAsYouType(abbr)
-		except Exception:
-			"dont litter the console"
-
-
 class WrapAsYouType(CommandsAsYouTypeBase):
 	default_input = 'div'
 	input_message = "Enter Wrap Abbreviation: "
@@ -310,15 +308,7 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 			view.sel().add(sublime.Region(r[0], r[1]))
 			view.show(view.sel())
 
-		# remember all selected ranges
-		self._sels = list(view.sel())
-		self._sel_items = []
-
-		for sel in self._sels:
-			# selection should be unindented in order to get desired result
-			line = view.substr(view.line(sel))
-			s = view.substr(sel)
-			self._sel_items.append(unindent_text(s, get_line_padding(line)))
+		self.remember_sels(view)
 
 	# override method to correctly wrap abbreviations
 	def _real_insert(self, abbr):
@@ -340,6 +330,13 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 
 		run_action(ins, view)
 		view.end_edit(edit)
+
+class ExpandAsYouType(WrapAsYouType):
+	default_input = 'div'
+	input_message = "Enter Abbreviation: "
+
+	def setup(self):
+		self.remember_sels(active_view())
 
 
 class HandleEnterKey(sublime_plugin.TextCommand):
