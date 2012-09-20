@@ -9683,6 +9683,20 @@ emmet.define('cssResolver', function(require, _) {
 	prefs.define('css.valueSeparator', ': ',
 			'Defines a symbol that should be placed between CSS property and ' 
 			+ 'value when expanding CSS abbreviations.');
+	prefs.define('css.propertyEnd', ';',
+			'Defines a symbol that should be placed at the end of CSS property  ' 
+			+ 'when expanding CSS abbreviations.');
+	
+	prefs.define('stylus.valueSeparator', ' ',
+			'Defines a symbol that should be placed between CSS property and ' 
+			+ 'value when expanding CSS abbreviations in Stylus dialect.');
+	prefs.define('stylus.propertyEnd', '',
+			'Defines a symbol that should be placed at the end of CSS property  ' 
+			+ 'when expanding CSS abbreviations in Stylus dialect.');
+	
+	prefs.define('sass.propertyEnd', '',
+			'Defines a symbol that should be placed at the end of CSS property  ' 
+			+ 'when expanding CSS abbreviations in SASS dialect.');
 	
 	prefs.define('css.autoInsertVendorPrefixes', true,
 			'Automatically generate vendor-prefixed copies of expanded CSS ' 
@@ -9700,8 +9714,8 @@ emmet.define('cssResolver', function(require, _) {
 	
 	// properties list is created from cssFeatures.html file
 	var props = {
-		'webkit': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-clip, background-composite, background-origin, background-size, border-fit, border-horizontal-spacing, border-image, border-vertical-spacing, box-align, box-direction, box-flex, box-flex-group, box-lines, box-ordinal-group, box-orient, box-pack, box-reflect, box-shadow, color-correction, column-break-after, column-break-before, column-break-inside, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-span, column-width, dashboard-region, font-smoothing, highlight, hyphenate-character, hyphenate-limit-after, hyphenate-limit-before, hyphens, line-box-contain, line-break, line-clamp, locale, margin-before-collapse, margin-after-collapse, marquee-direction, marquee-increment, marquee-repetition, marquee-style, mask-attachment, mask-box-image, mask-box-image-outset, mask-box-image-repeat, mask-box-image-slice, mask-box-image-source, mask-box-image-width, mask-clip, mask-composite, mask-image, mask-origin, mask-position, mask-repeat, mask-size, nbsp-mode, perspective, perspective-origin, rtl-ordering, text-combine, text-decorations-in-effect, text-emphasis-color, text-emphasis-position, text-emphasis-style, text-fill-color, text-orientation, text-security, text-stroke-color, text-stroke-width, transform, transition, transform-origin, transform-style, transition-delay, transition-duration, transition-property, transition-timing-function, user-drag, user-modify, user-select, writing-mode, svg-shadow',
-		'moz': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-inline-policy, binding, border-bottom-colors, border-image, border-left-colors, border-right-colors, border-top-colors, box-align, box-direction, box-flex, box-ordinal-group, box-orient, box-pack, box-shadow, box-sizing, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-width, float-edge, font-feature-settings, font-language-override, force-broken-image-icon, hyphens, image-region, orient, outline-radius-bottomleft, outline-radius-bottomright, outline-radius-topleft, outline-radius-topright, perspective, perspective-origin, stack-sizing, tab-size, text-blink, text-decoration-color, text-decoration-line, text-decoration-style, text-size-adjust, transform, transform-origin, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-focus, user-input, user-modify, user-select, window-shadow',
+		'webkit': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-clip, background-composite, background-origin, background-size, border-fit, border-horizontal-spacing, border-image, border-vertical-spacing, box-align, box-direction, box-flex, box-flex-group, box-lines, box-ordinal-group, box-orient, box-pack, box-reflect, box-shadow, color-correction, column-break-after, column-break-before, column-break-inside, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-span, column-width, dashboard-region, font-smoothing, highlight, hyphenate-character, hyphenate-limit-after, hyphenate-limit-before, hyphens, line-box-contain, line-break, line-clamp, locale, margin-before-collapse, margin-after-collapse, marquee-direction, marquee-increment, marquee-repetition, marquee-style, mask-attachment, mask-box-image, mask-box-image-outset, mask-box-image-repeat, mask-box-image-slice, mask-box-image-source, mask-box-image-width, mask-clip, mask-composite, mask-image, mask-origin, mask-position, mask-repeat, mask-size, nbsp-mode, perspective, perspective-origin, rtl-ordering, text-combine, text-decorations-in-effect, text-emphasis-color, text-emphasis-position, text-emphasis-style, text-fill-color, text-orientation, text-security, text-stroke-color, text-stroke-width, transform, transition, transform-origin, transform-style, transition-delay, transition-duration, transition-property, transition-timing-function, user-drag, user-modify, user-select, writing-mode, svg-shadow, box-sizing, border-radius',
+		'moz': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-inline-policy, binding, border-bottom-colors, border-image, border-left-colors, border-right-colors, border-top-colors, box-align, box-direction, box-flex, box-ordinal-group, box-orient, box-pack, box-shadow, box-sizing, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-width, float-edge, font-feature-settings, font-language-override, force-broken-image-icon, hyphens, image-region, orient, outline-radius-bottomleft, outline-radius-bottomright, outline-radius-topleft, outline-radius-topright, perspective, perspective-origin, stack-sizing, tab-size, text-blink, text-decoration-color, text-decoration-line, text-decoration-style, text-size-adjust, transform, transform-origin, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-focus, user-input, user-modify, user-select, window-shadow, background-clip, border-radius',
 		'ms': 'accelerator, animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, backface-visibility, background-position-x, background-position-y, behavior, block-progression, box-align, box-direction, box-flex, box-line-progression, box-lines, box-ordinal-group, box-orient, box-pack, content-zoom-boundary, content-zoom-boundary-max, content-zoom-boundary-min, content-zoom-chaining, content-zoom-snap, content-zoom-snap-points, content-zoom-snap-type, content-zooming, filter, flow-from, flow-into, font-feature-settings, grid-column, grid-column-align, grid-column-span, grid-columns, grid-layer, grid-row, grid-row-align, grid-row-span, grid-rows, high-contrast-adjust, hyphenate-limit-chars, hyphenate-limit-lines, hyphenate-limit-zone, hyphens, ime-mode, interpolation-mode, layout-flow, layout-grid, layout-grid-char, layout-grid-line, layout-grid-mode, layout-grid-type, line-break, overflow-style, overflow-x, overflow-y, perspective, perspective-origin, perspective-origin-x, perspective-origin-y, scroll-boundary, scroll-boundary-bottom, scroll-boundary-left, scroll-boundary-right, scroll-boundary-top, scroll-chaining, scroll-rails, scroll-snap-points-x, scroll-snap-points-y, scroll-snap-type, scroll-snap-x, scroll-snap-y, scrollbar-arrow-color, scrollbar-base-color, scrollbar-darkshadow-color, scrollbar-face-color, scrollbar-highlight-color, scrollbar-shadow-color, scrollbar-track-color, text-align-last, text-autospace, text-justify, text-kashida-space, text-overflow, text-size-adjust, text-underline-position, touch-action, transform, transform-origin, transform-origin-x, transform-origin-y, transform-origin-z, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-select, word-break, word-wrap, wrap-flow, wrap-margin, wrap-through, writing-mode',
 		'o': 'dashboard-region, animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, border-image, link, link-source, object-fit, object-position, tab-size, table-baseline, transform, transform-origin, transition, transition-delay, transition-duration, transition-property, transition-timing-function, accesskey, input-format, input-required, marquee-dir, marquee-loop, marquee-speed, marquee-style'
 	};
@@ -9813,6 +9827,31 @@ emmet.define('cssResolver', function(require, _) {
 		vendorPrefixes[name] = _.extend({}, prefixObj, obj);
 	}
 	
+	function getSyntaxPreference(name, syntax) {
+		if (syntax) {
+			var val = prefs.get(syntax + '.' + name);
+			if (!_.isUndefined(val))
+				return val;
+		}
+		
+		return prefs.get('css.' + name);
+	}
+	
+	/**
+	 * Format CSS property according to current syntax dialect
+	 * @param {String} property
+	 * @param {String} syntax
+	 * @returns {String}
+	 */
+	function formatProperty(property, syntax) {
+		var ix = property.indexOf(':');
+		property = property.substring(0, ix).replace(/\s+$/, '') 
+			+ getSyntaxPreference('valueSeparator', syntax)
+			+ require('utils').trim(property.substring(ix + 1));
+		
+		return property.replace(/\s*;\s*$/, getSyntaxPreference('propertyEnd', syntax));
+	}
+	
 	/**
 	 * Transforms snippet value if required. For example, this transformation
 	 * may add <i>!important</i> declaration to CSS property
@@ -9820,7 +9859,7 @@ emmet.define('cssResolver', function(require, _) {
 	 * @param {Boolean} isImportant
 	 * @returns {String}
 	 */
-	function transformSnippet(snippet, isImportant) {
+	function transformSnippet(snippet, isImportant, syntax) {
 		if (!_.isString(snippet))
 			snippet = snippet.data;
 		
@@ -9834,6 +9873,8 @@ emmet.define('cssResolver', function(require, _) {
 				snippet += ' !important';
 			}
 		}
+		
+		return formatProperty(snippet, syntax);
 		
 		// format value separator
 		var ix = snippet.indexOf(':');
@@ -9881,7 +9922,7 @@ emmet.define('cssResolver', function(require, _) {
 //		obsolete: true
 //	});
 	
-	var cssSyntaxes = ['css', 'less', 'sass', 'scss'];
+	var cssSyntaxes = ['css', 'less', 'sass', 'scss', 'stylus'];
 	
 	/**
 	 * XXX register resolver
@@ -9890,7 +9931,7 @@ emmet.define('cssResolver', function(require, _) {
 	 */
 	require('resources').addResolver(function(node, syntax) {
 		if (_.include(cssSyntaxes, syntax) && node.isElement()) {
-			return module.expandToSnippet(node.abbreviation);
+			return module.expandToSnippet(node.abbreviation, syntax);
 		}
 		
 		return null;
@@ -10171,10 +10212,11 @@ emmet.define('cssResolver', function(require, _) {
 		 * Expands abbreviation into a snippet
 		 * @param {String} abbr Abbreviation name to expand
 		 * @param {String} value Abbreviation value
+		 * @param {String} syntax Currect syntax or dialect. Default is 'css'
 		 * @returns {Object} Array of CSS properties and values or predefined
 		 * snippet (string or element)
 		 */
-		expand: function(abbr, value) {
+		expand: function(abbr, value, syntax) {
 			var resources = require('resources');
 			var autoInsertPrefixes = prefs.get('css.autoInsertVendorPrefixes');
 			
@@ -10187,7 +10229,7 @@ emmet.define('cssResolver', function(require, _) {
 			// check if we have abbreviated resource
 			var snippet = resources.getSnippet('css', abbr);
 			if (snippet && !autoInsertPrefixes) {
-				return transformSnippet(snippet, isImportant);
+				return transformSnippet(snippet, isImportant, syntax);
 			}
 			
 			// no abbreviated resource, parse abbreviation
@@ -10226,13 +10268,13 @@ emmet.define('cssResolver', function(require, _) {
 						result.push(transformSnippet(
 								vendorPrefixes[p].transformName(snippetObj.name) 
 								+ ':' + snippetObj.value,
-								isImportant));
+								isImportant, syntax));
 						
 					}
 				});
 			
 			// put the original property
-			result.push(transformSnippet(snippetObj.name + ':' + snippetObj.value, isImportant));
+			result.push(transformSnippet(snippetObj.name + ':' + snippetObj.value, isImportant, syntax));
 			
 			return result;
 		},
@@ -10241,11 +10283,11 @@ emmet.define('cssResolver', function(require, _) {
 		 * Same as <code>expand</code> method but transforms output into a 
 		 * Emmet snippet
 		 * @param {String} abbr
-		 * @param {String} value
+		 * @param {String} syntax
 		 * @returns {String}
 		 */
-		expandToSnippet: function(abbr, value) {
-			var snippet = this.expand(abbr, value);
+		expandToSnippet: function(abbr, syntax) {
+			var snippet = this.expand(abbr, null, syntax);
 			if (_.isArray(snippet)) {
 				return snippet.join('\n');
 			}
