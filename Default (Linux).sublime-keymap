@@ -269,7 +269,7 @@
 			{
 				"key": "selector",
 				"match_all": true,
-				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html.basic - source.php - keyword.control.php, text.haml, string",
+				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html.basic - source.php - keyword.control.php, text.haml, text.html.ruby, text.html.twig, string",
 				"operator": "equal"
 			}, {
 				"key": "selection_empty",
@@ -304,7 +304,7 @@
 			{
 				"key": "selector",
 				"match_all": true,
-				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html.basic - source.php - keyword.control.php, text.haml, string",
+				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html.basic - source.php - keyword.control.php, text.haml, text.html.ruby, text.html.twig, string",
 				"operator": "equal"
 			}, {
 				"key": "selection_empty",
@@ -338,7 +338,7 @@
 		"context": [
 			{
 				"key": "selector",
-				"operand": "text.html.basic -source, text.xml"
+				"operand": "text.html.basic -source, text.xml, text.html.ruby, text.html.twig"
 			}, {
 				"key": "auto_complete_visible",
 				"operand": false
@@ -362,7 +362,7 @@
 			{
 				"key": "selector",
 				"match_all": true,
-				"operand": "text.html.basic meta.tag -string -punctuation.definition.tag.begin.html -meta.scope.between-tag-pair.html -source -meta.tag.template.value.twig",
+				"operand": "text.html meta.tag -string -punctuation.definition.tag.begin.html -meta.scope.between-tag-pair.html -source -meta.tag.template.value.twig",
 				"operator": "equal"
 			}, {
 				"key": "setting.auto_id_class",
@@ -380,7 +380,7 @@
 			{
 				"key": "selector",
 				"match_all": true,
-				"operand": "text.html.basic meta.tag -string -punctuation.definition.tag.begin.html -meta.scope.between-tag-pair.html -source -meta.tag.template.value.twig",
+				"operand": "text.html meta.tag -string -punctuation.definition.tag.begin.html -meta.scope.between-tag-pair.html -source -meta.tag.template.value.twig",
 				"operator": "equal"
 			}, {
 				"key": "setting.auto_id_class",
