@@ -80,6 +80,7 @@ class Context():
 	def __init__(self, files=[], path=None, contrib=None):
 		self._ctx = None
 		self._contrib = contrib
+		self._should_load_extension = True
 
 		# detect reader encoding
 		self._use_unicode = should_use_unicode()
@@ -104,11 +105,14 @@ class Context():
 		if val == self._ext_path:
 			return
 
+		self._ext_path = val
 		self.reset()
 
-		self._ext_path = val
-		if os.path.isdir(self._ext_path):
-			# load extensions
+	def load_extensions(self, path=None):
+		if path is None:
+			path = self._ext_path;
+
+		if path and os.path.isdir(path):
 			ext_files = []
 			print('Loading Emmet extensions from %s' % self._ext_path)
 			for dirname, dirnames, filenames in os.walk(self._ext_path):
@@ -116,6 +120,7 @@ class Context():
 					ext_files.append(os.path.join(dirname, filename))
 
 			self.js().locals.pyLoadExtensions(ext_files)
+
 
 	def js(self):
 		"Returns JS context"
@@ -126,8 +131,6 @@ class Context():
 			self._ctx = PyV8.JSContext()
 			self._ctx.enter()
 			self._ctx.eval(glue.join(core_src))
-
-			self._ctx.locals.pyResetUserData()
 
 			# load default snippets
 			self._ctx.locals.pyLoadSystemSnippets(self.read_js_file(make_path('snippets.json')))
@@ -140,6 +143,11 @@ class Context():
 				for k in self._contrib:
 					self._ctx.locals[k] = self._contrib[k]
 
+		if self._should_load_extension:
+			self._ctx.locals.pyResetUserData()
+			self.load_extensions()
+			self._should_load_extension = False
+
 		return self._ctx
 
 	def load_user_data(self, data):
@@ -148,9 +156,11 @@ class Context():
 
 	def reset(self):
 		"Resets JS execution context"
-		if self._ctx:
-			self._ctx.leave()
-			self._ctx = None
+		# if self._ctx:
+		# 	# self._ctx.leave()
+		# 	self._ctx = None
+
+		self._should_load_extension = True
 
 	def read_js_file(self, file_path):
 		if self._use_unicode:

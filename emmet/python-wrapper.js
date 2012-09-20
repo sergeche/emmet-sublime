@@ -20,8 +20,7 @@ function pyLoadExtensions(fileList) {
 }
 
 function pyResetUserData() {
-	emmet.require('bootstrap').resetSnippets();
-	emmet.require('preferences').reset();
+	emmet.require('bootstrap').resetUserData();
 }
 
 emmet.define('file', function(require, _) {
