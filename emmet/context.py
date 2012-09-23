@@ -4,6 +4,7 @@ import os.path
 import platform
 import codecs
 import json
+import gc
 from file import File
 
 SUPPORTED_PLATFORMS = {
@@ -156,9 +157,11 @@ class Context():
 
 	def reset(self):
 		"Resets JS execution context"
-		# if self._ctx:
-		# 	# self._ctx.leave()
-		# 	self._ctx = None
+		if self._ctx:
+			self._ctx.leave()
+			self._ctx = None
+			PyV8.JSEngine.collect()
+			gc.collect()
 
 		self._should_load_extension = True
 
