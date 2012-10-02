@@ -1,10 +1,12 @@
 # Emmet (ex-Zen Coding) for Sublime Text 2 plugin
 
-A work-in-progress official plugin for Sublime Text 2 with upcoming Emmet toolkit, previously called Zen Coding. This plugin will eventually replace current plugin: https://github.com/sublimator/ZenCoding
+A work-in-progress official plugin for Sublime Text 2 with upcoming Emmet toolkit, previously called Zen Coding. This plugin will eventually replace current one: https://github.com/sublimator/ZenCoding
 
 *Warning:* this plugin may not work at all in some OSes (currently, it doesn’t work on Linux x32) since it written in JavaScript and uses [PyV8](http://code.google.com/p/pyv8/) and [Google V8](https://developers.google.com/v8/) binaries to run. These binaries must be compiled individually for every OS.
 
 ## How to install
+
+*You should remove or disable previous Zen Coding plugin, installed from Package Control, in order to operate properly.*
 
 1. Clone git repo into your packages folder (in ST2, find Browse Packages... menu item to open this folder)
 2. Restart ST2 editor
@@ -14,8 +16,6 @@ Or with package control:
 1. Package Control: Add Repository `https://github.com/sergeche/emmet-sublime`
 2. Package Control: Install Package `emmet-sublime`
 3. Restart ST2 editor
-
-You should remove or disable previous Zen Coding plugin, installed from Package Control, in order to operate properly.
 
 ## Things to test
 
