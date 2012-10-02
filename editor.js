@@ -55,7 +55,7 @@ var editorProxy = emmet.exec(function(require, _) {
 			// by default, abbreviation parser generates all unlinked (un-mirrored)
 			// tabstops as ${0}, so we have upgrade all caret tabstops with unique
 			// positions but make sure that all other tabstops are not linked accidentally
-			value = pyUpdateTabStops(value);
+			value = pyPreprocessText(value);
 			sublimeReplaceSubstring(start, end, value, !!noIndent);
 		},
 
@@ -120,34 +120,30 @@ function require(name) {
 	return emmet.require(name);
 }
 
-function pyUpdateTabStops(value) {
-	var base = 1000;
-	var zeroBase = 0;
+function pyPreprocessText(value) {
 	return require('tabStops').processText(value, {
-		tabstop: function(data) {
-			var group = parseInt(data.group, 10);
-			if (group === 0)
-				group = ++zeroBase;
-			else
-				group += base;
+		escape: function(ch) {
+			if (ch == '$') {
+				return '\\$';
+			}
 
-			return '${' + group + (data.placeholder ? ':' + data.placeholder : '') + '}';
+			return ch;
 		}
-	})
+	});
 }
 
 function pyExpandAbbreviationAsYouType(abbr) {
 	var info = require('editorUtils').outputInfo(editorProxy);
 	var result = emmet.expandAbbreviation(abbr, info.syntax, info.profile, 
 					require('actionUtils').captureContext(editorProxy));
-	return pyUpdateTabStops(result);
+	return pyPreprocessText(result);
 }
 
 function pyWrapAsYouType(abbr, content) {
 	var info = require('editorUtils').outputInfo(editorProxy);
 	content = require('utils').escapeText(content);
 	var result = require('wrapWithAbbreviation').wrap(abbr, content, info.syntax, info.profile);
-	return pyUpdateTabStops(result);
+	return pyPreprocessText(result);
 }
 
 function pyCaptureWrappingRange() {
