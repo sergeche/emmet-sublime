@@ -121,12 +121,24 @@ function require(name) {
 }
 
 function pyPreprocessText(value) {
+	var base = 1000;
+	var zeroBase = 0;
 	return require('tabStops').processText(value, {
+		tabstop: function(data) {
+			var group = parseInt(data.group, 10);
+			if (group === 0)
+				group = ++zeroBase;
+			else
+				group += base;
+ 
+			return '${' + group + (data.placeholder ? ':' + data.placeholder : '') + '}';
+
+		},
 		escape: function(ch) {
 			if (ch == '$') {
 				return '\\$';
 			}
-
+ 
 			return ch;
 		}
 	});
