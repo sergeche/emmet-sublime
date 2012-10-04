@@ -88,17 +88,20 @@ var editorProxy = emmet.exec(function(require, _) {
 
 			var pos = this.getCaretPos();
 
-			if (view.match_selector(pos, 'text.xml'))
+			if (view.match_selector(pos, 'text.xml') || view.match_selector(pos, 'xsl'))
 				return 'xml';
+
+			if (view.match_selector(pos, 'source')) {
+				return 'line';
+			}
 
 			if (view.match_selector(pos, 'text.html')) {
 				if (~view.substr(new sublime.Region(0, 200)).toLowerCase().indexOf('xhtml')) {
 					return 'xhtml';
 				}
-				return 'html';
 			}
 			
-			return 'line';
+			return 'html';
 		},
 
 		prompt: function(title) {
