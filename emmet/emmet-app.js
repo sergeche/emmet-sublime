@@ -1211,7 +1211,7 @@ var emmet = (function(global) {
 		 * @param {String} abbr Abbreviation to parse
 		 * @param {String} syntax Abbreviation's context syntax
 		 * @param {String} profile Output profile (or its name)
-		 * @param {TreeNode} contextNode Contextual node where abbreviation is
+		 * @param {Object} contextNode Contextual node where abbreviation is
 		 * written
 		 * @return {String}
 		 */
@@ -2356,8 +2356,10 @@ emmet.exec(function(require, _) {
 	 * Insert pasted content into correct positions of parsed node
 	 * @param {AbbreviationNode} node
 	 * @param {String} content
+	 * @param {Boolean} overwrite Overwrite node content if no value placeholders
+	 * found instead of appending to existing content
 	 */
-	function insertPastedContent(node, content) {
+	function insertPastedContent(node, content, overwrite) {
 		var nodesWithPlaceholders = node.findAll(function(item) {
 			return hasOutputPlaceholder(item);
 		});
@@ -2376,7 +2378,11 @@ emmet.exec(function(require, _) {
 			// on output placeholders in subtree, insert content in the deepest
 			// child node
 			var deepest = node.deepestChild() || node;
-			deepest.content = require('abbreviationUtils').insertChildContent(deepest.content, content);
+			if (overwrite) {
+				deepest.content = content;
+			} else {
+				deepest.content = require('abbreviationUtils').insertChildContent(deepest.content, content);
+			}
 		}
 	}
 	
@@ -2418,7 +2424,7 @@ emmet.exec(function(require, _) {
 			}
 			
 			if (pastedContent) {
-				insertPastedContent(item, pastedContent);
+				insertPastedContent(item, pastedContent, !!item.data('pasteOverwrites'));
 			}
 			
 			item.data('paste', null);
@@ -3930,6 +3936,11 @@ emmet.define('range', function(require, _) {
 			
 			if (start instanceof Range)
 				return start;
+			
+			if (_.isObject(start) && 'start' in start && 'end' in start) {
+				len = start.end - start.start;
+				start = start.start;
+			}
 				
 			return new Range(start, len);
 		},
@@ -5240,7 +5251,7 @@ emmet.define('actionUtils', function(require, _) {
 		 * Captures context XHTML element from editor under current caret position.
 		 * This node can be used as a helper for abbreviation extraction
 		 * @param {IEmmetEditor} editor
-		 * @returns {TreeNode}
+		 * @returns {Object}
 		 */
 		captureContext: function(editor) {
 			var allowedSyntaxes = {'html': 1, 'xml': 1, 'xsl': 1};
@@ -6227,7 +6238,7 @@ emmet.define('preferences', function(require, _) {
 
 					preferences[k] = v;
 				} else if  (k in preferences) {
-					delete preferences[p];
+					delete preferences[k];
 				}
 			});
 		},
@@ -7868,6 +7879,9 @@ emmet.define('expandAbbreviation', function(require, _) {
  * @memberOf __wrapWithAbbreviationDefine
  */
 emmet.define('wrapWithAbbreviation', function(require, _) {
+	/** Back-references to current module */
+	var module = null;
+	
 	/**
 	 * Wraps content with abbreviation
 	 * @param {IEmmetEditor} Editor instance
@@ -7907,10 +7921,11 @@ emmet.define('wrapWithAbbreviation', function(require, _) {
 		}
 		
 		var newContent = utils.escapeText(info.content.substring(startOffset, endOffset));
-		var result = require('wrapWithAbbreviation').wrap(abbr, editorUtils.unindent(editor, newContent), info.syntax, info.profile);
+		var result = module
+			.wrap(abbr, editorUtils.unindent(editor, newContent), info.syntax, 
+					info.profile, require('actionUtils').captureContext(editor));
 		
 		if (result) {
-//			editor.setCaretPos(endOffset);
 			editor.replaceContent(result, startOffset, endOffset);
 			return true;
 		}
@@ -7918,18 +7933,20 @@ emmet.define('wrapWithAbbreviation', function(require, _) {
 		return false;
 	});
 	
-	return {
+	return module = {
 		/**
 		 * Wraps passed text with abbreviation. Text will be placed inside last
 		 * expanded element
-		 * @memberOf emmet.wrapWithAbbreviation
+		 * @memberOf wrapWithAbbreviation
 		 * @param {String} abbr Abbreviation
 		 * @param {String} text Text to wrap
 		 * @param {String} syntax Document type (html, xml, etc.). Default is 'html'
 		 * @param {String} profile Output profile's name. Default is 'plain'
+		 * @param {Object} contextNode Context node inside which abbreviation
+		 * is wrapped. It will be used as a reference for node name resolvers
 		 * @return {String}
 		 */
-		wrap: function(abbr, text, syntax, profile) {
+		wrap: function(abbr, text, syntax, profile, contextNode) {
 			/** @type emmet.filters */
 			var filters = require('filters');
 			/** @type emmet.utils */
@@ -7943,7 +7960,8 @@ emmet.define('wrapWithAbbreviation', function(require, _) {
 			var data = filters.extractFromAbbreviation(abbr);
 			var parsedTree = require('abbreviationParser').parse(data[0], {
 				syntax: syntax,
-				pastedContent: text
+				pastedContent: text,
+				contextNode: contextNode
 			});
 			if (parsedTree) {
 				var filtersList = filters.composeList(syntax, profile, data[1]);
@@ -10309,10 +10327,11 @@ emmet.define('cssResolver', function(require, _) {
 				return snippet.data;
 			
 			return String(snippet);
-		}
+		},
+		
+		getSyntaxPreference: getSyntaxPreference
 	};
 });
-
 /**
  * 'Expand Abbreviation' handler that parses gradient definition from under 
  * cursor and updates CSS rule with vendor-prefixed values.
@@ -10323,6 +10342,8 @@ emmet.define('cssResolver', function(require, _) {
  */
 emmet.define('cssGradient', function(require, _) {
 	var defaultLinearDirections = ['top', 'to bottom', '0deg'];
+	/** Back-reference to current module */
+	var module = null;
 	
 	var reDeg = /\d+deg/i;
 	var reKeyword = /top|bottom|left|right/i;
@@ -10339,6 +10360,15 @@ emmet.define('cssGradient', function(require, _) {
 	
 	prefs.define('css.gradient.omitDefaultDirection', true,
 		'Do not output default direction definition in generated gradients.');
+	
+	prefs.define('css.gradient.defaultProperty', 'background-image',
+		'When gradient expanded outside CSS value context, it will produce '
+			+ 'properties with this name.');
+	
+	prefs.define('css.gradient.fallback', false,
+			'With this option enabled, CSS gradient generator will produce '
+			+ '<code>background-color</code> property with gradient first color '
+			+ 'as fallback for old browsers.');
 	
 	function normalizeSpace(str) {
 		return require('utils').trim(str).replace(/\s+/g, ' ');
@@ -10506,6 +10536,45 @@ emmet.define('cssGradient', function(require, _) {
 	}
 	
 	/**
+	 * Returns list of CSS properties with gradient
+	 * @param {Object} gradient
+	 * @param {String} propertyName Original CSS property name
+	 * @returns {Array}
+	 */
+	function getPropertiesForGradient(gradient, propertyName) {
+		var props = [];
+		var css = require('cssResolver');
+		
+		if (prefs.get('css.gradient.fallback') && ~propertyName.toLowerCase().indexOf('background')) {
+			props.push({
+				name: 'background-color',
+				value: '${1:' + gradient.colorStops[0].color + '}'
+			});
+		}
+		
+		_.each(prefs.getArray('css.gradient.prefixes'), function(prefix) {
+			var name = css.prefixed(propertyName, prefix);
+			if (prefix == 'webkit' && prefs.get('css.gradient.oldWebkit')) {
+				try {
+					props.push({
+						name: name,
+						value: module.oldWebkitLinearGradient(gradient)
+					});
+				} catch(e) {}
+			}
+			
+			props.push({
+				name: name,
+				value: module.toString(gradient, prefix)
+			});
+		});
+		
+		return props.sort(function(a, b) {
+			return b.name.length - a.name.length;
+		});
+	}
+	
+	/**
 	 * Pastes gradient definition into CSS rule with correct vendor-prefixes
 	 * @param {EditElement} property Matched CSS property
 	 * @param {Object} gradient Parsed gradient
@@ -10516,9 +10585,6 @@ emmet.define('cssGradient', function(require, _) {
 	function pasteGradient(property, gradient, valueRange) {
 		var rule = property.parent;
 		var utils = require('utils');
-		var css = require('cssResolver');
-		/** @type Array */
-		var prefixes = prefs.getArray('css.gradient.prefixes');
 		
 		// first, remove all properties within CSS rule with the same name and
 		// gradient definition
@@ -10537,32 +10603,10 @@ emmet.define('cssGradient', function(require, _) {
 		};
 		
 		// put vanilla-clean gradient definition into current rule
-		var cssGradient = require('cssGradient');
-		property.value(val(cssGradient.toString(gradient)));
+		property.value(val(module.toString(gradient)) + '${2}');
 		
 		// create list of properties to insert
-		var propsToInsert = [];
-		_.each(prefixes, function(prefix) {
-			var name = css.prefixed(property.name(), prefix);
-			if (prefix == 'webkit' && prefs.get('css.gradient.oldWebkit')) {
-				try {
-					propsToInsert.push({
-						name: name,
-						value: val(cssGradient.oldWebkitLinearGradient(gradient))
-					});
-				} catch(e) {}
-			}
-			
-			propsToInsert.push({
-				name: name,
-				value: val(cssGradient.toString(gradient, prefix))
-			});
-		});
-		
-		// sort properties by name length
-		propsToInsert = propsToInsert.sort(function(a, b) {
-			return b.name.length - a.name.length;
-		});
+		var propsToInsert = getPropertiesForGradient(gradient, property.name());
 		
 		// put vendor-prefixed definitions before current rule
 		_.each(propsToInsert, function(prop) {
@@ -10575,10 +10619,9 @@ emmet.define('cssGradient', function(require, _) {
 	 */
 	function findGradient(cssProp) {
 		var value = cssProp.value();
-		var cssGradient = require('cssGradient');
 		var gradient = null;
 		var matchedPart = _.find(cssProp.valueParts(), function(part) {
-			return gradient = cssGradient.parse(part.substring(value));
+			return gradient = module.parse(part.substring(value));
 		});
 		
 		if (matchedPart && gradient) {
@@ -10589,6 +10632,84 @@ emmet.define('cssGradient', function(require, _) {
 		}
 		
 		return null;
+	}
+	
+	/**
+	 * Tries to expand gradient outside CSS value 
+	 * @param {IEmmetEditor} editor
+	 * @param {String} syntax
+	 */
+	function expandGradientOutsideValue(editor, syntax) {
+		var propertyName = prefs.get('css.gradient.defaultProperty');
+		
+		if (!propertyName)
+			return false;
+		
+		// assuming that gradient definition is written on new line,
+		// do a simplified parsing
+		var content = String(editor.getContent());
+		/** @type Range */
+		var lineRange = require('range').create(editor.getCurrentLineRange());
+		
+		// get line content and adjust range with padding
+		var line = lineRange.substring(content)
+			.replace(/^\s+/, function(pad) {
+				lineRange.start += pad.length;
+				return '';
+			})
+			.replace(/\s+$/, function(pad) {
+				lineRange.end -= pad.length;
+				return '';
+			});
+		
+		var css = require('cssResolver');
+		var gradient = module.parse(line);
+		if (gradient) {
+			var props = getPropertiesForGradient(gradient, propertyName);
+			props.push({
+				name: propertyName,
+				value: module.toString(gradient) + '${2}'
+			});
+			
+			var sep = css.getSyntaxPreference('valueSeparator', syntax);
+			var end = css.getSyntaxPreference('propertyEnd', syntax);
+			props = _.map(props, function(item) {
+				return item.name + sep + item.value + end;
+			});
+			
+			editor.replaceContent(props.join('\n'), lineRange.start, lineRange.end);
+			return true;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Search for gradient definition inside CSS value under cursor
+	 * @param {String} content
+	 * @param {Number} pos
+	 * @returns {Object}
+	 */
+	function findGradientFromPosition(content, pos) {
+		var cssProp = null;
+		/** @type EditContainer */
+		var cssRule = require('cssEditTree').parseFromPosition(content, pos, true);
+		
+		if (cssRule) {
+			cssProp = cssRule.itemFromPosition(pos, true);
+			if (!cssProp) {
+				// in case user just started writing CSS property
+				// and didn't include semicolon–try another approach
+				cssProp = _.find(cssRule.list(), function(elem) {
+					return elem.range(true).end == pos;
+				});
+			}
+		}
+		
+		return {
+			rule: cssRule,
+			property: cssProp
+		};
 	}
 	
 	// XXX register expand abbreviation handler
@@ -10604,38 +10725,43 @@ emmet.define('cssGradient', function(require, _) {
 		
 		// let's see if we are expanding gradient definition
 		var caret = editor.getCaretPos();
-		/** @type EditContainer */
-		var cssRule = require('cssEditTree').parseFromPosition(info.content, caret, true);
-		if (cssRule) {
-			var cssProp = cssRule.itemFromPosition(caret, true);
-			if (!cssProp) {
-				// in case user just started writing CSS property
-				// and didn't include semicolon–try another approach
-				cssProp = _.find(cssRule.list(), function(elem) {
-					return elem.range(true).end == caret;
-				});
-			}
-			
-			if (cssProp) {
-				// make sure that caret is inside property value with gradient 
-				// definition
-				var g = findGradient(cssProp);
-				if (g) {
-					// make sure current property has terminating semicolon
-					cssProp.end(';');
-					
-					var ruleStart = cssRule.options.offset || 0;
-					var ruleEnd = ruleStart + cssRule.toString().length;
-					
-					pasteGradient(cssProp, g.gradient, g.valueRange);
-					editor.replaceContent(cssRule.toString(), ruleStart, ruleEnd, true);
-					editor.setCaretPos(cssProp.valueRange(true).end);
-					return true;
+		var content = info.content;
+		var css = findGradientFromPosition(content, caret);
+		
+		if (css.property) {
+			// make sure that caret is inside property value with gradient 
+			// definition
+			var g = findGradient(css.property);
+			if (g) {
+				var ruleStart = css.rule.options.offset || 0;
+				var ruleEnd = ruleStart + css.rule.toString().length;
+				
+				// Handle special case:
+				// user wrote gradient definition between existing CSS 
+				// properties and did not finished it with semicolon.
+				// In this case, we have semicolon right after gradient 
+				// definition and re-parse rule again
+				if (/[\n\r]/.test(css.property.value())) {
+					// insert semicolon at the end of gradient definition
+					var insertPos = css.property.valueRange(true).start + g.valueRange.end;
+					content = require('utils').replaceSubstring(content, ';', insertPos);
+					var newCss = findGradientFromPosition(content, caret);
+					if (newCss.property) {
+						g = findGradient(newCss.property);
+						css = newCss;
+					}
 				}
+				
+				// make sure current property has terminating semicolon
+				css.property.end(';');
+				
+				pasteGradient(css.property, g.gradient, g.valueRange);
+				editor.replaceContent(css.rule.toString(), ruleStart, ruleEnd, true);
+				return true;
 			}
 		}
 		
-		return false;
+		return expandGradientOutsideValue(editor, syntax);
 	});
 	
 	// XXX register "Reflect CSS Value" action delegate
@@ -10643,7 +10769,6 @@ emmet.define('cssGradient', function(require, _) {
 	 * @param {EditElement} property
 	 */
 	require('reflectCSSValue').addHandler(function(property) {
-		var cssGradient = require('cssGradient');
 		var utils = require('utils');
 		
 		var g = findGradient(property);
@@ -10663,17 +10788,17 @@ emmet.define('cssGradient', function(require, _) {
 			// check if property value starts with gradient definition
 			var m = prop.value().match(/^\s*(\-([a-z]+)\-)?linear\-gradient/);
 			if (m) {
-				prop.value(val(cssGradient.toString(g.gradient, m[2] || '')));
+				prop.value(val(module.toString(g.gradient, m[2] || '')));
 			} else if (m = prop.value().match(/\s*\-webkit\-gradient/)) {
 				// old webkit gradient definition
-				prop.value(val(cssGradient.oldWebkitLinearGradient(g.gradient)));
+				prop.value(val(module.oldWebkitLinearGradient(g.gradient)));
 			}
 		});
 		
 		return true;
 	});
 	
-	return {
+	return module = {
 		/**
 		 * Parses gradient definition
 		 * @param {String} gradient
@@ -10681,7 +10806,7 @@ emmet.define('cssGradient', function(require, _) {
 		 */
 		parse: function(gradient) {
 			var result = null;
-			gradient = require('utils').trim(gradient).replace(/^([\w\-]+)\((.+?)\)$/, function(str, type, definition) {
+			require('utils').trim(gradient).replace(/^([\w\-]+)\((.+?)\)$/, function(str, type, definition) {
 				// remove vendor prefix
 				type = type.toLowerCase().replace(/^\-[a-z]+\-/, '');
 				if (type == 'linear-gradient' || type == 'lg') {
@@ -11850,10 +11975,11 @@ emmet.exec(function(require, _) {
 				var wordCound = match[1] || 30;
 				
 				// force node name resolving if node should be repeated
-				// or contains attributes. In this case, node should be outputtet
+				// or contains attributes. In this case, node should be outputed
 				// as tag, otherwise as text-only node
 				node._name = '';
 				node.data('forceNameResolving', node.isRepeating() || node.attributeList().length);
+				node.data('pasteOverwrites', true);
 				node.data('paste', function(i, content) {
 					return paragraph(wordCound, !i);
 				});
