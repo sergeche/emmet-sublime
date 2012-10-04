@@ -36,7 +36,7 @@ You can see more examples in unit tests:
 
 ### Yandex BEM filter
 
-You you’re writing your HTML and CSS code in OOCSS-style, [Yandex’s BEM](http://coding.smashingmagazine.com/2012/04/16/a-new-front-end-methodology-bem/) style specifically, you will like this filter. It provides some aliases and automatic insertions of common block and element names in classes. For example: `.block_mod>.-elem|bem` is the same abbreviation as `.block.block_mod>.block__elem`. More examples in [unit tests](https://github.com/sergeche/zen-coding/blob/v0.7.1/javascript/unittest/tests/filters.js#L19).
+If you’re writing your HTML and CSS code in OOCSS-style, [Yandex’s BEM](http://coding.smashingmagazine.com/2012/04/16/a-new-front-end-methodology-bem/) style specifically, you will like this filter. It provides some aliases and automatic insertions of common block and element names in classes. For example: `.block_mod>.-elem|bem` is the same abbreviation as `.block.block_mod>.block__elem`. More examples in [unit tests](https://github.com/sergeche/zen-coding/blob/v0.7.1/javascript/unittest/tests/filters.js#L19).
 
 If you’re writing a lot of BEM code, you may want to make `bem` filter default for `html` syntax (see `Emmet.sublime-settings`).
 
