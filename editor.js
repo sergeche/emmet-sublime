@@ -71,7 +71,7 @@ var editorProxy = emmet.exec(function(require, _) {
 
 			if (~scope.indexOf('xsl')) {
 				docType = 'xsl';
-			} else if (/\b(html|js|less|scss|sass|css|xml|haml|stylus)\b/.test(scope)) {
+			} else if (/\b(html|less|scss|sass|css|xml|haml|stylus)\b/.test(scope)) {
 				// Sublime has back to front scopes ....
 				docType = RegExp.$1;
 			}
