@@ -9772,9 +9772,15 @@ emmet.define('cssResolver', function(require, _) {
 		var utils = require('utils');
 		snippet = utils.trim(snippet);
 		
-		// check if it doesn't contain a comment
-		if (~snippet.indexOf('/*'))
+		// check if it doesn't contain a comment and a newline
+		if (~snippet.indexOf('/*') || /[\n\r]/.test(snippet)) {
 			return false;
+		}
+		
+		// check if it's a valid snippet definition
+		if (!/^[a-z0-9\-]+\s*\:/i.test(snippet)) {
+			return false;
+		}
 		
 		snippet = require('tabStops').processText(snippet, {
 			replaceCarets: true,
