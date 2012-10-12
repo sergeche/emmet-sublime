@@ -2392,13 +2392,13 @@ emmet.exec(function(require, _) {
 	 */
 	parser.addPreprocessor(function(tree, options) {
 		if (options.pastedContent) {
-			var lines = require('utils').splitByLines(options.pastedContent, true);
+			var utils = require('utils');
+			var lines = _.map(utils.splitByLines(options.pastedContent, true), utils.trim);
+			
 			// set repeat count for implicitly repeated elements before
 			// tree is unrolled
 			tree.findAll(function(item) {
 				if (item.hasImplicitRepeat) {
-					// TODO replace $# tokens
-//					(item.deepestChild() || item).data('paste', lines);
 					item.data('paste', lines);
 					return item.repeatCount = lines.length;
 				}
