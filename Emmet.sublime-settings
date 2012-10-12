@@ -17,6 +17,10 @@
 	// Exit tabstop mode when enter key is pressed
 	"clear_fields_on_enter_key": true,
 
+	// List of HTML and XML scopes where Enter key should insert formatted 
+	// (e.g. with indentation) line break
+	"formatted_linebreak_scopes": "meta.scope.between-tag-pair.html, meta.scope.between-tag-pair.xml, punctuation.definition.tag.end.html",
+
 	// Custom snippets definitions, as per https://github.com/sergeche/zen-coding/blob/v0.7.1/snippets.json
 	"snippets": {
 		// "html": {
