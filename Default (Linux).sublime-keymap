@@ -342,6 +342,9 @@
 			}, {
 				"key": "auto_complete_visible",
 				"operand": false
+			}, {
+				"key": "setting.disable_formatted_linebreak",
+				"operand": false
 			}
 		]
 	},

@@ -14,6 +14,10 @@
     // disable expanding abbreviation by Tab key
     "disable_tab_abbreviations": false,
 
+    // disable insertion of formatted linebreak when
+    // Enter key is pressed between opening and closing HTML tags
+    "disable_formatted_linebreak": false,
+
     // Enables default Emmet keymap. Many users complain that Emmet actions
     // (especially ones that bound to Alt key) behave incorrectly in 
     // non-English keyboard layouts. Set this setting to `false` in
