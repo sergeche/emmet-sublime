@@ -3,6 +3,8 @@
 from __future__ import with_statement
 
 import sys, os, re
+import thread
+import logging
 
 try:
     from cStringIO import StringIO
@@ -766,6 +768,12 @@ class AST:
     Breakable = _PyV8.AstBreakableStatement
     Block = _PyV8.AstBlock
     Declaration = _PyV8.AstDeclaration
+    VariableDeclaration = _PyV8.AstVariableDeclaration
+    Module = _PyV8.AstModule
+    ModuleDeclaration = _PyV8.AstModuleDeclaration
+    ModuleLiteral = _PyV8.AstModuleLiteral
+    ModuleVariable = _PyV8.AstModuleVariable
+    ModulePath = _PyV8.AstModulePath
     Iteration = _PyV8.AstIterationStatement
     DoWhile = _PyV8.AstDoWhileStatement
     While = _PyV8.AstWhileStatement
@@ -809,7 +817,6 @@ class AST:
 
 from datetime import *
 import unittest
-import logging
 import traceback
 
 class TestContext(unittest.TestCase):
@@ -945,6 +952,8 @@ class TestWrapper(unittest.TestCase):
 
             self.assertEquals(hash(o1), hash(o))
             self.assert_(o != o1)
+
+        self.assertRaises(UnboundLocalError, o.clone)
 
     def testAutoConverter(self):
         with JSContext() as ctxt:
@@ -1110,10 +1119,12 @@ class TestWrapper(unittest.TestCase):
             self.assertEquals(0, func.coloff)
             
             #TODO fix me, why the setter doesn't work?
+            # func.name = "hello"
+            # it seems __setattr__ was called instead of CJavascriptFunction::SetName
 
-            func.name = "hello"
+            func.setName("hello")
 
-            #self.assertEquals("hello", func.name)
+            self.assertEquals("hello", func.name)
 
     def testCall(self):
         class Hello(object):
@@ -1175,7 +1186,7 @@ class TestWrapper(unittest.TestCase):
                     self.assertEqual(35, e.endCol)
                     self.assertEqual('throw Error("hello world");', e.sourceLine.strip())
                     self.assertEqual('Error: hello world\n' +
-                                     '    at Error (unknown source)\n' +
+                                     '    at Error (<anonymous>)\n' +
                                      '    at hello (test:14:35)\n' +
                                      '    at test:17:25', e.stackTrace)
 
@@ -1362,6 +1373,12 @@ class TestWrapper(unittest.TestCase):
 
                 self.assertEquals(keys, str(array))
                 self.assertEquals(values, [array[i] for i in range(len(array))])
+
+            self.assertEquals(3, ctxt.eval("(function (arr) { return arr.length; })")(JSArray([1, 2, 3])))
+            self.assertEquals(2, ctxt.eval("(function (arr, idx) { return arr[idx]; })")(JSArray([1, 2, 3]), 1))
+            self.assertEquals('[object Array]', ctxt.eval("(function (arr) { return Object.prototype.toString.call(arr); })")(JSArray([1, 2, 3])))
+            self.assertEquals('[object Array]', ctxt.eval("(function (arr) { return Object.prototype.toString.call(arr); })")(JSArray((1, 2, 3))))
+            self.assertEquals('[object Array]', ctxt.eval("(function (arr) { return Object.prototype.toString.call(arr); })")(JSArray(range(3))))
 
     def testMultiDimArray(self):
         with JSContext() as ctxt:
@@ -1895,12 +1912,14 @@ class TestEngine(unittest.TestCase):
                 function 函数() { return 变量.length; }
 
                 函数();
+
+                var func = function () {};
                 """
 
                 data = engine.precompile(src)
 
                 self.assert_(data)
-                self.assertEquals(48, len(data))
+                self.assertEquals(68, len(data))
 
                 s = engine.compile(src, precompiled=data)
 
@@ -1924,6 +1943,8 @@ class TestEngine(unittest.TestCase):
                 setattr(ctxt.locals, u'变量'.encode('utf-8'), u'测试长字符串')
 
                 self.assertEquals(6, func())
+
+                self.assertEquals("func", ctxt.locals.func.inferredname)
 
     def testExtension(self):
         extSrc = """function hello(name) { return "hello " + name + " from javascript"; }"""
@@ -2315,19 +2336,24 @@ class TestAST(unittest.TestCase):
 
     def testCallStatements(self):
         class CallStatementChecker(TestAST.Checker):
-            def onDeclaration(self, decl):
+            def onVariableDeclaration(self, decl):
                 self.called += 1
 
                 var = decl.proxy
 
                 if var.name == 's':
                     self.assertEquals(AST.VarMode.var, decl.mode)
-                    self.assertEquals(None, decl.function)
 
                     self.assert_(var.isValidLeftHandSide)
                     self.assertFalse(var.isArguments)
                     self.assertFalse(var.isThis)
-                elif var.name == 'hello':
+
+            def onFunctionDeclaration(self, decl):
+                self.called += 1
+
+                var = decl.proxy
+
+                if var.name == 'hello':
                     self.assertEquals(AST.VarMode.var, decl.mode)
                     self.assert_(decl.function)
                     self.assertEquals('(function hello(name) { s = ("Hello " + name); })', str(decl.function))
