@@ -73,6 +73,25 @@ def update_settings():
 	ctx.reset()
 	ctx.load_user_data(json.dumps(payload))
 
+def should_perform_action(name, view=None):
+	if not view:
+		view = active_view()
+
+	# fallback to old check
+	if not view.settings().get('enable_emmet_keymap', True):
+		return False
+
+	disabled_actions = settings.get('disabled_keymap_actions', '')
+
+	if not disabled_actions: # no disabled actions
+		return True
+
+	if disabled_actions == 'all': # disable all actions
+		return False
+
+	return name not in re.split(r'\s*,\s*', disabled_actions.strip())
+
+
 # load settings
 settings = sublime.load_settings('Emmet.sublime-settings')
 settings.add_on_change('extensions_path', update_settings)
@@ -94,6 +113,14 @@ class RunEmmetAction(sublime_plugin.TextCommand):
 	def run(self, edit, action=None, **kw):
 		run_action(lambda i, sel: ctx.js().locals.pyRunAction(action))
 		# ctx.js().locals.pyRunAction(action)
+
+class ActionContextHandler(sublime_plugin.EventListener):
+	def on_query_context(self, view, key, op, operand, match_all):
+		if not key.startswith('emmet_action_enabled.'):
+			return None
+
+		prefix, name = key.split('.')
+		return should_perform_action(name, view)
 
 def run_action(action, view=None):
 	"Runs Emmet action in multiselection mode"
