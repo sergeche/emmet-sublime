@@ -21,6 +21,12 @@
 	// (e.g. with indentation) line break
 	"formatted_linebreak_scopes": "meta.scope.between-tag-pair.html, meta.scope.between-tag-pair.xml, punctuation.definition.tag.end.html",
 
+	// A comma-separated list of disabled action names.
+	// Listed action will not be triggered by default keyboard
+	// shortcut.
+	// Use "all" value to disable all shortcuts at once
+	"disabled_keymap_actions": "",
+
 	// Custom snippets definitions, as per https://github.com/sergeche/zen-coding/blob/v0.7.1/snippets.json
 	"snippets": {
 		// "html": {

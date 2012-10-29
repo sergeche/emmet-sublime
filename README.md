@@ -1,53 +1,80 @@
-# Emmet (ex-Zen Coding) for Sublime Text 2 plugin
+# Emmet for Sublime Text 2 plugin
 
-A work-in-progress official plugin for Sublime Text 2 with upcoming Emmet toolkit, previously called Zen Coding. This plugin will eventually replace current one: https://github.com/sublimator/ZenCoding
+A work-in-progress official plugin for Sublime Text 2 with upcoming Emmet toolkit, previously called _Zen Coding_. This plugin will eventually replace the [current one](https://github.com/sublimator/ZenCoding).
 
-*Warning:* this plugin may not work at all in some OSes (currently, it doesn’t work on Linux x32) since it written in JavaScript and uses [PyV8](http://code.google.com/p/pyv8/) and [Google V8](https://developers.google.com/v8/) binaries to run. These binaries must be compiled individually for every OS.
+*Warning:* this plugin may not work at all in some OSes since it written in JavaScript and uses [PyV8](http://code.google.com/p/pyv8/) and [Google V8](https://developers.google.com/v8/) binaries to run. If you experience problems or editor crashes please [fill an issue](https://github.com/sergeche/emmet-sublime/issues).
 
 ## How to install
 
-*You should remove or disable previous Zen Coding plugin, installed from Package Control, in order to operate properly.*
+-------------
+
+**You should remove or disable previous Zen Coding plugin, installed from Package Control, in order to operate properly.**
+
+-------------
 
 1. Clone git repo into your packages folder (in ST2, find Browse Packages... menu item to open this folder)
-2. Restart ST2 editor
+2. Restart ST2 editor (if required)
 
 Or with package control:
 
 1. Package Control: Add Repository `https://github.com/sergeche/emmet-sublime`
 2. Package Control: Install Package `emmet-sublime`
-3. Restart ST2 editor
+3. Restart ST2 editor (if required)
 
-## Things to test
+## New features of Emmet (compared with old Zen Coding)
 
-Emmet is not announced yet, but you can get a quick look at new features and help me test and improve them.
+* [Dynamic CSS abbreviations](http://docs.emmet.io/css-abbreviations/), automatic [vendor prefixes](http://docs.emmet.io/css-abbreviations/vendor-prefixes/) and [gradient generator](http://docs.emmet.io/css-abbreviations/gradients/).
+* [“Lorem Ipsum” generator](http://docs.emmet.io/abbreviations/lorem-ipsum/)
+* [Implicit tag names](http://docs.emmet.io/abbreviations/implicit-names/)
+* New [Yandex’s BEM filter](http://docs.emmet.io/filters/bem/)
+* [Extensions support](http://docs.emmet.io/customization/)
+* New [^ operator](http://docs.emmet.io/abbreviations/syntax/)
+* Various fixes and improvements
 
-### CSS
+## Available actions ##
 
-Emmet features advanced CSS support:
+* [Expand Abbreviation](http://docs.emmet.io/actions/expand-abbreviation/) – <kbd>Tab</kbd> or <kbd>Ctrl+E</kbd>
+* Interactive “Expand Abbreviation” — <kbd>Ctrl+Alt+Enter</kbd>
+* [Match Tag Pair](http://docs.emmet.io/actions/match-pair/) – <kbd>⌃D</kbd> (Mac) / <kbd>Ctrl+,</kbd> (PC)
+* [Wrap With Abbreviation](http://docs.emmet.io/actions/wrap-with-abbreviation/) — <kbd>⌃W</kbd> / <kbd>Shift+Ctrl+G</kbd>
+* [Go to Edit Point](http://docs.emmet.io/actions/go-to-edit-point/) — <kbd>Ctrl+Alt+→</kbd> or <kbd>Ctrl+Alt+←</kbd>
+* [Select Item](http://docs.emmet.io/actions/select-item/) – <kbd>⇧⌘.</kbd> or <kbd>⇧⌘,</kbd> / <kbd>Shift+Ctrl+.</kbd> or <kbd>Shift+Ctrl+,</kbd>
+* [Toggle Comment](http://docs.emmet.io/actions/toggle-comment/) — <kbd>⌘/</kbd> / <kbd>Ctrl+/</kbd>
+* [Split/Join Tag](http://docs.emmet.io/actions/split-join-tag/) — <kbd>⇧⌘'</kbd> / <kbd>Shift+Ctrl+`</kbd>
+* [Remove Tag](http://docs.emmet.io/actions/remove-tag/) – <kbd>⌘'</kbd> / <kbd>Shift+Ctrl+;</kbd>
+* [Update Image Size](http://docs.emmet.io/actions/update-image-size/) — <kbd>⇧⌃I</kbd> / <kbd>Ctrl+U</kbd>
+* [Evaluate Math Expression](http://docs.emmet.io/actions/evaluate-math/) — <kbd>⇧⌘Y</kbd> / <kbd>Shift+Ctrl+Y</kbd>
+* [Reflect CSS Value](http://docs.emmet.io/actions/reflect-css-value/) – <kbd>⇧⌘R</kbd> / <kbd>Shift+Ctrl+R</kbd>
+* [Encode/Decode Image to data:URL](http://docs.emmet.io/actions/base64/) – <kbd>⇧⌃D</kbd> / <kbd>Ctrl+'</kbd>
 
-* You can write numeric values (optionally with units) directly into abbreviation: `p10` → `padding: 10px`, `m0.5-10--15` → `margin: 0.5em 10px -15px`, `w100p` → `width: 100%`. Integer and float values are automatically suffixed with `px` and `em` units respectively.
-* Abbreviations prefixed with dash will automatically produce vendor-prefixed CSS properties. For example: `bdrs` will produce `border-radius` property, but `-bdrs` will produce a list of properties with `webkit`, `moz`, `ms` and `o` prefixes.
-* Gradient generator: write gradient definition (`linear-gradient(...)` or simply `lg(...)`) as a value for any CSS property and run “Expand Abbreviation” action (or simply hit Tab key) to get a vendor-prefixed list gradient definitions.
-* Unknown abbreviations are no longer expanded to HTML tags (e.g. `foo` → `<foo></foo>`), they are expanded into CSS properties: `foo` → `foo: ;`.
+[Increment/Decrement Number](http://docs.emmet.io/actions/inc-dec-number/) actions:
 
-You can see more examples in unit tests:
-* [CSS Resolver](https://github.com/sergeche/zen-coding/blob/v0.7.1/javascript/unittest/tests/css-resolver.js)
-* [CSS Gradients](https://github.com/sergeche/zen-coding/blob/v0.7.1/javascript/unittest/tests/cssGradient.js)
+* Increment by 1: <kbd>Ctrl+↑</kbd>
+* Decrement by 1: <kbd>Ctrl+↓</kbd>
+* Increment by 0.1: <kbd>Alt+↑</kbd>
+* Decrement by 0.1: <kbd>Alt+↓</kbd>
+* Increment by 10: <kbd>⌥⌘↑</kbd> / <kbd>Shift+Alt+↑</kbd>
+* Decrement by 10: <kbd>⌥⌘↓</kbd> / <kbd>Shift+Alt+↓</kbd>
 
-### Yandex BEM filter
+## Extensions support ##
 
-If you’re writing your HTML and CSS code in OOCSS-style, [Yandex’s BEM](http://coding.smashingmagazine.com/2012/04/16/a-new-front-end-methodology-bem/) style specifically, you will like this filter. It provides some aliases and automatic insertions of common block and element names in classes. For example: `.block_mod>.-elem|bem` is the same abbreviation as `.block.block_mod>.block__elem`. More examples in [unit tests](https://github.com/sergeche/zen-coding/blob/v0.7.1/javascript/unittest/tests/filters.js#L19).
+You can easily [extend](http://docs.emmet.io/customization/) Emmet with new actions and filters or customize existing ones. In `Emmet.sublime-settings`, define `extensions_path` setting and Emmet will load all `.js` and `.json` files in specified folder at startup.
 
-If you’re writing a lot of BEM code, you may want to make `bem` filter default for `html` syntax (see `Emmet.sublime-settings`).
+## Overriding keyboard shortcuts ##
 
-### Misc
+Sublime Text 2 is a great text editor with lots of features and actions. Most of these actions are bound to keyboard shortcuts so it’s nearly impossible to provide convenient plugin shortcuts for third-party plugins.
 
-* Better Tab key handling.
-* Many aspects of Emmet core can be configured in `Emmet.sublime-settings` file: create a copy of this file into ST2’ _Users_ folder and put there you snippets, preferences, output profiles etc.
-* “Lorem ipsum” generator: just expand `lorem` or `lipsum` abbreviation (optionally with number suffix, indicating word count: `lorem10`) to generate random sentences. More examples in [unit tests](https://github.com/sergeche/zen-coding/blob/v0.7.1/javascript/unittest/tests/generators.js). 
-* Implicit tag names: you don’t need to write tag names for most common structures, Emmet will resolve them for you depending on parent’s tag name. Check out these abbreviations: `.test`, `em>.test`, `ul>.item*3`, `table>.row$*2>.cell$*3`.
-* New operator to climb one level up: `^`. Check out these abbreviations: `.header>.nav^.logo`,  `.header>.wrap>.nav^^.logo`.
-* Extensions support: you can easily extend Emmet with new actions and filters or customize existing ones. In `Emmet.sublime-settings`, define `extensions_path` setting and Emmet will load all `.js` and `.json` files in specified folder at startup.
+If you’re unhappy with default keymap, you can disable individual keyboard shortcuts with `disabled_keymap_actions` preference of `Emmet.sublime-settings` file.
+
+Use a comma-separated list of action names which default keyboard shortcuts should be disabled. For example, if you want to release <kbd>Ctrl+E</kbd> (“Expand Abbreviation”) and <kbd>Ctrl+U</kbd> (“Update Image Size”) shortcuts, your must set the following value:
+
+    "disabled_keymap_actions": "expand_abbreviation, update_image_size"
+
+You should refer `Default (Your-OS-Name).sublime-keymap` file to get action ids (look for `args/action` key).
+
+To disable all default shortcuts, set value to `all`:
+    
+    "disabled_keymap_actions": "all"
 
 ### “Help! My snippets doesn’t work anymore in HTML/CSS files!”
 
