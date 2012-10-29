@@ -76,7 +76,7 @@ To disable all default shortcuts, set value to `all`:
     
     "disabled_keymap_actions": "all"
 
-Not that if you disabled any action like so and you’re create your own keyboard shortcut, you **should not** use `emmet_action_enabled.ACTION_NAME` since this is the key that disables action.
+Not that if you disabled any action like so and you’re create your own keyboard shortcut, you **should not** use `emmet_action_enabled.ACTION_NAME` context since this is the key that disables action.
 
 ### “Help! My snippets doesn’t work anymore in HTML/CSS files!”
 
