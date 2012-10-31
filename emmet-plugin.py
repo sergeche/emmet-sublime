@@ -21,6 +21,16 @@ EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
 def active_view():
 	return sublime.active_window().active_view()
 
+def check_context(verbose=False):
+	"Checks if JS context is completely available"
+	if not ctx.js():
+		if (verbose):
+			sublime.message_dialog('Please wait a bit while PyV8 binary is being downloaded')
+		return False
+
+	return True
+
+
 def replace_substring(start, end, value, no_indent=False):
 	view = active_view()
 	# edit = view.begin_edit()
@@ -123,6 +133,9 @@ class ActionContextHandler(sublime_plugin.EventListener):
 		return should_perform_action(name, view)
 
 def run_action(action, view=None):
+	if not check_context(True):
+		return
+
 	"Runs Emmet action in multiselection mode"
 	if not view:
 		view = active_view()
@@ -209,6 +222,9 @@ class TabExpandHandler(sublime_plugin.EventListener):
 
 	def on_query_context(self, view, key, op, operand, match_all):
 		if key != 'is_abbreviation':
+			return None
+
+		if not check_context():
 			return False
 
 		# print(view.syntax_name(view.sel()[0].begin()))
@@ -298,6 +314,9 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 			self._sel_items.append(unindent_text(s, get_line_padding(line)))
 
 	def run(self, edit, **args):
+		if not check_context(True):
+			return
+
 		self.setup()
 		self.erase = False
 
@@ -381,6 +400,9 @@ class HandleEnterKey(sublime_plugin.TextCommand):
 
 class RenameTag(sublime_plugin.TextCommand):
 	def run(self, edit, **kw):
+		if not check_context(True):
+			return
+
 		ranges = ctx.js().locals.pyGetTagNameRanges()
 		if ranges:
 			view = active_view()

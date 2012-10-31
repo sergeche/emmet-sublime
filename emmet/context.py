@@ -1,3 +1,4 @@
+# coding=utf-8
 import sys
 import os
 import os.path
@@ -5,6 +6,8 @@ import platform
 import codecs
 import json
 import gc
+import pyv8loader
+import zipfile
 from file import File
 
 SUPPORTED_PLATFORMS = {
@@ -16,37 +19,18 @@ SUPPORTED_PLATFORMS = {
 }
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
+core_files = ['emmet-app.js', 'python-wrapper.js']
 
-def cross_platform():
+def get_arch():
+	"Returns architecture name for PyV8 binary"
 	is_64bit = sys.maxsize > 2**32
 	system_name = platform.system()
-	if system_name == 'Windows' and is_64bit:
-		system_name = 'Windows64'
-	if system_name == 'Linux' and is_64bit:
-		system_name = 'Linux64'
-
-	platform_supported = SUPPORTED_PLATFORMS.get(system_name)
-	if not platform_supported:
-		raise Exception, '''
-			Sorry, the v8 engine for this platform are not built yet. 
-			Maybe you need to build v8 follow the guide of lib/PyV8/README.md. 
-		'''
-	lib_path = os.path.join(BASE_PATH, platform_supported)
-	if not lib_path in sys.path:
-		sys.path.append(lib_path)
-		sys.path.append(BASE_PATH)
-
-cross_platform()
-
-try:
-	import PyV8
-except Exception, e:
-	raise Exception, '''
-		Sorry, the v8 engine are not built correctlly.
-		Maybe you need to build v8 follow the guide of lib/PyV8/README.md. 
-	''' 
-
-core_files = ['emmet-app.js', 'python-wrapper.js']
+	if system_name == 'Darwin':
+		return 'osx'
+	if system_name == 'Windows':
+		return 'win64' if is_64bit else 'win32'
+	if system_name == 'Linux':
+		return 'linux64' if is_64bit else 'linux32'
 
 def should_use_unicode():
 	"""
@@ -71,24 +55,142 @@ def make_path(filename):
 def js_log(message):
 	print(message)
 
+def unpack_pyv8(package_dir):
+	f = os.path.join(package_dir, 'pack.zip')
+	if not os.path.exists(f):
+		return
+
+	package_zip = zipfile.ZipFile(f, 'r')
+
+	root_level_paths = []
+	last_path = None
+	for path in package_zip.namelist():
+		last_path = path
+		if path.find('/') in [len(path) - 1, -1]:
+			root_level_paths.append(path)
+		if path[0] == '/' or path.find('../') != -1 or path.find('..\\') != -1:
+			raise 'The PyV8 package contains files outside of the package dir and cannot be safely installed.'
+
+	if last_path and len(root_level_paths) == 0:
+		root_level_paths.append(last_path[0:last_path.find('/') + 1])
+
+	prev_dir = os.getcwd()
+	os.chdir(package_dir)
+
+	# Here we don't use .extractall() since it was having issues on OS X
+	skip_root_dir = len(root_level_paths) == 1 and \
+		root_level_paths[0].endswith('/')
+	extracted_paths = []
+	for path in package_zip.namelist():
+		dest = path
+		try:
+			if not isinstance(dest, unicode):
+				dest = unicode(dest, 'utf-8', 'strict')
+		except (UnicodeDecodeError):
+			dest = unicode(dest, 'cp1252', 'replace')
+
+		if os.name == 'nt':
+			regex = ':|\*|\?|"|<|>|\|'
+			if re.search(regex, dest) != None:
+				print ('%s: Skipping file from package named %s due to ' +
+					'an invalid filename') % (__name__, path)
+				continue
+
+		# If there was only a single directory in the package, we remove
+		# that folder name from the paths as we extract entries
+		if skip_root_dir:
+			dest = dest[len(root_level_paths[0]):]
+
+		if os.name == 'nt':
+			dest = dest.replace('/', '\\')
+		else:
+			dest = dest.replace('\\', '/')
+
+		dest = os.path.join(package_dir, dest)
+
+		def add_extracted_dirs(dir):
+			while dir not in extracted_paths:
+				extracted_paths.append(dir)
+				dir = os.path.dirname(dir)
+				if dir == package_dir:
+					break
+
+		if path.endswith('/'):
+			if not os.path.exists(dest):
+				os.makedirs(dest)
+			add_extracted_dirs(dest)
+		else:
+			dest_dir = os.path.dirname(dest)
+			if not os.path.exists(dest_dir):
+				os.makedirs(dest_dir)
+			add_extracted_dirs(dest_dir)
+			extracted_paths.append(dest)
+			try:
+				open(dest, 'wb').write(package_zip.read(path))
+			except (IOError, UnicodeDecodeError):
+				print ('%s: Skipping file from package named %s due to ' +
+					'an invalid filename') % (__name__, path)
+	package_zip.close()
+
+	os.chdir(prev_dir)
+	os.remove(f)
+
+def import_pyv8():
+	# Importing non-existing modules is a bit tricky in Python:
+	# if we simply call `import PyV8` and module doesn't exists,
+	# Python will cache this failed import and will always
+	# throw exception even if this module appear in PYTHONPATH.
+	# To prevent this, we have to manually test if 
+	# PyV8.py(c) exists in PYTHONPATH before importing PyV8
+	
+	has_pyv8 = False
+	try:
+		for p in sys.path:
+			if os.path.exists(os.path.join(p, 'PyV8.py')) or os.path.exists(os.path.join(p, 'PyV8.pyc')):
+				has_pyv8 = True
+				break
+	except:
+		pass
+
+	if not has_pyv8:
+		raise ImportError('No PyV8 module found')
+	
+	if 'PyV8' in sys.modules:
+		reload(PyV8)
+	else:
+		globals()['PyV8'] = __import__('PyV8')
+
 class Context():
 	"""
 	Creates Emmet JS core context
 	@param files: Additional files to load with JS core
 	@param path: Path to Emmet extensions
 	@param contrib: Python objects to contribute to JS execution context
+	@param pyv8_path: Location of PyV8 binaries
 	"""
-	def __init__(self, files=[], path=None, contrib=None):
+	def __init__(self, files=[], path=None, contrib=None, pyv8_path='./PyV8', delegate=None):
 		self._ctx = None
 		self._contrib = contrib
 		self._should_load_extension = True
+		self.pyv8_path = os.path.abspath(os.path.join(pyv8_path, get_arch()))
+		self.pyv8_state = 'none'
+		self.delegate = delegate
+
+		# pre-flight check: if there’s unpacked binary, 
+		# extract contents from archive and remove it
+		if self.pyv8_path not in sys.path:
+			sys.path.append(self.pyv8_path)
+			
+		unpack_pyv8(self.pyv8_path)
+		self._load_pyv8()
 
 		# detect reader encoding
-		self._use_unicode = should_use_unicode()
+		self._use_unicode = None
 		self._core_files = [] + core_files + files
 
 		self._ext_path = None
 		self.set_ext_path(path)
+		self._user_data = None
 
 		
 	def get_ext_path(self):
@@ -122,10 +224,68 @@ class Context():
 
 			self.js().locals.pyLoadExtensions(ext_files)
 
+	def _call_delegate(self, name, *args, **kwargs):
+		if self.delegate and hasattr(self.delegate, name) and callable(getattr(self.delegate, name)):
+			getattr(self.delegate, name)(*args, **kwargs)
+
+	def _load_pyv8(self):
+		"Attempts to load PyV8 module"
+		try:
+			import_pyv8()
+		except ImportError, e:
+			# Module not found, pass-through this error
+			# since we are going to try to download most recent version
+			# anyway
+			pass
+
+		# check if we already have downloaded binary
+		last_id = 0
+		last_id_path = os.path.join(self.pyv8_path, 'last_id')
+		if os.path.exists(last_id_path):
+			with open(last_id_path) as fd:
+				last_id = int(fd.read() or '0')
+
+		def on_complete(result=None):
+			if result is None:
+				# Loader finished successfully, but no new version
+				# was downloaded since user already has most recent one
+				pass
+			else:
+				# Most recent version was downloaded
+				if 'PyV8' not in sys.modules:
+					# PyV8 is not loaded, we can safely unpack it and load
+					unpack_pyv8(self.pyv8_path)
+					import_pyv8()
+					self.pyv8_state = 'loaded'
+				
+				# Store last id
+				with open(last_id_path, 'w') as fp:
+					fp.write('%s' % result)
+
+		def on_error(code=0):
+			self.pyv8_state = 'error'
+
+		# try to download most recent version of PyV8
+		thread = pyv8loader.PyV8Loader(get_arch(), self.pyv8_path, last_id)
+		thread.start()
+		self.pyv8_state = 'loading'
+		
+		# watch on download progress
+		pyv8loader.ThreadProgress(thread, 'Loading PyV8 binary', on_complete, on_error)
 
 	def js(self):
 		"Returns JS context"
 		if not self._ctx:
+			if self.pyv8_state == 'none':
+				self._load_pyv8()
+
+			if 'PyV8' not in sys.modules:
+				# Binary is loading
+				return None
+
+			if self._use_unicode is None:
+				self._use_unicode = should_use_unicode()
+
 			glue = u'\n' if self._use_unicode else '\n'
 			core_src = [self.read_js_file(make_path(f)) for f in self._core_files]
 			
@@ -149,11 +309,16 @@ class Context():
 			self.load_extensions()
 			self._should_load_extension = False
 
+		if self._user_data:
+			self._ctx.locals.pyLoadUserData(self._user_data)
+			self._user_data = None
+
 		return self._ctx
 
 	def load_user_data(self, data):
 		"Loads user data payload from JSON"
-		self.js().locals.pyLoadUserData(data)
+		self._user_data = data
+		# self.js().locals.pyLoadUserData(data)
 
 	def reset(self):
 		"Resets JS execution context"
