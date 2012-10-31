@@ -67,16 +67,22 @@ var editorProxy = emmet.exec(function(require, _) {
 		getSyntax: function() {
 			var view = activeView();
 			var scope = view.syntax_name(view.sel()[0].begin());
-			var docType = 'html';
 
 			if (~scope.indexOf('xsl')) {
-				docType = 'xsl';
-			} else if (/\b(html|less|scss|sass|css|xml|haml|stylus)\b/.test(scope)) {
-				// Sublime has back to front scopes ....
-				docType = RegExp.$1;
+				return 'xsl';
 			}
 
-			return docType;
+			// detect CSS-like syntaxes independently, 
+			// since it may cause collisions with some highlighters
+			if (/\b(less|scss|sass|css|stylus)\b/.test(scope)) {
+				return RegExp.$1;
+			}
+
+			if (/\b(html|xml|haml)\b/.test(scope)) {
+				return RegExp.$1;
+			}
+
+			return 'html';
 		},
 
 		getProfileName: function() {
