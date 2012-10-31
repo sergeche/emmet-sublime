@@ -8,15 +8,9 @@ import json
 import gc
 import pyv8loader
 import zipfile
+import threading
+import imp
 from file import File
-
-SUPPORTED_PLATFORMS = {
-	"Darwin": "PyV8/osx",
-	"Linux": "PyV8/linux",
-	"Linux64": "PyV8/linux64",
-	"Windows": "PyV8/win32",
-	"Windows64": "PyV8/win64"
-}
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 core_files = ['emmet-app.js', 'python-wrapper.js']
@@ -142,23 +136,26 @@ def import_pyv8():
 	# throw exception even if this module appear in PYTHONPATH.
 	# To prevent this, we have to manually test if 
 	# PyV8.py(c) exists in PYTHONPATH before importing PyV8
-	
-	has_pyv8 = False
-	try:
-		for p in sys.path:
-			if os.path.exists(os.path.join(p, 'PyV8.py')) or os.path.exists(os.path.join(p, 'PyV8.pyc')):
-				has_pyv8 = True
-				break
-	except:
-		pass
+	 
+	f, pathname, description = imp.find_module('PyV8')
+	bin_f, bin_pathname, bin_description = imp.find_module('_PyV8')
+	loaded = False
+	if f:
+		try:
+			imp.acquire_lock()
+			globals()['_PyV8'] = imp.load_module('_PyV8', bin_f, bin_pathname, bin_description)
+			globals()['PyV8'] = imp.load_module('PyV8', f, pathname, description)
+			imp.release_lock()
+			loaded = True
+		finally:
+			# Since we may exit via an exception, close fp explicitly.
+			if f:
+				f.close()
+			if bin_f:
+				bin_f.close()
 
-	if not has_pyv8:
+	if not loaded:
 		raise ImportError('No PyV8 module found')
-	
-	if 'PyV8' in sys.modules:
-		reload(PyV8)
-	else:
-		globals()['PyV8'] = __import__('PyV8')
 
 class Context():
 	"""
@@ -233,6 +230,7 @@ class Context():
 		try:
 			import_pyv8()
 		except ImportError, e:
+			print('!!!Load error: %s' % e)
 			# Module not found, pass-through this error
 			# since we are going to try to download most recent version
 			# anyway
@@ -246,21 +244,23 @@ class Context():
 				last_id = int(fd.read() or '0')
 
 		def on_complete(result=None):
+			self.pyv8_state = 'loaded'
+			
 			if result is None:
 				# Loader finished successfully, but no new version
 				# was downloaded since user already has most recent one
 				pass
 			else:
 				# Most recent version was downloaded
+				# 
+				# Store last id
+				with open(last_id_path, 'w') as fp:
+					fp.write('%s' % result)
+				
 				if 'PyV8' not in sys.modules:
 					# PyV8 is not loaded, we can safely unpack it and load
 					unpack_pyv8(self.pyv8_path)
 					import_pyv8()
-					self.pyv8_state = 'loaded'
-				
-				# Store last id
-				with open(last_id_path, 'w') as fp:
-					fp.write('%s' % result)
 
 		def on_error(code=0):
 			self.pyv8_state = 'error'
@@ -271,16 +271,13 @@ class Context():
 		self.pyv8_state = 'loading'
 		
 		# watch on download progress
-		pyv8loader.ThreadProgress(thread, 'Loading PyV8 binary', on_complete, on_error)
+		pyv8loader.ThreadProgress(thread, 'Loading PyV8 binary, please wait', on_complete, on_error)
 
 	def js(self):
 		"Returns JS context"
 		if not self._ctx:
-			if self.pyv8_state == 'none':
-				self._load_pyv8()
-
 			if 'PyV8' not in sys.modules:
-				# Binary is loading
+				# Binary is not loaded yet
 				return None
 
 			if self._use_unicode is None:
