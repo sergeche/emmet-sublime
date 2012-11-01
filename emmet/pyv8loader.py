@@ -1,6 +1,4 @@
 # coding=utf-8
-import sublime
-import sublime_plugin
 import os
 import os.path
 import sys
@@ -10,39 +8,73 @@ import json
 import re
 import threading
 
-# PACKAGES_URL = 'https://api.github.com/repos/sergeche/zen-coding/downloads'
-PACKAGES_URL = 'http://localhost:8103/dw.json'
+PACKAGES_URL = 'https://api.github.com/repos/emmetio/pyv8-binaries/downloads'
+# PACKAGES_URL = 'http://10.0.3.68:8103/dw.json'
+
+class LoaderDelegate():
+	"""
+	Abstract class used to display PyV8 binary download progress,
+	and provide some settings for downloader
+	"""
+	def __init__(self, settings={}):
+		self.settings = settings
+
+	def on_start(self, *args, **kwargs):
+		"Invoked when download process is initiated"
+		pass
+
+	def on_progress(self, *args, **kwargs):
+		"Invoked on download progress"
+		pass
+
+	def on_complete(self, *args, **kwargs):
+		"Invoked when download process was finished successfully"
+		pass
+
+	def on_error(self, *args, **kwargs):
+		"Invoked when error occured during download process"
+		pass
+
+	def setting(self, name, default=None):
+		"Returns specified setting name"
+		return self.settings[name] if name in self.settings else default
 
 class ThreadProgress():
-	def __init__(self, thread, message, on_complete=None, on_error=None):
+	def __init__(self, thread, delegate):
 		self.thread = thread
-		self.message = message
-		self.addend = 1
-		self.size = 8
-		self.on_complete = on_complete
-		self.on_error = on_error
-		sublime.set_timeout(lambda: self.run(0), 100)
+		self.delegate = delegate
+		self._callbacks = {}
+		threading.Timer(0, self.run).start()
 
-	def run(self, i):
+	def run(self):
 		if not self.thread.is_alive():
-			if hasattr(self.thread, 'exit_code') and self.thread.exit_code != 0:
-				if callable(self.on_error):
-					self.on_error(self.thread.exit_code)
-				return
-			if callable(self.on_complete):
-				self.on_complete(self.thread.result)
-			return
+			if self.thread.exit_code != 0:
+				return self.trigger('error', exit_code=exit_code, thread=self.thread)
+				
+			return self.trigger('complete', result=self.thread.result, thread=self.thread)
 
-		before = i % self.size
-		after = (self.size - 1) - before
-		sublime.status_message('%s [%s=%s]' % \
-			(self.message, ' ' * before, ' ' * after))
-		if not after:
-			self.addend = -1
-		if not before:
-			self.addend = 1
-		i += self.addend
-		sublime.set_timeout(lambda: self.run(i), 100)
+		self.trigger('progress', thread=self.thread)
+		threading.Timer(0.1, self.run).start()
+
+	def on(self, event_name, callback):
+		if event_name not in self._callbacks:
+			self._callbacks[event_name] = []
+
+		if callable(callback):
+			self._callbacks[event_name].append(callback)
+
+		return self
+
+	def trigger(self, event_name, *args, **kwargs):
+		if event_name in self._callbacks:
+			for c in self._callbacks[event_name]:
+				c(*args, **kwargs)
+
+		if self.delegate and hasattr(self.delegate, 'on_%s' % event_name):
+			getattr(self.delegate, 'on_%s' % event_name)(*args, **kwargs)
+
+		return self
+
 
 class UrlLib2Downloader():
 	def __init__(self, settings):
@@ -103,24 +135,29 @@ class UrlLib2Downloader():
 		return False
 
 class PyV8Loader(threading.Thread):
-	def __init__(self, arch, download_path, last_id=0):
+	def __init__(self, arch, download_path, config):
 		self.arch = arch
+		self.config = config
+		self.download_path = download_path
 		self.exit_code = 0
 		self.result = None
-		self.last_id = last_id
-		self.download_path = download_path
-		# TODO add settings
-		self.settings = {}
+
 		threading.Thread.__init__(self)
+		self.log('Creating thread')
+
+	def log(self, message):
+		print('PyV8 Loader: %s' % message)
 
 	def download_url(self, url, error_message):
-		downloader = UrlLib2Downloader(self.settings)
+		# TODO add settings
+		downloader = UrlLib2Downloader({})
 
 		if not downloader:
-			print('Unable to download PyV8 binary due to invalid downloader')
+			self.log('Unable to download PyV8 binary due to invalid downloader')
 			return False
 
-		timeout = self.settings.get('timeout', 3)
+		# timeout = self.settings.get('timeout', 3)
+		timeout = 3
 		return downloader.download(url.replace(' ', '%20'), error_message, timeout, 3)
 
 	def run(self):
@@ -141,15 +178,15 @@ class PyV8Loader(threading.Thread):
 				break
 
 		if not cur_item:
-			print('Unable to find binary for %s architecture' % self.arch)
+			self.log('Unable to find binary for %s architecture' % self.arch)
 			self.exit_code = 2
 			return
 
-		if cur_item['id'] == self.last_id:
-			print('You have the most recent PyV8 binary')
+		if cur_item['id'] == self.config['last_id']:
+			self.log('You have the most recent PyV8 binary')
 			return
 
-		print('Loading PyV8 binary from %s' % item['html_url'])
+		self.log('Loading PyV8 binary from %s' % item['html_url'])
 		package = self.download_url(item['html_url'], 'Unable to download package from %s' % item['html_url'])
 		if not package:
 			self.exit_code = 3
@@ -167,7 +204,7 @@ class PyV8Loader(threading.Thread):
 		fp = open(os.path.join(self.download_path, 'pack.zip'), 'wb')
 		fp.write(package)
 		fp.close()
-		self.result = cur_item['id']
 
+		self.result = cur_item['id']
 		# Done!
 		

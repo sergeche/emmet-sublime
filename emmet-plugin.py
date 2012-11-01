@@ -9,6 +9,7 @@ import traceback
 import completions as cmpl
 from completions.meta import HTML_ELEMENTS_ATTRIBUTES, HTML_ATTRIBUTES_VALUES
 from emmet.context import Context
+from emmet.pyv8loader import LoaderDelegate
 
 __version__      = '1.0'
 __core_version__ = '1.0'
@@ -17,6 +18,29 @@ __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
+
+class SublimeLoaderDelegate(LoaderDelegate):
+	def __init__(self, settings={}):
+		LoaderDelegate.__init__(self, settings)
+		self.message = 'Loading PyV8 binary, please wait'
+		self.i = 0
+		self.addend = 1
+		self.size = 8
+
+	def on_progress(self, *args, **kwargs):
+		before = self.i % self.size
+		after = (self.size - 1) - before
+		msg = '%s [%s=%s]' % (self.message, ' ' * before, ' ' * after)
+		if not after:
+			self.addend = -1
+		if not before:
+			self.addend = 1
+		self.i += self.addend
+
+		sublime.set_timeout(lambda: sublime.status_message(msg), 0)
+
+	def on_complete(self, *args, **kwargs):
+		sublime.set_timeout(lambda: sublime.status_message('PyV8 binary successfully loaded'), 0)
 
 def active_view():
 	return sublime.active_window().active_view()
@@ -113,7 +137,10 @@ contrib = {
 }
 
 # create JS environment
-ctx = Context(['../editor.js'], settings.get('extensions_path', None), contrib)
+delegate = SublimeLoaderDelegate()
+ctx = Context(['../editor.js'], settings.get('extensions_path', None), 
+	contrib, pyv8_path=os.path.join(sublime.packages_path(), 'PyV8'),
+	delegate=delegate)
 
 update_settings()
 

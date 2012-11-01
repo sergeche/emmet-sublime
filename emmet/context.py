@@ -10,9 +10,13 @@ import pyv8loader
 import zipfile
 import threading
 import imp
+import time
+import re
 from file import File
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
+CHECK_INTERVAL = 60 * 60 * 24
+# CHECK_INTERVAL = 1
 core_files = ['emmet-app.js', 'python-wrapper.js']
 
 def get_arch():
@@ -28,7 +32,7 @@ def get_arch():
 
 def should_use_unicode():
 	"""
-	WinXP unable to eval JS in unicode object (while other OSes requires is)
+	WinXP unable to eval JS in unicode object (while other OSes requires it)
 	This function checks if we have to use unicode when reading files
 	"""
 	ctx = PyV8.JSContext()
@@ -157,6 +161,27 @@ def import_pyv8():
 	if not loaded:
 		raise ImportError('No PyV8 module found')
 
+def get_loader_config(path):
+	config = {
+		"last_id": 0,
+		"last_update": 0,
+		"skip_update": False
+	}
+
+	config_path = os.path.join(path, 'config.json')
+	if os.path.exists(config_path):
+		with open(config_path) as fd:
+			for k,v in json.load(fd).items():
+				config[k] = v
+
+	return config
+
+def save_loader_config(path, data):
+	config_path = os.path.join(path, 'config.json')
+	fp = open(config_path, 'w')
+	fp.write(json.dumps(data))
+	fp.close()
+
 class Context():
 	"""
 	Creates Emmet JS core context
@@ -171,7 +196,7 @@ class Context():
 		self._should_load_extension = True
 		self.pyv8_path = os.path.abspath(os.path.join(pyv8_path, get_arch()))
 		self.pyv8_state = 'none'
-		self.delegate = delegate
+		self.delegate = delegate if delegate  else pyv8loader.LoaderDelegate()
 
 		# pre-flight check: if there’s unpacked binary, 
 		# extract contents from archive and remove it
@@ -230,55 +255,56 @@ class Context():
 		try:
 			import_pyv8()
 		except ImportError, e:
-			print('!!!Load error: %s' % e)
 			# Module not found, pass-through this error
 			# since we are going to try to download most recent version
 			# anyway
 			pass
 
-		# check if we already have downloaded binary
-		last_id = 0
-		last_id_path = os.path.join(self.pyv8_path, 'last_id')
-		if os.path.exists(last_id_path):
-			with open(last_id_path) as fd:
-				last_id = int(fd.read() or '0')
+		config = get_loader_config(self.pyv8_path)
 
-		def on_complete(result=None):
-			self.pyv8_state = 'loaded'
-			
-			if result is None:
-				# Loader finished successfully, but no new version
-				# was downloaded since user already has most recent one
-				pass
-			else:
+		if 'PyV8' in sys.modules and (config['skip_update'] or time.time() < config['last_update'] + CHECK_INTERVAL):
+			# No need to load anything: user already has PyV8 binary
+			# or decided to disable update process
+			print('PyV8: No need to update')
+			return
+
+		def on_complete(result, thread):
+			if result is not None:
 				# Most recent version was downloaded
-				# 
-				# Store last id
-				with open(last_id_path, 'w') as fp:
-					fp.write('%s' % result)
-				
+				config['last_id'] = result				
 				if 'PyV8' not in sys.modules:
 					# PyV8 is not loaded, we can safely unpack it and load
 					unpack_pyv8(self.pyv8_path)
-					import_pyv8()
+					# Do not load PyV8 here since this code is called
+					# from another thread
+					# import_pyv8()
 
-		def on_error(code=0):
+			config['last_update'] = time.time()
+			save_loader_config(self.pyv8_path, config)
+			self.pyv8_state = 'loaded'
+
+		def on_error(*args, **kwargs):
 			self.pyv8_state = 'error'
 
 		# try to download most recent version of PyV8
-		thread = pyv8loader.PyV8Loader(get_arch(), self.pyv8_path, last_id)
+		thread = pyv8loader.PyV8Loader(get_arch(), self.pyv8_path, config)
 		thread.start()
 		self.pyv8_state = 'loading'
 		
 		# watch on download progress
-		pyv8loader.ThreadProgress(thread, 'Loading PyV8 binary, please wait', on_complete, on_error)
+		prog = pyv8loader.ThreadProgress(thread, self.delegate)
+		prog.on('complete', on_complete)
+		prog.on('error', on_error)
 
 	def js(self):
 		"Returns JS context"
 		if not self._ctx:
 			if 'PyV8' not in sys.modules:
-				# Binary is not loaded yet
-				return None
+				if self.pyv8_state == 'loaded':
+					import_pyv8()
+				else:
+					# Binary is not loaded yet
+					return None
 
 			if self._use_unicode is None:
 				self._use_unicode = should_use_unicode()
