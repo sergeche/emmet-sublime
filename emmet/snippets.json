@@ -97,7 +97,6 @@
 			"bxsh": "box-shadow:${1:hoff} ${2:voff} ${3:radius} ${4:color};",
 			"bxsh:n": "box-shadow:none;",
 			"m": "margin:|;",
-			"m:a": "margin:auto;",
 			"mt": "margin-top:|;",
 			"mt:a": "margin-top:auto;",
 			"mr": "margin-right:|;",

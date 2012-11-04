@@ -4355,14 +4355,14 @@ emmet.define('stringStream', function(require, _) {
  * @author Sergey Chikuyonok (serge.che@gmail.com)
  * @link http://chikuyonok.ru
  * 
- * XXX This module is over-complicated, should provide better implementation
- * 
  * @param {Function} require
  * @param {Underscore} _
  */
 emmet.define('resources', function(require, _) {
 	var VOC_SYSTEM = 'system';
 	var VOC_USER = 'user';
+	
+	var cache = {};
 		
 	/** Regular expression for XML tag matching */
 	var reTag = /^<(\w+\:?[\w\-]*)((?:\s+[\w\:\-]+\s*=\s*(['"]).*?\3)*)\s*(\/?)>/;
@@ -4372,105 +4372,6 @@ emmet.define('resources', function(require, _) {
 	
 	/** @type HandlerList List of registered abbreviation resolvers */
 	var resolvers = require('handlerList').create();
-	
-	/**
-	 * Check if specified resource is parsed by Emmet
-	 * @param {Object} obj
-	 * @return {Boolean}
-	 */
-	function isParsed(obj) {
-		return obj && obj.__emmet_parsed__;
-	}
-	
-	/**
-	 * Marks object as parsed by Emmet
-	 * @param {Object}
-	 */
-	function setParsed(obj) {
-		obj.__emmet_parsed__ = true;
-	}
-	
-	/**
-	 * Returns resource vocabulary by its name
-	 * @param {String} name Vocabulary name ('system' or 'user')
-	 */
-	function getVocabulary(name) {
-		return name == VOC_SYSTEM ? systemSettings : userSettings;
-	}
-		
-	/**
-	 * Helper function that transforms string into hash
-	 * @return {Object}
-	 */
-	function stringToHash(str){
-		var obj = {}, items = str.split(",");
-		for ( var i = 0; i < items.length; i++ )
-			obj[ items[i] ] = true;
-		return obj;
-	}
-	
-	/**
-	 * Creates resource inheritance chain for lookups
-	 * @param {String} vocabulary Resource vocabulary
-	 * @param {String} syntax Syntax name
-	 * @param {String} name Resource name
-	 * @return {Array}
-	 */
-	function createResourceChain(vocabulary, syntax, name) {
-		var voc = getVocabulary(vocabulary),
-			result = [],
-			resource = null;
-		
-		if (voc && syntax in voc) {
-			resource = voc[syntax];
-			if (name in resource)
-				result.push(resource[name]);
-		}
-		
-		// get inheritance definition
-		// in case of user-defined vocabulary, resource dependency
-		// may be defined in system vocabulary only, so we have to correctly
-		// handle this case
-		var chain_source = null;
-		if (resource && 'extends' in resource)
-			chain_source = resource;
-		else if (vocabulary == VOC_USER && syntax in systemSettings 
-			&& 'extends' in systemSettings[syntax] )
-			chain_source = systemSettings[syntax];
-			
-		if (chain_source) {
-			if (!isParsed(chain_source['extends'])) {
-				var ar = chain_source['extends'].split(',');
-				var utils = require('utils');
-				for (var i = 0; i < ar.length; i++) 
-					ar[i] = utils.trim(ar[i]);
-				chain_source['extends'] = ar;
-				setParsed(chain_source['extends']);
-			}
-			
-			// find resource in ancestors
-			for (var i = 0; i < chain_source['extends'].length; i++) {
-				var type = chain_source['extends'][i];
-				if (voc[type] && voc[type][name])
-					result.push(voc[type][name]);
-			}
-		}
-		
-		return result;
-	}
-	
-	/**
-	 * Get resource collection from settings vocbulary for specified syntax. 
-	 * It follows inheritance chain if resource wasn't directly found in
-	 * syntax settings
-	 * @param {String} vocabulary Resource vocabulary
-	 * @param {String} syntax Syntax name
-	 * @param {String} name Resource name
-	 */
-	function getSubset(vocabulary, syntax, name) {
-		var chain = createResourceChain(vocabulary, syntax, name);
-		return chain[0];
-	}
 	
 	/**
 	 * Normalizes caret plceholder in passed text: replaces | character with
@@ -4483,44 +4384,16 @@ emmet.define('resources', function(require, _) {
 		return utils.replaceUnescapedSymbol(text, '|', utils.getCaretPlaceholder());
 	}
 	
-	/**
-	 * Returns parsed item located in specified vocabulary by its syntax and
-	 * name
-	 * @param {String} vocabulary Resource vocabulary
-	 * @param {String} syntax Syntax name
-	 * @param {String} name Resource name ('abbreviation', 'snippet')
-	 * @param {String} item Abbreviation or snippet name
-	 * @return {Object}
-	 */
-	function getParsedItem(vocabulary, syntax, name, item) {
-		var chain = createResourceChain(vocabulary, syntax, name);
-		var result = null, res;
-		var elements = require('elements');
+	function parseItem(name, value, type) {
+		value = normalizeCaretPlaceholder(value);
 		
-		for (var i = 0, il = chain.length; i < il; i++) {
-			res = chain[i];
-			if (item in res) {
-				if (!isParsed(res[item])) {
-					var value = normalizeCaretPlaceholder(res[item]);
-					switch(name) {
-						case 'abbreviations':
-							res[item] = parseAbbreviation(item, value);
-							res[item].__ref = value;
-							break;
-						case 'snippets':
-							res[item] = elements.create('snippet', value);
-							break;
-					}
-					
-					setParsed(res[item]);
-				}
-				
-				result = res[item];
-				break;
-			}
+		if (type == 'snippets') {
+			return require('elements').create('snippet', value);
 		}
 		
-		return result;
+		if (type == 'abbreviations') {
+			return parseAbbreviation(name, value);
+		}
 	}
 	
 	/**
@@ -4549,6 +4422,7 @@ emmet.define('resources', function(require, _) {
 		 * @memberOf resources
 		 */
 		setVocabulary: function(data, type) {
+			cache = {};
 			if (type == VOC_SYSTEM)
 				systemSettings = data;
 			else
@@ -4556,46 +4430,12 @@ emmet.define('resources', function(require, _) {
 		},
 		
 		/**
-		 * Get data from specified vocabulary. Can contain parsed entities
-		 * @param {String} name Vocabulary type ('system' or 'user')
+		 * Returns resource vocabulary by its name
+		 * @param {String} name Vocabulary name ('system' or 'user')
 		 * @return {Object}
 		 */
-		getVocabulary: getVocabulary,
-		
-		/**
-		 * Returns resource value from data set with respect of inheritance
-		 * @param {String} syntax Resource syntax (html, css, ...)
-		 * @param {String} name Resource name ('snippets' or 'abbreviation')
-		 * @param {String} item Resource item name
-		 * @return {Object}
-		 */
-		getResource: function(syntax, name, item) {
-			return getParsedItem(VOC_USER, syntax, name, item) 
-				|| getParsedItem(VOC_SYSTEM, syntax, name, item);
-		},
-		
-		/**
-		 * Returns abbreviation value from data set
-		 * @param {String} type Resource type (html, css, ...)
-		 * @param {String} name Abbreviation name
-		 * @return {Object}
-		 */
-		getAbbreviation: function(type, name) {
-			name = name || '';
-			return this.getResource(type, 'abbreviations', name) 
-				|| this.getResource(type, 'abbreviations', name.replace(/\-/g, ':'));
-		},
-		
-		/**
-		 * Returns snippet value from data set
-		 * @param {String} type Resource type (html, css, ...)
-		 * @param {String} name Snippet name
-		 * @return {Object}
-		 */
-		getSnippet: function(type, name) {
-			name = name || '';
-			return this.getResource(type, 'snippets', name)
-				|| this.getResource(type, 'snippets', name.replace(/\-/g, ':'));
+		getVocabulary: function(name) {
+			return name == VOC_SYSTEM ? systemSettings : userSettings;
 		},
 		
 		/**
@@ -4607,8 +4447,7 @@ emmet.define('resources', function(require, _) {
 		 */
 		getMatchedResource: function(node, syntax) {
 			return resolvers.exec(null, _.toArray(arguments)) 
-				|| this.getAbbreviation(syntax, node.name()) 
-				|| this.getSnippet(syntax, node.name());
+				|| this.findSnippet(syntax, node.name());
 		},
 		
 		/**
@@ -4616,8 +4455,7 @@ emmet.define('resources', function(require, _) {
 		 * @return {String}
 		 */
 		getVariable: function(name) {
-			return getSubset(VOC_USER, 'variables', name) 
-				|| getSubset(VOC_SYSTEM, 'variables', name);
+			return (this.getSection('variables') || {})[name];
 		},
 		
 		/**
@@ -4626,7 +4464,7 @@ emmet.define('resources', function(require, _) {
 		 * @param {String} value Variable value
 		 */
 		setVariable: function(name, value){
-			var voc = getVocabulary('user') || {};
+			var voc = this.getVocabulary('user') || {};
 			if (!('variables' in voc))
 				voc.variables = {};
 				
@@ -4635,24 +4473,13 @@ emmet.define('resources', function(require, _) {
 		},
 		
 		/**
-		 * Returns resource subset from settings vocabulary
-		 * @param {String} syntax Syntax name
-		 * @param {String} name Resource name
-		 * @return {Object}
-		 */
-		getSubset: function(syntax, name) {
-			return getSubset(VOC_USER, syntax, name) 
-				|| getSubset(VOC_SYSTEM, syntax, name);
-		},
-		
-		/**
 		 * Check if there are resources for specified syntax
 		 * @param {String} syntax
 		 * @return {Boolean}
 		 */
 		hasSyntax: function(syntax) {
-			return syntax in getVocabulary(VOC_USER) 
-				|| syntax in getVocabulary(VOC_SYSTEM);
+			return syntax in this.getVocabulary(VOC_USER) 
+				|| syntax in this.getVocabulary(VOC_SYSTEM);
 		},
 		
 		/**
@@ -4670,6 +4497,90 @@ emmet.define('resources', function(require, _) {
 		
 		removeResolver: function(fn) {
 			resolvers.remove(fn);
+		},
+		
+		/**
+		 * Returns actual section data, merged from both
+		 * system and user data
+		 * @param {String} name Section name (syntax)
+		 * @param {String} ...args Subsections
+		 * @returns
+		 */
+		getSection: function(name) {
+			if (!name)
+				return null;
+			
+			if (!(name in cache)) {
+				cache[name] = require('utils').deepMerge({}, systemSettings[name], userSettings[name]);
+			}
+			
+			var data = cache[name], subsections = _.rest(arguments), key;
+			while (data && (key = subsections.shift())) {
+				if (key in data) {
+					data = data[key];
+				} else {
+					return null;
+				}
+			}
+			
+			return data;
+		},
+		
+		/**
+		 * Recursively searches for a item inside top level sections (syntaxes)
+		 * with respect of `extends` attribute
+		 * @param {String} topSection Top section name (syntax)
+		 * @param {String} subsection Inner section name
+		 * @returns {Object}
+		 */
+		findItem: function(topSection, subsection) {
+			var data = this.getSection(topSection);
+			while (data) {
+				if (subsection in data)
+					return data[subsection];
+				
+				data = this.getSection(data['extends']);
+			}
+		},
+		
+		/**
+		 * Recursively searches for a snippet definition inside syntax section.
+		 * Definition is searched inside `snippets` and `abbreviations` 
+		 * subsections  
+		 * @param {String} syntax Top-level section name (syntax)
+		 * @param {Snippet name} name
+		 * @returns {Object}
+		 */
+		findSnippet: function(syntax, name, memo) {
+			if (!syntax || !name)
+				return null;
+			
+			memo = memo || [];
+			
+			var names = [name];
+			// create automatic aliases to properties with colons,
+			// e.g. pos-a == pos:a
+			if (~name.indexOf('-'))
+				names.push(name.replace(/\-/g, ':'));
+			
+			var data = this.getSection(syntax), matchedItem = null;
+			_.find(['snippets', 'abbreviations'], function(sectionName) {
+				var data = this.getSection(syntax, sectionName);
+				if (data) {
+					return _.find(names, function(n) {
+						if (data[n])
+							return matchedItem = parseItem(n, data[n], sectionName);
+					});
+				}
+			}, this);
+			
+			memo.push(syntax);
+			if (!matchedItem && data['extends'] && !_.include(memo, data['extends'])) {
+				// try to find item in parent syntax section
+				return this.findSnippet(data['extends'], name, memo);
+			}
+			
+			return matchedItem;
 		}
 	};
 });/**
@@ -5004,7 +4915,7 @@ emmet.define('profile', function(require, _) {
 		get: function(name, syntax) {
 			if (syntax && _.isString(name)) {
 				// search in user resources first
-				var profile = require('resources').getSubset(syntax, 'profile');
+				var profile = require('resources').findItem(syntax, 'profile');
 				if (profile) {
 					name = profile;
 				}
@@ -5201,8 +5112,9 @@ emmet.define('actionUtils', function(require, _) {
 			}
 			
 			if (startIndex != -1 && !textCount && !braceCount && !groupCount) 
-				// found something, return abbreviation
-				return str.substring(startIndex);
+				// found something, remove some invalid symbols from the 
+				// beginning and return abbreviation
+				return str.substring(startIndex).replace(/^[\*\+\>\^]+/, '');
 			else
 				return '';
 		},
@@ -6292,6 +6204,21 @@ emmet.define('preferences', function(require, _) {
 		},
 		
 		/**
+		 * Returns comma and colon-separated preference value as dictionary
+		 * @param {String} name
+		 * @returns {Object}
+		 */
+		getDict: function(name) {
+			var result = {};
+			_.each(this.getArray(name), function(val) {
+				var parts = val.split(':');
+				result[parts[0]] = parts[1];
+			});
+			
+			return result;
+		},
+		
+		/**
 		 * Returns description of preference item
 		 * @param {String} name Preference name
 		 * @returns {Object}
@@ -6446,7 +6373,7 @@ emmet.define('filters', function(require, _) {
 		 */
 		composeList: function(syntax, profile, additionalFilters) {
 			profile = require('profile').get(profile);
-			var filters = list(profile.filters || require('resources').getSubset(syntax, 'filters') || basicFilters);
+			var filters = list(profile.filters || require('resources').findItem(syntax, 'filters') || basicFilters);
 				
 			if (additionalFilters)
 				filters = filters.concat(list(additionalFilters));
@@ -9547,7 +9474,7 @@ emmet.exec(function(require, _) {
 		// find tag from current caret position
 		var info = require('editorUtils').outputInfo(editor);
 		var xmlElem = require('xmlEditTree').parseFromPosition(info.content, offset, true);
-		if (xmlElem && xmlElem.name().toLowerCase() == 'img') {
+		if (xmlElem && (xmlElem.name() || '').toLowerCase() == 'img') {
 			
 			var size = getImageSizeForSource(editor, xmlElem.value('src'));
 			if (size) {
@@ -9716,12 +9643,6 @@ emmet.define('cssResolver', function(require, _) {
 	 */
 	var vendorPrefixes = {};
 	
-	var unitAliases = {
-		'p': '%',
-		'e': 'em',
-		'x': 'ex'
-	};
-	
 	var defaultValue = '${1};';
 	
 	// XXX module preferences
@@ -9785,6 +9706,18 @@ emmet.define('cssResolver', function(require, _) {
 	prefs.define('css.intUnit', 'px', 'Default unit for integer values');
 	prefs.define('css.floatUnit', 'em', 'Default unit for float values');
 	
+	prefs.define('css.keywords', 'auto, inherit', 
+			'A comma-separated list of valid keywords that can be used in CSS abbreviations.');
+	
+	prefs.define('css.keywordAliases', 'a:auto, i:inherit', 
+			'A comma-separated list of keyword aliases, used in CSS abbreviation. '
+			+ 'Each alias should be defined as <code>alias:keyword_name</code>.');
+	
+	prefs.define('css.unitAliases', 'e:em, p:%, x:ex, r:rem', 
+			'A comma-separated list of unit aliases, used in CSS abbreviation. '
+			+ 'Each alias should be defined as <code>alias:unit_value</code>.');
+	
+	
 	function isNumeric(ch) {
 		var code = ch && ch.charCodeAt(0);
 		return (ch && ch == '.' || (code > 47 && code < 58));
@@ -9817,6 +9750,20 @@ emmet.define('cssResolver', function(require, _) {
 		});
 		
 		return snippet.split(':').length == 2;
+	}
+	
+	function getKeyword(name) {
+		var aliases = prefs.getDict('css.keywordAliases');
+		return name in aliases ? aliases[name] : name;
+	}
+	
+	function getUnit(name) {
+		var aliases = prefs.getDict('css.unitAliases');
+		return name in aliases ? aliases[name] : name;
+	}
+	
+	function isValidKeyword(keyword) {
+		return _.include(prefs.getArray('css.keywords'), getKeyword(keyword));
 	}
 	
 	/**
@@ -10106,33 +10053,6 @@ emmet.define('cssResolver', function(require, _) {
 		},
 		
 		/**
-		 * Adds CSS unit shorthand and its full value
-		 * @param {String} alias
-		 * @param {String} value
-		 */
-		addUnitAlias: function(alias, value) {
-			unitAliases[alias] = value;
-		},
-		
-		/**
-		 * Get unit name for alias
-		 * @param {String} alias
-		 * @returns {String}
-		 */
-		getUnitAlias: function(alias) {
-			return unitAliases[alias];
-		},
-		
-		/**
-		 * Removes unit alias
-		 * @param {String} alias
-		 */
-		removeUnitAlias: function(alias) {
-			if (alias in unitAliases)
-				delete unitAliases[alias];
-		},
-		
-		/**
 		 * Extract vendor prefixes from abbreviation
 		 * @param {String} abbr
 		 * @returns {Object} Object containing array of prefixes and clean 
@@ -10190,19 +10110,37 @@ emmet.define('cssResolver', function(require, _) {
 		 * @param {String} abbr
 		 * @returns {String} Value substring
 		 */
-		findValuesInAbbreviation: function(abbr) {
-			var i = 0, il = abbr.length, ch;
+		findValuesInAbbreviation: function(abbr, syntax) {
+			syntax = syntax || 'css';
 			
+			var i = 0, il = abbr.length, value = '', ch;
 			while (i < il) {
 				ch = abbr.charAt(i);
 				if (isNumeric(ch) || (ch == '-' && isNumeric(abbr.charAt(i + 1)))) {
-					return abbr.substring(i);
+					value = abbr.substring(i);
+					break;
 				}
 				
 				i++;
 			}
 			
-			return '';
+			// try to find keywords in abbreviation
+			var property = abbr.substring(0, abbr.length - value.length);
+			var res = require('resources');
+			var keywords = [];
+			// try to extract some commonly-used properties
+			while (~property.indexOf('-') && !res.findSnippet(syntax, property)) {
+				var parts = property.split('-');
+				var lastPart = parts.pop();
+				if (!isValidKeyword(lastPart)) {
+					break;
+				}
+				
+				keywords.unshift(lastPart);
+				property = parts.join('-');
+			}
+			
+			return keywords.join('-') + value;
 		},
 		
 		/**
@@ -10231,6 +10169,9 @@ emmet.define('cssResolver', function(require, _) {
 				
 				nextCh = abbrValues.charAt(i);
 				if (ch != '-' && !isNumeric(ch) && (isNumeric(nextCh) || nextCh == '-')) {
+					if (isValidKeyword(valueStack)) {
+						i++;
+					}
 					values.push(valueStack);
 					valueStack = '';
 				}
@@ -10240,7 +10181,7 @@ emmet.define('cssResolver', function(require, _) {
 				values.push(valueStack);
 			}
 			
-			return values;
+			return _.map(values, getKeyword);
 		},
 		
 		/**
@@ -10260,7 +10201,7 @@ emmet.define('cssResolver', function(require, _) {
 			}
 			
 			return {
-				property: abbr.substring(0, abbr.length - abbrValues.length),
+				property: abbr.substring(0, abbr.length - abbrValues.length).replace(/-$/, ''),
 				values: this.parseValues(abbrValues)
 			};
 		},
@@ -10281,7 +10222,7 @@ emmet.define('cssResolver', function(require, _) {
 				if (!unit)
 					return val + prefs.get(~val.indexOf('.') ? 'css.floatUnit' : 'css.intUnit');
 				
-				return val + (unit in unitAliases ? unitAliases[unit] : unit);
+				return val + getUnit(unit);
 			});
 		},
 		
@@ -10294,6 +10235,7 @@ emmet.define('cssResolver', function(require, _) {
 		 * snippet (string or element)
 		 */
 		expand: function(abbr, value, syntax) {
+			syntax = syntax || 'css';
 			var resources = require('resources');
 			var autoInsertPrefixes = prefs.get('css.autoInsertVendorPrefixes');
 			
@@ -10304,7 +10246,7 @@ emmet.define('cssResolver', function(require, _) {
 			}
 			
 			// check if we have abbreviated resource
-			var snippet = resources.getSnippet(syntax || 'css', abbr);
+			var snippet = resources.findSnippet(syntax, abbr);
 			if (snippet && !autoInsertPrefixes) {
 				return transformSnippet(snippet, isImportant, syntax);
 			}
@@ -10314,7 +10256,15 @@ emmet.define('cssResolver', function(require, _) {
 			var valuesData = this.extractValues(prefixData.property);
 			var abbrData = _.extend(prefixData, valuesData);
 			
-			snippet = resources.getSnippet(syntax || 'css', abbrData.property);
+			snippet = resources.findSnippet(syntax, abbrData.property);
+			
+			// fallback to some old snippets like m:a
+			if (!snippet && ~abbrData.property.indexOf(':')) {
+				var parts = abbrData.property.split(':');
+				var propertyName = parts.shift();
+				snippet = resources.findSnippet(syntax, propertyName) || propertyName;
+				abbrData.values = this.parseValues(parts.join(':'));
+			}
 			
 			if (!snippet) {
 				snippet = abbrData.property + ':' + defaultValue;
@@ -10336,19 +10286,19 @@ emmet.define('cssResolver', function(require, _) {
 			
 			snippetObj.value = value || snippetObj.value;
 			
-			var prefixes = abbrData.prefixes == 'all' || autoInsertPrefixes 
+			var prefixes = abbrData.prefixes == 'all' || (!abbrData.prefixes && autoInsertPrefixes) 
 				? findPrefixes(snippetObj.name, autoInsertPrefixes && abbrData.prefixes != 'all')
 				: abbrData.prefixes;
 				
-				_.each(prefixes, function(p) {
-					if (p in vendorPrefixes) {
-						result.push(transformSnippet(
-								vendorPrefixes[p].transformName(snippetObj.name) 
-								+ ':' + snippetObj.value,
-								isImportant, syntax));
-						
-					}
-				});
+			_.each(prefixes, function(p) {
+				if (p in vendorPrefixes) {
+					result.push(transformSnippet(
+							vendorPrefixes[p].transformName(snippetObj.name) 
+							+ ':' + snippetObj.value,
+							isImportant, syntax));
+					
+				}
+			});
 			
 			// put the original property
 			result.push(transformSnippet(snippetObj.name + ':' + snippetObj.value, isImportant, syntax));
@@ -12147,8 +12097,10 @@ emmet.exec(function(require, _) {
 		var totalWords = 0;
 		var words;
 		
+		wordCount = parseInt(wordCount, 10);
+		
 		if (startWithCommon) {
-			words = COMMON_P.slice(0, wordCount + 1);
+			words = COMMON_P.slice(0, wordCount);
 			if (words.length > 5)
 				words[4] += ',';
 			totalWords += words.length;
