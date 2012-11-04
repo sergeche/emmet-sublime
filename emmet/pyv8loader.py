@@ -8,6 +8,7 @@ import json
 import re
 import threading
 import subprocess
+import tempfile
 
 PACKAGES_URL = 'https://api.github.com/repos/emmetio/pyv8-binaries/downloads'
 
