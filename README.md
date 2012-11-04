@@ -23,6 +23,10 @@ Or with package control:
 2. Package Control: Install Package `emmet-sublime`
 3. Restart ST2 editor (if required)
 
+--------------
+
+**WARNING**: When plugin is installed, it will automatically download required PyV8 binary so you have to a bit (see _Loading PyV8 binary_ message on status bar). If you experience issues with automatic PyV8 loader, try to [install it manually](https://github.com/emmetio/pyv8-binaries).
+
 ## New features of Emmet (compared with old Zen Coding)
 
 * [Dynamic CSS abbreviations](http://docs.emmet.io/css-abbreviations/), automatic [vendor prefixes](http://docs.emmet.io/css-abbreviations/vendor-prefixes/) and [gradient generator](http://docs.emmet.io/css-abbreviations/gradients/).
@@ -37,7 +41,9 @@ Or with package control:
 
 * [Expand Abbreviation](http://docs.emmet.io/actions/expand-abbreviation/) – <kbd>Tab</kbd> or <kbd>Ctrl+E</kbd>
 * Interactive “Expand Abbreviation” — <kbd>Ctrl+Alt+Enter</kbd>
-* [Match Tag Pair](http://docs.emmet.io/actions/match-pair/) – <kbd>⌃D</kbd> (Mac) / <kbd>Ctrl+,</kbd> (PC)
+* [Match Tag Pair Outward](http://docs.emmet.io/actions/match-pair/) – <kbd>⌃D</kbd> (Mac) / <kbd>Ctrl+,</kbd> (PC)
+* [Match Tag Pair Inward](http://docs.emmet.io/actions/match-pair/) – <kbd>⌃J</kbd> / <kbd>Ctrl+Alt+,</kbd>
+* [Go to Matching Pair](http://docs.emmet.io/actions/go-to-pair/) – <kbd>⇧⌃T</kbd> / <kbd>Ctrl+Alt+J</kbd>
 * [Wrap With Abbreviation](http://docs.emmet.io/actions/wrap-with-abbreviation/) — <kbd>⌃W</kbd> / <kbd>Shift+Ctrl+G</kbd>
 * [Go to Edit Point](http://docs.emmet.io/actions/go-to-edit-point/) — <kbd>Ctrl+Alt+→</kbd> or <kbd>Ctrl+Alt+←</kbd>
 * [Select Item](http://docs.emmet.io/actions/select-item/) – <kbd>⇧⌘.</kbd> or <kbd>⇧⌘,</kbd> / <kbd>Shift+Ctrl+.</kbd> or <kbd>Shift+Ctrl+,</kbd>

@@ -3,6 +3,20 @@
 [
     {
         "keys": [
+            "shift+ctrl+y"
+        ], 
+        "args": {
+            "action": "evaluate_math_expression"
+        }, 
+        "command": "run_emmet_action", 
+        "context": [
+            {
+                "key": "emmet_action_enabled.evaluate_math_expression"
+            }
+        ]
+    }, 
+    {
+        "keys": [
             "shift+ctrl+;"
         ], 
         "args": {
@@ -112,15 +126,15 @@
     }, 
     {
         "keys": [
-            "shift+ctrl+y"
+            "ctrl+alt+,"
         ], 
         "args": {
-            "action": "evaluate_math_expression"
+            "action": "match_pair_inward"
         }, 
         "command": "run_emmet_action", 
         "context": [
             {
-                "key": "emmet_action_enabled.evaluate_math_expression"
+                "key": "emmet_action_enabled.match_pair_inward"
             }
         ]
     }, 
@@ -224,15 +238,15 @@
     }, 
     {
         "keys": [
-            "ctrl+e"
+            "shift+ctrl+`"
         ], 
         "args": {
-            "action": "expand_abbreviation"
+            "action": "split_join_tag"
         }, 
         "command": "run_emmet_action", 
         "context": [
             {
-                "key": "emmet_action_enabled.expand_abbreviation"
+                "key": "emmet_action_enabled.split_join_tag"
             }
         ]
     }, 
@@ -295,6 +309,20 @@
     }, 
     {
         "keys": [
+            "ctrl+alt+j"
+        ], 
+        "args": {
+            "action": "matching_pair"
+        }, 
+        "command": "run_emmet_action", 
+        "context": [
+            {
+                "key": "emmet_action_enabled.matching_pair"
+            }
+        ]
+    }, 
+    {
+        "keys": [
             "ctrl+down"
         ], 
         "args": {
@@ -309,15 +337,15 @@
     }, 
     {
         "keys": [
-            "shift+ctrl+`"
+            "ctrl+e"
         ], 
         "args": {
-            "action": "split_join_tag"
+            "action": "expand_abbreviation"
         }, 
         "command": "run_emmet_action", 
         "context": [
             {
-                "key": "emmet_action_enabled.split_join_tag"
+                "key": "emmet_action_enabled.expand_abbreviation"
             }
         ]
     }, 
@@ -328,7 +356,7 @@
         "command": "expand_abbreviation_by_tab", 
         "context": [
             {
-                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html.basic - source.php - keyword.control.php, text.haml, text.html.ruby, text.html.twig, string", 
+                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source - keyword.control.php, text.haml, string", 
                 "operator": "equal", 
                 "match_all": true, 
                 "key": "selector"
