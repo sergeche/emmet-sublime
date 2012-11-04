@@ -10,6 +10,8 @@ A work-in-progress official plugin for Sublime Text 2 with upcoming Emmet toolki
 
 **You should remove or disable previous Zen Coding plugin, installed from Package Control, in order to operate properly.**
 
+*November 5 note*: plugin recently received a big update: all PyV8 binaries were moved to external repo and downloaded by plugin automatically. It means less plugin footprint (minus 60MB!) and faster updates. If you experience any issues with PyV8 loader, try to [install it manually](https://github.com/emmetio/pyv8-binaries) and [fill an issue](/sergeche/emmet-sublime/issues).
+
 -------------
 
 1. Clone git repo into your packages folder (in ST2, find Browse Packages... menu item to open this folder)
