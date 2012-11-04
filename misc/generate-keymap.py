@@ -98,7 +98,7 @@ addon = [
 			{
 				"key": "selector",
 				"match_all": True,
-				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html.basic - source.php - keyword.control.php, text.haml, text.html.ruby, text.html.twig, string",
+				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source - keyword.control.php, text.haml, string",
 				"operator": "equal"
 			}, {
 				"key": "selection_empty",
