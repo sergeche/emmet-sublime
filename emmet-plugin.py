@@ -3,12 +3,14 @@ import sublime_plugin
 
 import re
 import json
+import sys
 import os.path
 import traceback
 
 import completions as cmpl
 from completions.meta import HTML_ELEMENTS_ATTRIBUTES, HTML_ATTRIBUTES_VALUES
 from emmet.context import Context
+from emmet.pyv8loader import LoaderDelegate
 
 __version__      = '1.0'
 __core_version__ = '1.0'
@@ -18,8 +20,49 @@ __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
 
+class SublimeLoaderDelegate(LoaderDelegate):
+	def __init__(self, settings={}):
+		LoaderDelegate.__init__(self, settings)
+		self.message = 'Loading PyV8 binary, please wait'
+		self.i = 0
+		self.addend = 1
+		self.size = 8
+
+	def on_progress(self, *args, **kwargs):
+		before = self.i % self.size
+		after = (self.size - 1) - before
+		msg = '%s [%s=%s]' % (self.message, ' ' * before, ' ' * after)
+		if not after:
+			self.addend = -1
+		if not before:
+			self.addend = 1
+		self.i += self.addend
+
+		sublime.set_timeout(lambda: sublime.status_message(msg), 0)
+
+	def on_complete(self, *args, **kwargs):
+		sublime.set_timeout(lambda: sublime.status_message('PyV8 binary successfully loaded'), 0)
+
+	def on_error(self, exit_code=-1, thread=None):
+		sublime.set_timeout(lambda: show_pyv8_error(exit_code), 0)
+
+def show_pyv8_error(exit_code):
+	if 'PyV8' not in sys.modules:
+		sublime.error_message('Error while loading PyV8 binary: exit code %s \nTry to manually install PyV8 from\nhttps://github.com/emmetio/pyv8-binaries' % exit_code)
+
+
 def active_view():
 	return sublime.active_window().active_view()
+
+def check_context(verbose=False):
+	"Checks if JS context is completely available"
+	if not ctx.js():
+		if (verbose):
+			sublime.message_dialog('Please wait a bit while PyV8 binary is being downloaded')
+		return False
+
+	return True
+
 
 def replace_substring(start, end, value, no_indent=False):
 	view = active_view()
@@ -103,7 +146,10 @@ contrib = {
 }
 
 # create JS environment
-ctx = Context(['../editor.js'], settings.get('extensions_path', None), contrib)
+delegate = SublimeLoaderDelegate()
+ctx = Context(['../editor.js'], settings.get('extensions_path', None), 
+	contrib, pyv8_path=os.path.join(sublime.packages_path(), 'PyV8'),
+	delegate=delegate)
 
 update_settings()
 
@@ -123,6 +169,9 @@ class ActionContextHandler(sublime_plugin.EventListener):
 		return should_perform_action(name, view)
 
 def run_action(action, view=None):
+	if not check_context(True):
+		return
+
 	"Runs Emmet action in multiselection mode"
 	if not view:
 		view = active_view()
@@ -209,6 +258,9 @@ class TabExpandHandler(sublime_plugin.EventListener):
 
 	def on_query_context(self, view, key, op, operand, match_all):
 		if key != 'is_abbreviation':
+			return None
+
+		if not check_context():
 			return False
 
 		# print(view.syntax_name(view.sel()[0].begin()))
@@ -298,6 +350,9 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 			self._sel_items.append(unindent_text(s, get_line_padding(line)))
 
 	def run(self, edit, **args):
+		if not check_context(True):
+			return
+
 		self.setup()
 		self.erase = False
 
@@ -381,6 +436,9 @@ class HandleEnterKey(sublime_plugin.TextCommand):
 
 class RenameTag(sublime_plugin.TextCommand):
 	def run(self, edit, **kw):
+		if not check_context(True):
+			return
+
 		ranges = ctx.js().locals.pyGetTagNameRanges()
 		if ranges:
 			view = active_view()
