@@ -3,6 +3,7 @@ import sublime_plugin
 
 import re
 import json
+import sys
 import os.path
 import traceback
 
@@ -41,6 +42,14 @@ class SublimeLoaderDelegate(LoaderDelegate):
 
 	def on_complete(self, *args, **kwargs):
 		sublime.set_timeout(lambda: sublime.status_message('PyV8 binary successfully loaded'), 0)
+
+	def on_error(self, exit_code=-1, thread=None):
+		sublime.set_timeout(lambda: show_pyv8_error(exit_code), 0)
+
+def show_pyv8_error(exit_code):
+	if 'PyV8' not in sys.modules:
+		sublime.error_message('Error while loading PyV8 binary: exit code %s \nTry to manually install PyV8 from\nhttps://github.com/emmetio/pyv8-binaries' % exit_code)
+
 
 def active_view():
 	return sublime.active_window().active_view()

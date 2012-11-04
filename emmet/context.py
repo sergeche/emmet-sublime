@@ -140,7 +140,11 @@ def import_pyv8():
 	# throw exception even if this module appear in PYTHONPATH.
 	# To prevent this, we have to manually test if 
 	# PyV8.py(c) exists in PYTHONPATH before importing PyV8
-	 
+	if 'PyV8' in sys.modules and 'PyV8' not in globals():
+		# PyV8 was loaded by ST2, create global alias
+		globals()['PyV8'] = __import__('PyV8')
+		return
+
 	f, pathname, description = imp.find_module('PyV8')
 	bin_f, bin_pathname, bin_description = imp.find_module('_PyV8')
 	loaded = False
@@ -178,9 +182,14 @@ def get_loader_config(path):
 
 def save_loader_config(path, data):
 	config_path = os.path.join(path, 'config.json')
-	fp = open(config_path, 'w')
-	fp.write(json.dumps(data))
-	fp.close()
+
+	try:
+		os.makedirs(path)
+		fp = open(config_path, 'w')
+		fp.write(json.dumps(data))
+		fp.close()
+	except Exception, e:
+		pass
 
 class Context():
 	"""
@@ -201,6 +210,7 @@ class Context():
 		# pre-flight check: if there’s unpacked binary, 
 		# extract contents from archive and remove it
 		if self.pyv8_path not in sys.path:
+			sys.path.append(os.path.abspath(pyv8_path))
 			sys.path.append(self.pyv8_path)
 			
 		unpack_pyv8(self.pyv8_path)

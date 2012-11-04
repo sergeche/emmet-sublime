@@ -9,7 +9,6 @@ import re
 import threading
 
 PACKAGES_URL = 'https://api.github.com/repos/emmetio/pyv8-binaries/downloads'
-# PACKAGES_URL = 'http://10.0.3.68:8103/dw.json'
 
 class LoaderDelegate():
 	"""
@@ -49,7 +48,7 @@ class ThreadProgress():
 	def run(self):
 		if not self.thread.is_alive():
 			if self.thread.exit_code != 0:
-				return self.trigger('error', exit_code=exit_code, thread=self.thread)
+				return self.trigger('error', exit_code=self.thread.exit_code, thread=self.thread)
 				
 			return self.trigger('complete', result=self.thread.result, thread=self.thread)
 
@@ -186,11 +185,18 @@ class PyV8Loader(threading.Thread):
 			self.log('You have the most recent PyV8 binary')
 			return
 
-		self.log('Loading PyV8 binary from %s' % item['html_url'])
-		package = self.download_url(item['html_url'], 'Unable to download package from %s' % item['html_url'])
+		# Reduce HTTP roundtrips: try to download binary from 
+		# http://cloud.github.com directly
+		url = re.sub(r'^https?:\/\/github\.com', 'http://cloud.github.com', item['html_url'])
+		self.log('Loading PyV8 binary from %s' % url)
+		package = self.download_url(url, 'Unable to download package from %s' % url)
 		if not package:
-			self.exit_code = 3
-			return
+			url = item['html_url']
+			self.log('Loading PyV8 binary from %s' % url)
+			package = self.download_url(url, 'Unable to download package from %s' % url)
+			if not package:
+				self.exit_code = 3
+				return
 
 		# we should only save downloaded package and delegate module
 		# loading/unloading to main thread since improper PyV8 unload
