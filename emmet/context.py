@@ -182,14 +182,13 @@ def get_loader_config(path):
 
 def save_loader_config(path, data):
 	config_path = os.path.join(path, 'config.json')
-
-	try:
+	
+	if not os.path.exists(path):
 		os.makedirs(path)
-		fp = open(config_path, 'w')
-		fp.write(json.dumps(data))
-		fp.close()
-	except Exception, e:
-		pass
+	fp = open(config_path, 'w')
+	fp.write(json.dumps(data))
+	fp.close()
+	
 
 class Context():
 	"""

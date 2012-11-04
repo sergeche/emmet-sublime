@@ -7,6 +7,7 @@ import urllib2
 import json
 import re
 import threading
+import subprocess
 
 PACKAGES_URL = 'https://api.github.com/repos/emmetio/pyv8-binaries/downloads'
 
@@ -74,6 +75,159 @@ class ThreadProgress():
 
 		return self
 
+class BinaryNotFoundError(Exception):
+	pass
+
+
+class NonCleanExitError(Exception):
+	def __init__(self, returncode):
+		self.returncode = returncode
+
+	def __str__(self):
+		return repr(self.returncode)
+
+
+class CliDownloader():
+	def __init__(self, settings):
+		self.settings = settings
+
+	def find_binary(self, name):
+		for dir in os.environ['PATH'].split(os.pathsep):
+			path = os.path.join(dir, name)
+			if os.path.exists(path):
+				return path
+
+		raise BinaryNotFoundError('The binary %s could not be located' % name)
+
+	def execute(self, args):
+		proc = subprocess.Popen(args, stdin=subprocess.PIPE,
+			stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+		output = proc.stdout.read()
+		returncode = proc.wait()
+		if returncode != 0:
+			error = NonCleanExitError(returncode)
+			error.output = output
+			raise error
+		return output
+
+class WgetDownloader(CliDownloader):
+	def __init__(self, settings):
+		self.settings = settings
+		self.wget = self.find_binary('wget')
+
+	def clean_tmp_file(self):
+		os.remove(self.tmp_file)
+
+	def download(self, url, error_message, timeout, tries):
+		if not self.wget:
+			return False
+
+		self.tmp_file = tempfile.NamedTemporaryFile().name
+		command = [self.wget, '--connect-timeout=' + str(int(timeout)), '-o',
+			self.tmp_file, '-O', '-', '-U', 'Emmet PyV8 Loader']
+
+		command.append(url)
+
+		if self.settings.get('http_proxy'):
+			os.putenv('http_proxy', self.settings.get('http_proxy'))
+			if not self.settings.get('https_proxy'):
+				os.putenv('https_proxy', self.settings.get('http_proxy'))
+		if self.settings.get('https_proxy'):
+			os.putenv('https_proxy', self.settings.get('https_proxy'))
+
+		while tries > 0:
+			tries -= 1
+			try:
+				result = self.execute(command)
+				self.clean_tmp_file()
+				return result
+			except (NonCleanExitError) as (e):
+				error_line = ''
+				with open(self.tmp_file) as f:
+					for line in list(f):
+						if re.search('ERROR[: ]|failed: ', line):
+							error_line = line
+							break
+
+				if e.returncode == 8:
+					regex = re.compile('^.*ERROR (\d+):.*', re.S)
+					if re.sub(regex, '\\1', error_line) == '503':
+						# GitHub and BitBucket seem to rate limit via 503
+						print ('%s: Downloading %s was rate limited' +
+							', trying again') % (__name__, url)
+						continue
+					error_string = 'HTTP error ' + re.sub('^.*? ERROR ', '',
+						error_line)
+
+				elif e.returncode == 4:
+					error_string = re.sub('^.*?failed: ', '', error_line)
+					# GitHub and BitBucket seem to time out a lot
+					if error_string.find('timed out') != -1:
+						print ('%s: Downloading %s timed out, ' +
+							'trying again') % (__name__, url)
+						continue
+
+				else:
+					error_string = re.sub('^.*?(ERROR[: ]|failed: )', '\\1',
+						error_line)
+
+				error_string = re.sub('\\.?\s*\n\s*$', '', error_string)
+				print '%s: %s %s downloading %s.' % (__name__, error_message,
+					error_string, url)
+			self.clean_tmp_file()
+			break
+		return False
+
+
+class CurlDownloader(CliDownloader):
+	def __init__(self, settings):
+		self.settings = settings
+		self.curl = self.find_binary('curl')
+
+	def download(self, url, error_message, timeout, tries):
+		if not self.curl:
+			return False
+		command = [self.curl, '-f', '--user-agent', 'Emmet PyV8 Loader',
+			'--connect-timeout', str(int(timeout)), '-sS']
+
+		command.append(url)
+
+		if self.settings.get('http_proxy'):
+			os.putenv('http_proxy', self.settings.get('http_proxy'))
+			if not self.settings.get('https_proxy'):
+				os.putenv('HTTPS_PROXY', self.settings.get('http_proxy'))
+		if self.settings.get('https_proxy'):
+			os.putenv('HTTPS_PROXY', self.settings.get('https_proxy'))
+
+		while tries > 0:
+			tries -= 1
+			try:
+				return self.execute(command)
+			except (NonCleanExitError) as (e):
+				if e.returncode == 22:
+					code = re.sub('^.*?(\d+)\s*$', '\\1', e.output)
+					if code == '503':
+						# GitHub and BitBucket seem to rate limit via 503
+						print ('%s: Downloading %s was rate limited' +
+							', trying again') % (__name__, url)
+						continue
+					error_string = 'HTTP error ' + code
+				elif e.returncode == 6:
+					error_string = 'URL error host not found'
+				elif e.returncode == 28:
+					# GitHub and BitBucket seem to time out a lot
+					print ('%s: Downloading %s timed out, trying ' +
+						'again') % (__name__, url)
+					continue
+				else:
+					error_string = e.output.rstrip()
+
+				print '%s: %s %s downloading %s.' % (__name__, error_message,
+					error_string, url)
+			break
+		return False
+
 
 class UrlLib2Downloader():
 	def __init__(self, settings):
@@ -140,6 +294,7 @@ class PyV8Loader(threading.Thread):
 		self.download_path = download_path
 		self.exit_code = 0
 		self.result = None
+		self.settings = {}
 
 		threading.Thread.__init__(self)
 		self.log('Creating thread')
@@ -149,7 +304,18 @@ class PyV8Loader(threading.Thread):
 
 	def download_url(self, url, error_message):
 		# TODO add settings
-		downloader = UrlLib2Downloader({})
+		has_ssl = 'ssl' in sys.modules and hasattr(urllib2, 'HTTPSHandler')
+		is_ssl = re.search('^https://', url) != None
+
+		if (is_ssl and has_ssl) or not is_ssl:
+			downloader = UrlLib2Downloader(self.settings)
+		else:
+			for downloader_class in [CurlDownloader, WgetDownloader]:
+				try:
+					downloader = downloader_class(self.settings)
+					break
+				except (BinaryNotFoundError):
+					pass
 
 		if not downloader:
 			self.log('Unable to download PyV8 binary due to invalid downloader')
