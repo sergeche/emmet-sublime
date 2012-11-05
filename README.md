@@ -14,13 +14,15 @@ A work-in-progress official plugin for Sublime Text 2 with upcoming Emmet toolki
 
 -------------
 
-1. Clone git repo into your packages folder (in ST2, find Browse Packages... menu item to open this folder)
+1. Clone or [download](/sergeche/emmet-sublime/archive/master.zip) git repo into your packages folder (in ST2, find Browse Packages... menu item to open this folder)
 2. Restart ST2 editor (if required)
 
-Or with package control:
+Or with Package Control:
 
-1. Package Control: Add Repository `https://github.com/sergeche/emmet-sublime`
-2. Package Control: Install Package `emmet-sublime`
+*Currently, Package Control has problems with plugin installation from custom repositories due to recent GitHub updates. Emmet plugin will be added to the main Package Control channel in a few days.*
+
+1. Run “Package Control: Add Repository“ command in ST2 and add the following url: `https://github.com/sergeche/emmet-sublime`
+2. Run “Package Control: Install Package” command, find and install `emmet-sublime` plugin.
 3. Restart ST2 editor (if required)
 
 --------------
