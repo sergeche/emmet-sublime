@@ -14,7 +14,7 @@ keymap = {
 		"pc": "ctrl+forward_slash",
 		"context": [{
 			"key": "selector", 
-			"operand": "source.css, text.xml, text.html.basic - source",
+			"operand": "source.css -source.css.less, text.xml, text.html.basic - source",
 			"operator": "equal"
 		}]
 	},
