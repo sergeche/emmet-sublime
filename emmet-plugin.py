@@ -403,12 +403,10 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 			# capture wrapping context (parent HTML element) 
 			# if there is only one selection
 			r = ctx.js().locals.pyCaptureWrappingRange()
-			if not r:
-				return # nothing to wrap
-
-			view.sel().clear()
-			view.sel().add(sublime.Region(r[0], r[1]))
-			view.show(view.sel())
+			if r:
+				view.sel().clear()
+				view.sel().add(sublime.Region(r[0], r[1]))
+				view.show(view.sel())
 
 		self.remember_sels(view)
 
