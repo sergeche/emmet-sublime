@@ -338,8 +338,8 @@ class Context():
 
 		if self._should_load_extension:
 			self._ctx.locals.pyResetUserData()
-			self.load_extensions()
 			self._should_load_extension = False
+			self.load_extensions()
 
 		if self._user_data:
 			self._ctx.locals.pyLoadUserData(self._user_data)
