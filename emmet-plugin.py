@@ -454,11 +454,14 @@ class HandleEnterKey(sublime_plugin.TextCommand):
 		else:
 			# checking a special case: caret right after opening tag,
 			# but not exactly between pairs
-			view = active_view()
-			caret_pos = view.sel()[0].begin()
-			ranges = ctx.js().locals.pyGetTagRanges()
-			if ranges and ranges[0][1] == caret_pos:
-				snippet = '\n\t${0}'
+			try:
+				view = active_view()
+				caret_pos = view.sel()[0].begin()
+				ranges = ctx.js().locals.pyGetTagRanges()
+				if ranges and ranges[0] and ranges[0][1] == caret_pos:
+					snippet = '\n\t${0}'
+			except:
+				pass
 
 		view.run_command('insert_snippet', {'contents': snippet})
 

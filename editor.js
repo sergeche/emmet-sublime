@@ -147,6 +147,10 @@ function pyPreprocessText(value) {
 			if (ch == '$') {
 				return '\\$';
 			}
+
+			if (ch == '\\') {
+				return '\\\\';
+			}
  
 			return ch;
 		}
