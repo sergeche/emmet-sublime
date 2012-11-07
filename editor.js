@@ -211,3 +211,11 @@ function pyGetTagNameRanges() {
 
 	return ranges;
 }
+
+function pyExtractAbbreviation() {
+	return require('expandAbbreviation').findAbbreviation(editorProxy);
+}
+
+function pyHasSnippet(name) {
+	return !!emmet.require('resources').findSnippet(editorProxy.getSyntax(), name);
+}

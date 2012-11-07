@@ -27,6 +27,20 @@
 	// Use "all" value to disable all shortcuts at once
 	"disabled_keymap_actions": "",
 
+	// By default, Emmet overrides Tab key to effectively expand abbreviations.
+	// The downside of this approach is that you can’t expand regular ST2
+	// snippets (like `php`). Since it’s not currently possible to get a list
+	// of ST2 snippets via API, you can provide a list of scopes where Emmet’s
+	// Tab trigger should be disabled when expanding simple abbreviation.
+	// If entered abbreviation (like `php`) wasn’t found in Emmet snippets list
+	// or "known_html_tags" preference, Tab handler will not be triggered.
+	// Leave this setting black to disable this feature
+	"disabled_single_snippet_for_scopes": "text.html - source",
+
+	// A space separated list of all known HTML tags,
+	// used together with "disabled_on_single_snippets" option
+	"known_html_tags": "html head title base link meta style script noscript body section nav article aside h1 h2 h3 h4 h5 h6 hgroup header footer address p hr pre blockquote ol ul li dl dt dd figure figcaption div a em strong small s cite q dfn abbr data time code var samp kbd sub sup i b u mark ruby rt rp bdi bdo span br wbr ins del img iframe embed object param video audio source track canvas map area svg math table caption colgroup col tbody thead tfoot tr td th form fieldset legend label input button select datalist optgroup option textarea keygen output progress meter details summary command menu",
+
 	// Custom snippets definitions, as per https://github.com/sergeche/zen-coding/blob/v0.7.1/snippets.json
 	"snippets": {
 		// "html": {
