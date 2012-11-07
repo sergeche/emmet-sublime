@@ -10,8 +10,8 @@ keymap = {
 	"next_edit_point": "ctrl+alt+right",
 	"prev_edit_point": "ctrl+alt+left",
 	"toggle_comment": {
-		"mac": "super+forward_slash",
-		"pc": "ctrl+forward_slash",
+		"mac": "super+shift+forward_slash",
+		"pc": "ctrl+shift+forward_slash",
 		"context": [{
 			"key": "selector", 
 			"operand": "source.css -source.css.less, text.xml, text.html.basic - source",
