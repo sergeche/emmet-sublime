@@ -132,7 +132,7 @@ addon = [
 		"context": [
 			{
 				"key": "selector",
-				"operand": "text.html.basic -source, text.xml, text.html.ruby, text.html.twig"
+				"operand": "text.html -source, text.xml"
 			}, {
 				"key": "auto_complete_visible",
 				"operand": False

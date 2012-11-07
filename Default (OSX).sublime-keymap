@@ -436,7 +436,7 @@
         "command": "handle_enter_key", 
         "context": [
             {
-                "operand": "text.html.basic -source, text.xml, text.html.ruby, text.html.twig", 
+                "operand": "text.html -source, text.xml", 
                 "key": "selector"
             }, 
             {

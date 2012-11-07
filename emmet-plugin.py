@@ -445,12 +445,23 @@ class HandleEnterKey(sublime_plugin.TextCommand):
 		if settings.get('clear_fields_on_enter_key', False):
 			view.run_command('clear_fields')
 
+		snippet = '\n${0}'
+
 		# let's see if we have to insert formatted linebreak
 		scope = view.syntax_name(view.sel()[0].begin())
 		if sublime.score_selector(scope, settings.get('formatted_linebreak_scopes', '')) > 0:
-			view.run_command('insert_snippet', {'contents': '\n\t${0}\n'})
+			snippet = '\n\t${0}\n'
 		else:
-			view.run_command('insert_snippet', {'contents': '\n${0}'})
+			# checking a special case: caret right after opening tag,
+			# but not exactly between pairs
+			view = active_view()
+			caret_pos = view.sel()[0].begin()
+			ranges = ctx.js().locals.pyGetTagRanges()
+			if ranges and ranges[0][1] == caret_pos:
+				snippet = '\n\t${0}'
+
+		view.run_command('insert_snippet', {'contents': snippet})
+
 
 class RenameTag(sublime_plugin.TextCommand):
 	def run(self, edit, **kw):

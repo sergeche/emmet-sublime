@@ -212,6 +212,24 @@ function pyGetTagNameRanges() {
 	return ranges;
 }
 
+function pyGetTagRanges() {
+	var ranges = [];
+	var info = require('editorUtils').outputInfo(editorProxy);
+		
+	// search for tag
+	try {
+		var pair = require('html_matcher').getTags(info.content, editorProxy.getCaretPos(), info.profile);
+		if (pair && pair[0]) {
+			ranges.push([pair[0].start, pair[0].end]);
+			if (pair[1]) {
+				ranges.push([pair[1].start, pair[1].end]);
+			}
+		}
+	} catch (e) {}
+
+	return ranges;
+}
+
 function pyExtractAbbreviation() {
 	return require('expandAbbreviation').findAbbreviation(editorProxy);
 }
