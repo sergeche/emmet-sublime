@@ -1064,33 +1064,23 @@ var emmet = (function(global) {
 	var defaultSyntax = 'html';
 	var defaultProfile = 'plain';
 	
-	// getting underscore lib is a bit tricky for all
-	// environments (browser, node.js, wsh)
-	var underscore = global._;
-	if (!underscore) {
-		// wsh
+	if (typeof _ == 'undefined') {
 		try {
-			underscore = _;
+			// avoid collisions with RequireJS loader
+			// also, JS obfuscators tends to translate
+			// a["name"] to a.name, which also breaks RequireJS
+			_ = global[['require'][0]]('underscore'); // node.js
 		} catch (e) {}
 	}
 
-	if (!underscore) {
-		// node.js
-		try {
-			underscore = require('underscore');
-		} catch (e) {}
-	}
-
-	if (!underscore) {
+	if (typeof _ == 'undefined') {
 		throw 'Cannot access to Underscore.js lib';
 	}
 
 	/** List of registered modules */
 	var modules = {
-		_ : underscore
+		_ : _
 	};
-	
-	var _ = underscore;
 	
 	/**
 	 * Shared empty constructor function to aid in prototype-chain creation.
@@ -1153,6 +1143,18 @@ var emmet = (function(global) {
 	 */
 	var moduleLoader = null;
 	
+	/**
+	 * Generic Emmet module loader (actually, it doesn’t load anything, just 
+	 * returns module reference). Not using `require` name to avoid conflicts
+	 * with Node.js and RequireJS
+	 */
+	function r(name) {
+		if (!(name in modules) && moduleLoader)
+			moduleLoader(name);
+		
+		return modules[name];
+	}
+	
 	return {
 		/**
 		 * Simple, AMD-like module definition. The module will be added into
@@ -1175,12 +1177,7 @@ var emmet = (function(global) {
 		 * Returns reference to Emmet module
 		 * @param {String} name Module name
 		 */
-		require: function(name) {
-			if (!(name in modules) && moduleLoader)
-				moduleLoader(name);
-			
-			return modules[name];
-		},
+		require: r,
 		
 		/**
 		 * Helper method that just executes passed function but with all 
@@ -1189,7 +1186,7 @@ var emmet = (function(global) {
 		 * @param {Object} context Execution context
 		 */
 		exec: function(fn, context) {
-			return fn.call(context || global, _.bind(this.require, this), _, this);
+			return fn.call(context || global, _.bind(r, this), _, this);
 		},
 		
 		/**
@@ -1223,11 +1220,11 @@ var emmet = (function(global) {
 			syntax = syntax || defaultSyntax;
 			profile = profile || defaultProfile;
 			
-			var filters = this.require('filters');
-			var parser = this.require('abbreviationParser');
+			var filters = r('filters');
+			var parser = r('abbreviationParser');
 			
-			profile = this.require('profile').get(profile, syntax);
-			this.require('tabStops').resetTabstopIndex();
+			profile = r('profile').get(profile, syntax);
+			r('tabStops').resetTabstopIndex();
 			
 			var data = filters.extractFromAbbreviation(abbr);
 			var outputTree = parser.parse(data[0], {
@@ -1280,8 +1277,7 @@ if (typeof exports !== 'undefined') {
 		exports = module.exports = emmet;
 	}
 	exports.emmet = emmet;
-}
-/**
+}/**
  * Emmet abbreviation parser.
  * Takes string abbreviation and recursively parses it into a tree. The parsed 
  * tree can be transformed into a string representation with 
@@ -9691,7 +9687,7 @@ emmet.define('cssResolver', function(require, _) {
 	var props = {
 		'webkit': 'animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-clip, background-composite, background-origin, background-size, border-fit, border-horizontal-spacing, border-image, border-vertical-spacing, box-align, box-direction, box-flex, box-flex-group, box-lines, box-ordinal-group, box-orient, box-pack, box-reflect, box-shadow, color-correction, column-break-after, column-break-before, column-break-inside, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-span, column-width, dashboard-region, font-smoothing, highlight, hyphenate-character, hyphenate-limit-after, hyphenate-limit-before, hyphens, line-box-contain, line-break, line-clamp, locale, margin-before-collapse, margin-after-collapse, marquee-direction, marquee-increment, marquee-repetition, marquee-style, mask-attachment, mask-box-image, mask-box-image-outset, mask-box-image-repeat, mask-box-image-slice, mask-box-image-source, mask-box-image-width, mask-clip, mask-composite, mask-image, mask-origin, mask-position, mask-repeat, mask-size, nbsp-mode, perspective, perspective-origin, rtl-ordering, text-combine, text-decorations-in-effect, text-emphasis-color, text-emphasis-position, text-emphasis-style, text-fill-color, text-orientation, text-security, text-stroke-color, text-stroke-width, transform, transition, transform-origin, transform-style, transition-delay, transition-duration, transition-property, transition-timing-function, user-drag, user-modify, user-select, writing-mode, svg-shadow, box-sizing, border-radius',
 		'moz': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-inline-policy, binding, border-bottom-colors, border-image, border-left-colors, border-right-colors, border-top-colors, box-align, box-direction, box-flex, box-ordinal-group, box-orient, box-pack, box-shadow, box-sizing, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-width, float-edge, font-feature-settings, font-language-override, force-broken-image-icon, hyphens, image-region, orient, outline-radius-bottomleft, outline-radius-bottomright, outline-radius-topleft, outline-radius-topright, perspective, perspective-origin, stack-sizing, tab-size, text-blink, text-decoration-color, text-decoration-line, text-decoration-style, text-size-adjust, transform, transform-origin, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-focus, user-input, user-modify, user-select, window-shadow, background-clip, border-radius',
-		'ms': 'accelerator, backface-visibility, background-position-x, background-position-y, behavior, block-progression, box-align, box-direction, box-flex, box-line-progression, box-lines, box-ordinal-group, box-orient, box-pack, content-zoom-boundary, content-zoom-boundary-max, content-zoom-boundary-min, content-zoom-chaining, content-zoom-snap, content-zoom-snap-points, content-zoom-snap-type, content-zooming, filter, flow-from, flow-into, font-feature-settings, grid-column, grid-column-align, grid-column-span, grid-columns, grid-layer, grid-row, grid-row-align, grid-row-span, grid-rows, high-contrast-adjust, hyphenate-limit-chars, hyphenate-limit-lines, hyphenate-limit-zone, hyphens, ime-mode, interpolation-mode, layout-flow, layout-grid, layout-grid-char, layout-grid-line, layout-grid-mode, layout-grid-type, line-break, overflow-style, overflow-x, overflow-y, perspective, perspective-origin, perspective-origin-x, perspective-origin-y, scroll-boundary, scroll-boundary-bottom, scroll-boundary-left, scroll-boundary-right, scroll-boundary-top, scroll-chaining, scroll-rails, scroll-snap-points-x, scroll-snap-points-y, scroll-snap-type, scroll-snap-x, scroll-snap-y, scrollbar-arrow-color, scrollbar-base-color, scrollbar-darkshadow-color, scrollbar-face-color, scrollbar-highlight-color, scrollbar-shadow-color, scrollbar-track-color, text-align-last, text-autospace, text-justify, text-kashida-space, text-overflow, text-size-adjust, text-underline-position, touch-action, transform, transform-origin, transform-origin-x, transform-origin-y, transform-origin-z, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-select, word-break, word-wrap, wrap-flow, wrap-margin, wrap-through, writing-mode',
+		'ms': 'accelerator, backface-visibility, background-position-x, background-position-y, behavior, block-progression, box-align, box-direction, box-flex, box-line-progression, box-lines, box-ordinal-group, box-orient, box-pack, content-zoom-boundary, content-zoom-boundary-max, content-zoom-boundary-min, content-zoom-chaining, content-zoom-snap, content-zoom-snap-points, content-zoom-snap-type, content-zooming, filter, flow-from, flow-into, font-feature-settings, grid-column, grid-column-align, grid-column-span, grid-columns, grid-layer, grid-row, grid-row-align, grid-row-span, grid-rows, high-contrast-adjust, hyphenate-limit-chars, hyphenate-limit-lines, hyphenate-limit-zone, hyphens, ime-mode, interpolation-mode, layout-flow, layout-grid, layout-grid-char, layout-grid-line, layout-grid-mode, layout-grid-type, line-break, overflow-style, perspective, perspective-origin, perspective-origin-x, perspective-origin-y, scroll-boundary, scroll-boundary-bottom, scroll-boundary-left, scroll-boundary-right, scroll-boundary-top, scroll-chaining, scroll-rails, scroll-snap-points-x, scroll-snap-points-y, scroll-snap-type, scroll-snap-x, scroll-snap-y, scrollbar-arrow-color, scrollbar-base-color, scrollbar-darkshadow-color, scrollbar-face-color, scrollbar-highlight-color, scrollbar-shadow-color, scrollbar-track-color, text-align-last, text-autospace, text-justify, text-kashida-space, text-overflow, text-size-adjust, text-underline-position, touch-action, transform, transform-origin, transform-origin-x, transform-origin-y, transform-origin-z, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-select, word-break, word-wrap, wrap-flow, wrap-margin, wrap-through, writing-mode',
 		'o': 'dashboard-region, animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, border-image, link, link-source, object-fit, object-position, tab-size, table-baseline, transform, transform-origin, transition, transition-delay, transition-duration, transition-property, transition-timing-function, accesskey, input-format, input-required, marquee-dir, marquee-loop, marquee-speed, marquee-style'
 	};
 	
