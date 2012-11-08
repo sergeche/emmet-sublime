@@ -53,7 +53,7 @@
         "command": "run_emmet_action", 
         "context": [
             {
-                "operand": "source.css -source.css.less, text.xml, text.html.basic - source", 
+                "operand": "source.css -source.css.less, text.xml, text.html - source", 
                 "operator": "equal", 
                 "match_all": true, 
                 "key": "selector"

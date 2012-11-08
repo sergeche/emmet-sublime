@@ -1,33 +1,22 @@
 # Emmet for Sublime Text 2 plugin
 
-A work-in-progress official plugin for Sublime Text 2 with upcoming Emmet toolkit, previously called _Zen Coding_. This plugin will eventually replace the [current one](https://github.com/sublimator/ZenCoding).
+Official Emmet (previously called _Zen Coding_) for Sublime Text 2 plugin.
 
 *Warning:* this plugin may not work at all in some OSes since it written in JavaScript and uses [PyV8](http://code.google.com/p/pyv8/) and [Google V8](https://developers.google.com/v8/) binaries to run. If you experience problems or editor crashes please [fill an issue](https://github.com/sergeche/emmet-sublime/issues).
 
 ## How to install
 
--------------
-
-**You should remove or disable previous Zen Coding plugin, installed from Package Control, in order to operate properly.**
-
-*November 5 note*: plugin recently received a big update: all PyV8 binaries were moved to external repo and downloaded by plugin automatically. It means less plugin footprint (minus 60MB!) and faster updates. If you experience any issues with PyV8 loader, try to [install it manually](https://github.com/emmetio/pyv8-binaries) and [fill an issue](/sergeche/emmet-sublime/issues).
-
--------------
-
 1. Clone or [download](/sergeche/emmet-sublime/archive/master.zip) git repo into your packages folder (in ST2, find Browse Packages... menu item to open this folder)
 2. Restart ST2 editor (if required)
 
-Or with Package Control:
+Or with [Package Control](http://wbond.net/sublime_packages/package_control):
 
-*Currently, Package Control has problems with plugin installation from custom repositories due to recent GitHub updates. Emmet plugin will be added to the main Package Control channel in a few days.*
-
-1. Run “Package Control: Add Repository“ command in ST2 and add the following url: `https://github.com/sergeche/emmet-sublime`
-2. Run “Package Control: Install Package” command, find and install `emmet-sublime` plugin.
-3. Restart ST2 editor (if required)
+1. Run “Package Control: Install Package” command, find and install `Emmet` plugin.
+2. Restart ST2 editor (if required)
 
 --------------
 
-**WARNING**: When plugin is installed, it will automatically download required PyV8 binary so you have to a bit (see _Loading PyV8 binary_ message on status bar). If you experience issues with automatic PyV8 loader, try to [install it manually](https://github.com/emmetio/pyv8-binaries).
+**WARNING**: When plugin is installed, it will automatically download required PyV8 binary so you have to wait a bit (see _Loading PyV8 binary_ message on status bar). If you experience issues with automatic PyV8 loader, try to [install it manually](https://github.com/emmetio/pyv8-binaries).
 
 ## New features of Emmet (compared with old Zen Coding)
 

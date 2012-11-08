@@ -18,7 +18,7 @@
                             {
                                 "command": "open_file", "args":
                                 {
-                                    "file": "${packages}/emmet-sublime/Emmet.sublime-settings"
+                                    "file": "${packages}/Emmet/Emmet.sublime-settings"
                                 },
                                 "caption": "Settings – Default"
                             },
