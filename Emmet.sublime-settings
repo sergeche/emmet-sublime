@@ -10,6 +10,10 @@
 	// work inside opening HTML attributes
 	"disable_completions": false,
 
+	// Remove default HTML tag completions on plugin start
+	// You should restart editor after changing this option
+	"remove_html_completions": false,
+
 	// A comma-separated list of scopes where Emmet’s Tab key
 	// abbreviation expander should be disabled	 
 	"disable_tab_abbreviations_for_scopes": "",

@@ -173,7 +173,8 @@ ctx = Context(['../editor.js'], settings.get('extensions_path', None),
 
 update_settings()
 
-sublime.set_timeout(cmpl.remove_html_completions, 2000)
+if settings.get('remove_html_completions', False):
+	sublime.set_timeout(cmpl.remove_html_completions, 2000)
 
 class RunEmmetAction(sublime_plugin.TextCommand):
 	def run(self, edit, action=None, **kw):
