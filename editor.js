@@ -132,16 +132,24 @@ function require(name) {
 function pyPreprocessText(value) {
 	var base = 1000;
 	var zeroBase = 0;
-	return require('tabStops').processText(value, {
+	var lastZero = null;
+	var range = require('range');
+	value = require('tabStops').processText(value, {
 		tabstop: function(data) {
 			var group = parseInt(data.group, 10);
-			if (group === 0)
+			var isZero = group === 0;
+			if (isZero)
 				group = ++zeroBase;
 			else
 				group += base;
- 
-			return '${' + group + (data.placeholder ? ':' + data.placeholder : '') + '}';
 
+			var result = '${' + group + (data.placeholder ? ':' + data.placeholder : '') + '}';
+
+			if (isZero) {
+				lastZero = range.create(data.start, result);
+			}
+
+			return result
 		},
 		escape: function(ch) {
 			if (ch == '$') {
@@ -155,6 +163,12 @@ function pyPreprocessText(value) {
 			return ch;
 		}
 	});
+
+	if (lastZero) {
+		value = require('utils').replaceSubstring(value, '$0', lastZero);
+	}
+	
+	return value;
 }
 
 function pyExpandAbbreviationAsYouType(abbr) {
