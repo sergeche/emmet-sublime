@@ -448,20 +448,18 @@ class HandleEnterKey(sublime_plugin.TextCommand):
 		snippet = '\n${0}'
 
 		# let's see if we have to insert formatted linebreak
-		scope = view.syntax_name(view.sel()[0].begin())
+		caret_pos = view.sel()[0].begin()
+		scope = view.syntax_name(caret_pos)
 		if sublime.score_selector(scope, settings.get('formatted_linebreak_scopes', '')) > 0:
 			snippet = '\n\t${0}\n'
 		else:
 			# checking a special case: caret right after opening tag,
 			# but not exactly between pairs
-			try:
-				view = active_view()
-				caret_pos = view.sel()[0].begin()
-				ranges = ctx.js().locals.pyGetTagRanges()
-				if ranges and ranges[0] and ranges[0][1] == caret_pos:
+			if view.substr(sublime.Region(caret_pos - 1, caret_pos)) == '>':
+				line_range = view.line(caret_pos)
+				line = view.substr(sublime.Region(line_range.begin(), caret_pos)) or ''
+				if re.search(r'<\w+\:?[\w\-]*(?:\s+[\w\:\-]+\s*=\s*([\'"]).*?\1)*\s*>$', line) is not None:
 					snippet = '\n\t${0}'
-			except:
-				pass
 
 		view.run_command('insert_snippet', {'contents': snippet})
 
