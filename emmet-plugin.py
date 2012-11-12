@@ -176,6 +176,10 @@ update_settings()
 if settings.get('remove_html_completions', False):
 	sublime.set_timeout(cmpl.remove_html_completions, 2000)
 
+def log(message):
+	if settings.get('debug', False):
+		print('Emmet: %s' % message)
+
 class RunEmmetAction(sublime_plugin.TextCommand):
 	def run(self, edit, action=None, **kw):
 		run_action(lambda i, sel: ctx.js().locals.pyRunAction(action))
@@ -281,7 +285,13 @@ class TabExpandHandler(sublime_plugin.EventListener):
 		if key != 'is_abbreviation':
 			return None
 
-		if not check_context() or not should_handle_tab_key():
+		is_valid_context = check_context()
+		handle_key = should_handle_tab_key()
+		log('Tab handler invoked')
+		log('Valid context -- %s' % is_valid_context)
+		log('Should handle Tab key -- %s' % handle_key)
+
+		if not is_valid_context or not handle_key:
 			return False
 
 		# print(view.syntax_name(view.sel()[0].begin()))
@@ -295,6 +305,8 @@ class TabExpandHandler(sublime_plugin.EventListener):
 
 		# let's see if Tab key expander should be disabled for current scope
 		banned_scopes = settings.get('disable_tab_abbreviations_for_scopes', '')
+		log('Banned scopes -- %s' % banned_scopes)
+		log('Current scope -- %s' % view.syntax_name(view.sel()[0].begin()))
 		if banned_scopes and view.match_selector(view.sel()[0].b, banned_scopes):
 			return False
 
