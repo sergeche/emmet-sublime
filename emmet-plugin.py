@@ -460,6 +460,9 @@ class HandleEnterKey(sublime_plugin.TextCommand):
 
 		snippet = '\n${0}'
 
+		if len(view.sel()) > 1:
+			return view.run_command('insert_snippet', {'contents': snippet})
+
 		# let's see if we have to insert formatted linebreak
 		caret_pos = view.sel()[0].begin()
 		scope = view.syntax_name(caret_pos)
