@@ -285,33 +285,31 @@ class TabExpandHandler(sublime_plugin.EventListener):
 		if key != 'is_abbreviation':
 			return None
 
-		is_valid_context = check_context()
-		handle_key = should_handle_tab_key()
-		log('Tab handler invoked')
-		log('Valid context -- %s' % is_valid_context)
-		log('Should handle Tab key -- %s' % handle_key)
-
-		if not is_valid_context or not handle_key:
+		if not check_context() or not should_handle_tab_key():
 			return False
-
-		# print(view.syntax_name(view.sel()[0].begin()))
 
 		# we need to filter out attribute completions if 
 		# 'disable_completions' option is not active
 		if (not settings.get('disable_completions', False) and 
 			self.correct_syntax(view) and 
 			self.completion_handler(view)):
-			return False
+			return None
+
+		caret_pos = view.sel()[0].begin()
+		cur_scope = view.syntax_name(caret_pos)
 
 		# let's see if Tab key expander should be disabled for current scope
 		banned_scopes = settings.get('disable_tab_abbreviations_for_scopes', '')
-		log('Banned scopes -- %s' % banned_scopes)
-		log('Current scope -- %s' % view.syntax_name(view.sel()[0].begin()))
-		if banned_scopes and view.match_selector(view.sel()[0].b, banned_scopes):
-			return False
+		if banned_scopes and view.score_selector(caret_pos, banned_scopes):
+			return None
+
+		# Sometimes ST2 matcher may corectly filter scope context,
+		# check it against special regexp
+		banned_regexp = settings.get('disable_tab_abbreviations_for_regexp', None)
+		if banned_regexp and re.search(banned_regexp, cur_scope):
+			return None
 
 		return run_action(lambda i, sel: ctx.js().locals.pyRunAction('expand_abbreviation'))
-		# return ctx.js().locals.pyRunAction('expand_abbreviation')
 
 	def on_query_completions(self, view, prefix, locations):
 		if ( not self.correct_syntax(view) or
@@ -466,9 +464,13 @@ class HandleEnterKey(sublime_plugin.TextCommand):
 		# let's see if we have to insert formatted linebreak
 		caret_pos = view.sel()[0].begin()
 		scope = view.syntax_name(caret_pos)
-		if sublime.score_selector(scope, settings.get('formatted_linebreak_scopes', '')) > 0:
+		if sublime.score_selector(scope, settings.get('formatted_linebreak_scopes', '')):
 			snippet = '\n\t${0}\n'
-		else:
+
+		# Looks like ST2 has buggy scope matcher: sometimes it will call
+		# this action even if context selector forbids that.
+		# Thus, we have to manually filter it.
+		elif 'source.' not in scope:
 			# checking a special case: caret right after opening tag,
 			# but not exactly between pairs
 			if view.substr(sublime.Region(caret_pos - 1, caret_pos)) == '>':

@@ -53,7 +53,7 @@
         "command": "run_emmet_action", 
         "context": [
             {
-                "operand": "source.css -source.css.less, text.xml, text.html - source", 
+                "operand": "source.css - source.css.less, text.xml, text.html", 
                 "operator": "equal", 
                 "match_all": true, 
                 "key": "selector"
@@ -356,8 +356,14 @@
         "command": "expand_abbreviation_by_tab", 
         "context": [
             {
-                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source - keyword.control.php, text.haml, string", 
+                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html, text.haml, source string", 
                 "operator": "equal", 
+                "match_all": true, 
+                "key": "selector"
+            }, 
+            {
+                "operand": "text.html source", 
+                "operator": "not_equal", 
                 "match_all": true, 
                 "key": "selector"
             }, 
@@ -396,8 +402,14 @@
         "command": "expand_abbreviation_by_tab", 
         "context": [
             {
-                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source - keyword.control.php, text.haml, string", 
+                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html, text.haml, source string", 
                 "operator": "equal", 
+                "match_all": true, 
+                "key": "selector"
+            }, 
+            {
+                "operand": "text.html source", 
+                "operator": "not_equal", 
                 "match_all": true, 
                 "key": "selector"
             }, 
@@ -436,15 +448,24 @@
         "command": "handle_enter_key", 
         "context": [
             {
-                "operand": "text.html -source, text.xml", 
+                "operand": "text.html, text.xml", 
+                "match_all": true, 
+                "key": "selector"
+            }, 
+            {
+                "operand": "text.html source, php", 
+                "operator": "not_equal", 
+                "match_all": true, 
                 "key": "selector"
             }, 
             {
                 "operand": false, 
+                "match_all": true, 
                 "key": "auto_complete_visible"
             }, 
             {
                 "operand": false, 
+                "match_all": true, 
                 "key": "setting.disable_formatted_linebreak"
             }
         ]
