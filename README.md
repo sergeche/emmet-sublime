@@ -77,6 +77,25 @@ To disable all default shortcuts, set value to `all`:
 
 Not that if you disabled any action like so and you’re create your own keyboard shortcut, you **should not** use `emmet_action_enabled.ACTION_NAME` context since this is the key that disables action.
 
-### “Help! My snippets doesn’t work anymore in HTML/CSS files!”
+### Tab key handler ###
 
-By default, Emmet overrides Tab key behaviour and expands its own abbreviations instead native snippets. You can either disable this feature in user preferences (add `"disable_tab_abbreviations": true` setting into your _Settings — User_ file) and use `Ctrl+E` or `Ctrl+Alt+Enter` to expand Emmet abbeviations or move your snippets to Emmet as described [here](https://github.com/sergeche/emmet-sublime/issues/16#issuecomment-8427268). I’m investigating possibility to expand native snippets via Emmet Tab key handler.
+Emmet plugin allows you to expand abbreviations with <kbd>Tab</kbd> key, just like regular snippets. On the other hand, due to dynamic nature and extensive syntax, sometimes you may get unexpected results. This section describes how Tab handler works and how you can fine-tune it.
+
+By default, Tab handler works in a limited _syntax scopes_: HTML, XML, HAML, CSS, SASS/SCSS, LESS and _strings in programming languages_ (like JavaScript, Python, Ruby etc.). It means:
+
+* You have to switch your document to one of the syntaxes listed above to expand abbreviations by Tab key.
+* With <kbd>Ctrl-E</kbd> shortcut, you can expand abbreviations everywhere, its scope is not limited.
+* When you expand abbreviation inside strings of programming languages, the output is generated with special [output profile](http://docs.emmet.io/customization/syntax-profiles/) named `line` that generates output as a single line.
+
+To fine-tune Tab key handler, you can use the following settings in user’s `Emmet.sublime-settings` file:
+
+* `disable_tab_abbreviations_for_scopes` — a comma-separated list of syntax scopes where Tab key handler should be disabled. For example, if you want disable handler inside strings of programming languages and HAML syntax, your setting will look like this: 
+
+```json
+"disable_tab_abbreviations_for_scopes": "text.haml, string"
+```
+
+* `disabled_single_snippet_for_scopes` — a comma-separated list of syntax scopes where Tab handler should be disabled when expanding a single abbreviation. Currently, ST2 doesn’t provide API for getting list of native snippets. So, for example, if you try to expand a `php` abbreviation, it will be passed to Emmet which outputs `<php></php>` instead of PHP block as defined in native ST2 snippets. As a workaround, if you’re trying to expand a single abbreviation inside scope defined in `disabled_single_snippet_for_scopes` setting Emmet will look for its name inside its own [snippets catalog](http://docs.emmet.io/cheat-sheet/) first, inside `known_html_tags` setting second and if it’s not found, it allows ST2 to handle it and expand native abbreviation, if matched.
+* `known_html_tags` — a space-separated list of all known HTML tags used for lookup as described above.
+
+If you’re unhappy with Emmet tab handler behavior, you can disable it: just add `"disable_tab_abbreviations": true` into user’s `Preferences.sublime-settings` file.
