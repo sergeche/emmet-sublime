@@ -8,6 +8,11 @@
 	},
 
 	{
+		"caption": "Emmet: Wrap With Abbreviation",
+		"command": "wrap_as_you_type"
+	},
+
+	{
 		"caption": "Emmet: Match Pair (outward)",
 		"command": "run_emmet_action",
 		"args": {
