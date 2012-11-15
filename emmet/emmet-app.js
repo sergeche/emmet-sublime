@@ -5790,20 +5790,26 @@ emmet.define('tabStops', function(require, _) {
 		var tabstops = require('tabStops');
 		var utils = require('utils');
 		
-		// upgrade tabstops
-		text = tabstops.processText(text, {
+		var tsOptions = {
 			tabstop: function(data) {
 				var group = parseInt(data.group);
 				if (group == 0)
 					return '${0}';
 				
 				if (group > maxNum) maxNum = group;
-				if (data.placeholder)
-					return '${' + (group + tabstopIndex) + ':' + data.placeholder + '}';
-				else
+				if (data.placeholder) {
+					// respect nested placeholders
+					var ix = group + tabstopIndex;
+					var placeholder = tabstops.processText(data.placeholder, tsOptions);
+					return '${' + ix + ':' + placeholder + '}';
+				} else {
 					return '${' + (group + tabstopIndex) + '}';
+				}
 			}
-		});
+		};
+		
+		// upgrade tabstops
+		text = tabstops.processText(text, tsOptions);
 		
 		// resolve variables
 		text = utils.replaceVariables(text, tabstops.variablesResolver(node));
@@ -5958,16 +5964,21 @@ emmet.define('tabStops', function(require, _) {
 							name: m[1],
 							token: stream.current()
 						});
-					} else if (m = stream.match(/^\{([0-9]+)(:.+?)?\}/)) {
+					} else if (m = stream.match(/^\{([0-9]+)(:.+?)?\}/, false)) {
 						// ${N:value} or ${N} placeholder
+						// parse placeholder, including nested ones
+						stream.skipToPair('{', '}');
+						
 						var obj = {
 							start: buf.length, 
 							group: m[1],
 							token: stream.current()
 						};
 						
-						if (m[2]) {
-							obj.placeholder = m[2].substr(1);
+						var placeholder = obj.token.substring(obj.group.length + 2, obj.token.length - 1);
+						
+						if (placeholder) {
+							obj.placeholder = placeholder.substr(1);
 						}
 						
 						a = options.tabstop(obj);
@@ -7737,8 +7748,26 @@ emmet.define('expandAbbreviation', function(require, _) {
 	 * @param {String} profile Output profile name (html, xml, xhtml)
 	 */
 	actions.add('expand_abbreviation_with_tab', function(editor, syntax, profile) {
-		if (!actions.run('expand_abbreviation', editor, syntax, profile))
-			editor.replaceContent(require('resources').getVariable('indentation'), editor.getCaretPos());
+		// do nothing if there is a selection
+		var sel = !!editor.getSelection();
+		var indent = require('resources').getVariable('indentation');
+//		TODO create indentation
+//		if (sel) {
+//			// create a proper indentation, if there’s a selection that
+//			// spans multiple lines
+//			if (/[\r\n]/.test(sel)) {
+//				var info = require('editorUtils').outputInfo(editor, syntax);
+//				var selRange = require('range').create(editor.getSelectionRange());
+//				
+//			}
+//			
+//			return;
+//		}
+		
+		
+		if (sel || !actions.run('expand_abbreviation', editor, syntax, profile)) {
+			editor.replaceContent(indent, editor.getCaretPos());
+		}
 	}, {hidden: true});
 	
 	// XXX setup default handler
@@ -12158,6 +12187,9 @@ emmet.define('bootstrap', function(require, _) {
 		loadExtensions: function(fileList) {
 			var file = require('file');
 			var payload = {};
+			var utils = require('utils');
+			var userSnippets = null;
+			
 			_.each(fileList, function(f) {
 				switch (file.getExt(f)) {
 					case 'js':
@@ -12169,10 +12201,24 @@ emmet.define('bootstrap', function(require, _) {
 						break;
 					case 'json':
 						var fileName = getFileName(f).toLowerCase().replace(/\.json$/, '');
-						payload[fileName] = file.read(f);
+						if (/^snippets/.test(fileName)) {
+							if (fileName === 'snippets') {
+								// data in snippets.json is more important to user
+								userSnippets = this.parseJSON(file.read(f));
+							} else {
+								payload.snippets = utils.deepMerge(payload.snippets || {}, this.parseJSON(file.read(f)));
+							}
+						} else {
+							payload[fileName] = file.read(f);
+						}
+						
 						break;
 				}
-			});
+			}, this);
+			
+			if (userSnippets) {
+				payload.snippets = utils.deepMerge(payload.snippets || {}, userSnippets);
+			}
 			
 			this.loadUserData(payload);
 		},

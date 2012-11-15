@@ -134,7 +134,9 @@ function pyPreprocessText(value) {
 	var zeroBase = 0;
 	var lastZero = null;
 	var range = require('range');
-	value = require('tabStops').processText(value, {
+	var ts = require('tabStops');
+
+	var tabstopOptions = {
 		tabstop: function(data) {
 			var group = parseInt(data.group, 10);
 			var isZero = group === 0;
@@ -143,7 +145,13 @@ function pyPreprocessText(value) {
 			else
 				group += base;
 
-			var result = '${' + group + (data.placeholder ? ':' + data.placeholder : '') + '}';
+			var placeholder = data.placeholder;
+			if (placeholder) {
+				// recursively update nested tabstops
+				placeholder = ts.processText(placeholder, tabstopOptions);
+			}
+
+			var result = '${' + group + (placeholder ? ':' + placeholder : '') + '}';
 
 			if (isZero) {
 				lastZero = range.create(data.start, result);
@@ -162,7 +170,9 @@ function pyPreprocessText(value) {
  
 			return ch;
 		}
-	});
+	};
+
+	value = ts.processText(value, tabstopOptions);
 
 	if (lastZero) {
 		value = require('utils').replaceSubstring(value, '$0', lastZero);
