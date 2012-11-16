@@ -14,7 +14,7 @@ keymap = {
 		"pc": "ctrl+shift+forward_slash",
 		"context": [{
 			"key": "selector", 
-			"operand": "source.css -source.css.less, text.xml, text.html - source",
+			"operand": "source.css - source.css.less, text.xml, text.html",
 			"operator": "equal"
 		}]
 	},
@@ -63,8 +63,13 @@ addon = [
 			{
 				"key": "selector",
 				"match_all": True,
-				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source - keyword.control.php, text.haml, string",
+				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html, text.haml, source string",
 				"operator": "equal"
+			}, {
+				"key": "selector",
+				"operand": "text.html source",
+				"operator": "not_equal",
+				"match_all": True
 			}, {
 				"key": "selection_empty",
 				"match_all": True
@@ -98,8 +103,13 @@ addon = [
 			{
 				"key": "selector",
 				"match_all": True,
-				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source - keyword.control.php, text.haml, string",
+				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html, text.haml, source string",
 				"operator": "equal"
+			}, {
+				"key": "selector",
+				"operand": "text.html source",
+				"operator": "not_equal",
+				"match_all": True
 			}, {
 				"key": "selection_empty",
 				"match_all": True
@@ -132,13 +142,21 @@ addon = [
 		"context": [
 			{
 				"key": "selector",
-				"operand": "text.html -source, text.xml"
+				"operand": "text.html, text.xml",
+				"match_all": True
+			}, {
+				"key": "selector",
+				"operand": "text.html source, php",
+				"operator": "not_equal",
+				"match_all": True
 			}, {
 				"key": "auto_complete_visible",
-				"operand": False
+				"operand": False,
+				"match_all": True
 			}, {
 				"key": "setting.disable_formatted_linebreak",
-				"operand": False
+				"operand": False,
+				"match_all": True
 			}
 		]
 	},

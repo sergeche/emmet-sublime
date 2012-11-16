@@ -18,6 +18,11 @@
 	// abbreviation expander should be disabled	 
 	"disable_tab_abbreviations_for_scopes": "",
 
+	// A regexp for scope name: if it matches, Tab handler won’t work
+	// The reason to use this preference is that ST2 has buggy scope matcher
+	// which may still trigger Tab handler even if it's restricted by context
+	"disable_tab_abbreviations_for_regexp": "source\\..+?\\stext\\.html",
+
 	// Exit tabstop mode when enter key is pressed
 	"clear_fields_on_enter_key": true,
 
@@ -39,7 +44,7 @@
 	// If entered abbreviation (like `php`) wasn’t found in Emmet snippets list
 	// or "known_html_tags" preference, Tab handler will not be triggered.
 	// Leave this setting black to disable this feature
-	"disabled_single_snippet_for_scopes": "text.html - source",
+	"disabled_single_snippet_for_scopes": "text.html",
 
 	// A space separated list of all known HTML tags,
 	// used together with "disabled_on_single_snippets" option

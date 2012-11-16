@@ -88,17 +88,12 @@ var editorProxy = emmet.exec(function(require, _) {
 
 		getProfileName: function() {
 			var view = activeView();
-
-			var profile = view.settings()['emmet.profile'] || null;
-			if (profile)
-				return profile;
-
 			var pos = this.getCaretPos();
 
 			if (view.match_selector(pos, 'text.xml') || view.match_selector(pos, 'xsl'))
 				return 'xml';
 
-			if (view.match_selector(pos, 'source')) {
+			if (view.score_selector(pos, 'source string')) {
 				return 'line';
 			}
 
