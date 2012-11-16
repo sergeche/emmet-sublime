@@ -2439,7 +2439,7 @@ emmet.exec(function(require, _) {
 			}
 			
 			item.data('paste', null);
-			return !_.isUndefined(pastedContentObj);
+			return !!pastedContentObj;
 		});
 		
 		if (!targets.length && options.pastedContent) {
@@ -5250,6 +5250,70 @@ emmet.define('actionUtils', function(require, _) {
 			}
 			
 			return false;
+		},
+		
+		/**
+		 * Common syntax detection method for editors that doesn’t provide any
+		 * info about current syntax scope. 
+		 * @param {IEmmetEditor} editor Current editor
+		 * @param {String} hint Any syntax hint that editor can provide 
+		 * for syntax detection. Default is 'html'
+		 * @returns {String} 
+		 */
+		detectSyntax: function(editor, hint) {
+			var caretPos = editor.getCaretPos();
+			var syntax = hint || 'html';
+			
+			if (!require('resources').hasSyntax(syntax))
+				syntax = 'html';
+			
+			if (syntax == 'html') {
+				// are we inside <style> tag?
+				var pair = require('html_matcher').getTags(editor.getContent(), caretPos);
+				if (pair && pair[0] && pair[0].type == 'tag' && pair[0].name.toLowerCase() == 'style') {
+					// check that we're actually inside the tag
+					if (pair[0].end <= caretPos && pair[1].start >= caretPos)
+						syntax = 'css';
+				}
+			}
+			
+            if (syntax == 'html') {
+            	// are we inside style attribute?
+                var tree = require('xmlEditTree').parseFromPosition(editor.getContent(), caretPos, true);
+                if (tree) {
+                    var attr = tree.itemFromPosition(caretPos, true);
+                    if (attr && attr.name().toLowerCase() == 'style') {
+                        var range = attr.valueRange(true);
+                        if (range.start <= caretPos && range.end >= caretPos)
+                            syntax = 'css';
+                    }
+                }
+            }
+			
+			return syntax;
+		},
+		
+		/**
+		 * Common method for detecting output profile
+		 * @param {IEmmetEditor} editor
+		 * @returns {String}
+		 */
+		detectProfile: function(editor) {
+			switch(editor.getSyntax()) {
+				 case 'xml':
+				 case 'xsl':
+				 	return 'xml';
+				 case 'html':
+				 	var profile = require('resources').getVariable('profile');
+				 	if (!profile) { // no forced profile, guess from content
+					 	// html or xhtml?
+				 		profile = editor.getContent().search(/<!DOCTYPE[^>]+XHTML/i) != -1 ? 'xhtml': 'html';
+				 	}
+
+				 	return profile;
+			}
+
+			return 'xhtml';
 		}
 	};
 });/**

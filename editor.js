@@ -47,6 +47,7 @@ var editorProxy = emmet.exec(function(require, _) {
 		},
 
 		replaceContent: function(value, start, end, noIndent) {
+			log('Inserting ' + value);
 			if (_.isUndefined(end))
 				end = _.isUndefined(start) ? this.getContent().length : start;
 			if (_.isUndefined(start)) start = 0;
@@ -175,7 +176,7 @@ function pyPreprocessText(value) {
 	value = ts.processText(value, tabstopOptions);
 
 	if (lastZero) {
-		value = require('utils').replaceSubstring(value, '$0', lastZero);
+		value = require('utils').replaceSubstring(value, '${0}', lastZero);
 	}
 	
 	return value;
