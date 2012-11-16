@@ -234,7 +234,6 @@ def run_action(action, view=None):
 	view.erase_regions(region_key)
 
 	view.end_edit(edit)
-
 	return result
 
 class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
@@ -352,6 +351,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 
 		def inner_insert():
 			self._real_insert(abbr)
+			self.view.run_command('hide_auto_complete')
 
 		self.undo()
 		sublime.set_timeout(inner_insert, 0)
@@ -409,6 +409,7 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 
 	def setup(self):
 		view = active_view()
+		self._prev_output = ''
 		
 		if len(view.sel()) == 1:
 			# capture wrapping context (parent HTML element) 
@@ -424,7 +425,7 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 	# override method to correctly wrap abbreviations
 	def _real_insert(self, abbr):
 		view = self.view
-		self.edit = edit = view.begin_edit()
+		self.edit = view.begin_edit()
 		self.erase = True
 
 		# restore selections
@@ -434,13 +435,15 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 
 		def ins(i, sel):
 			try:
-				output = ctx.js().locals.pyWrapAsYouType(abbr, self._sel_items[i])
-				self.run_command(view, output)
+				self._prev_output = ctx.js().locals.pyWrapAsYouType(abbr, self._sel_items[i])
+				# self.run_command(view, output)
 			except Exception:
 				"dont litter the console"
 
+			self.run_command(view, self._prev_output)
+
 		run_action(ins, view)
-		view.end_edit(edit)
+		view.end_edit(self.edit)
 
 class ExpandAsYouType(WrapAsYouType):
 	default_input = 'div'

@@ -47,7 +47,6 @@ var editorProxy = emmet.exec(function(require, _) {
 		},
 
 		replaceContent: function(value, start, end, noIndent) {
-			log('Inserting ' + value);
 			if (_.isUndefined(end))
 				end = _.isUndefined(start) ? this.getContent().length : start;
 			if (_.isUndefined(start)) start = 0;
