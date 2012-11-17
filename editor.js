@@ -89,20 +89,25 @@ var editorProxy = emmet.exec(function(require, _) {
 			var view = activeView();
 			var pos = this.getCaretPos();
 
-			if (view.match_selector(pos, 'text.xml') || view.match_selector(pos, 'xsl'))
+			if (view.match_selector(pos, 'text.xml') || view.match_selector(pos, 'xsl')) {
 				return 'xml';
+			}				
+
+			if (view.match_selector(pos, 'string.quoted.double.block.python')
+				|| view.match_selector(pos, 'source.coffee string')
+				|| view.match_selector(pos, 'string.unquoted.heredoc')) {
+				// use html's default profile for:
+				// * Python's multiline block
+				// * CoffeeScript string
+				// * PHP heredoc
+				return null;
+			}
 
 			if (view.score_selector(pos, 'source string')) {
 				return 'line';
 			}
 
-			if (view.match_selector(pos, 'text.html')) {
-				if (~view.substr(new sublime.Region(0, 200)).toLowerCase().indexOf('xhtml')) {
-					return 'xhtml';
-				}
-			}
-			
-			return 'html';
+			return null;
 		},
 
 		prompt: function(title) {

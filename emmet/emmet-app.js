@@ -1218,7 +1218,7 @@ var emmet = (function(global) {
 			if (!abbr) return '';
 			
 			syntax = syntax || defaultSyntax;
-			profile = profile || defaultProfile;
+//			profile = profile || defaultProfile;
 			
 			var filters = r('filters');
 			var parser = r('abbreviationParser');
@@ -1231,10 +1231,10 @@ var emmet = (function(global) {
 				syntax: syntax, 
 				contextNode: contextNode
 			});
+			
 			var filtersList = filters.composeList(syntax, profile, data[1]);
 			filters.apply(outputTree, filtersList, profile);
 			return outputTree.toString();
-//			return this.require('utils').replaceVariables(outputTree.toString());
 		},
 		
 		/**
@@ -4909,7 +4909,7 @@ emmet.define('profile', function(require, _) {
 		 * @returns {Object}
 		 */
 		get: function(name, syntax) {
-			if (syntax && _.isString(name)) {
+			if (!name && syntax) {
 				// search in user resources first
 				var profile = require('resources').findItem(syntax, 'profile');
 				if (profile) {
@@ -4917,14 +4917,17 @@ emmet.define('profile', function(require, _) {
 				}
 			}
 			
-			if (!name)
+			if (!name) {
 				return profiles.plain;
+			}
 			
-			if (name instanceof OutputProfile)
+			if (name instanceof OutputProfile) {
 				return name;
+			}
 			
-			if (_.isString(name) && name.toLowerCase() in profiles)
+			if (_.isString(name) && name.toLowerCase() in profiles) {
 				return profiles[name.toLowerCase()];
+			}
 			
 			return this.create(name);
 		},
@@ -4999,10 +5002,15 @@ emmet.define('editorUtils', function(require, _) {
 		 * @param {String} profile
 		 */
 		outputInfo: function(editor, syntax, profile) {
+			// most of this code makes sense for Java/Rhino environment
+			// because string that comes from Java are not actually JS string
+			// but Java String object so the have to be explicitly converted
+			// to native string
+			profile = profile || editor.getProfileName();
 			return  {
 				/** @memberOf outputInfo */
 				syntax: String(syntax || editor.getSyntax()),
-				profile: String(profile || editor.getProfileName()),
+				profile: profile ? String(profile) : null,
 				content: String(editor.getContent())
 			};
 		},
@@ -7984,7 +7992,7 @@ emmet.define('wrapWithAbbreviation', function(require, _) {
 			var utils = require('utils');
 			
 			syntax = syntax || emmet.defaultSyntax();
-			profile = profile || emmet.defaultProfile();
+			profile = require('profile').get(profile, syntax);
 			
 			require('tabStops').resetTabstopIndex();
 			
@@ -12346,8 +12354,9 @@ emmet.define('bootstrap', function(require, _) {
 				this.loadProfiles(data.profiles);
 			}
 			
-			if (data.syntaxprofiles) {
-				this.loadSyntaxProfiles(data.syntaxprofiles);
+			var profiles = data.syntaxProfiles || data.syntaxprofiles;
+			if (profiles) {
+				this.loadSyntaxProfiles(profiles);
 			}
 		},
 		

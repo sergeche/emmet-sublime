@@ -175,5 +175,10 @@
 	{
 		"caption": "Emmet: Rename Tag",
 		"command": "rename_tag"
+	},
+
+	{
+		"caption": "Emmet: Reload Extensions",
+		"command": "emmet_reset_context"
 	}
 ]

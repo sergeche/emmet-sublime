@@ -491,6 +491,7 @@
 	
 	"html": {
 		"filters": "html",
+		"profile": "html",
 		"snippets": {
 			"c": "<!-- |${child} -->",
 			"cc:ie6": "<!--[if lte IE 6]>\n\t${child}|\n<![endif]-->",
@@ -640,6 +641,7 @@
 	
 	"xsl": {
 		"extends": "html",
+		"profile": "xml",
 		"filters": "html, xsl",
 		"abbreviations": {
 			"tm": "<xsl:template match=\"\" mode=\"\">",

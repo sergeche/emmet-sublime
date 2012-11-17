@@ -512,4 +512,7 @@ class EmmetInsertAttribute(sublime_plugin.TextCommand):
 
 		view.run_command('insert_snippet', {'contents': '%s%s="$1"' % (prefix, attribute)})
 
+class EmmetResetContext(sublime_plugin.TextCommand):
+	def run(self, edit, **kw):
+		ctx.reset()
 
