@@ -162,7 +162,8 @@ settings.add_on_change('extensions_path', update_settings)
 # provide some contributions to JS
 contrib = {
 	'sublime': sublime, 
-	'sublimeReplaceSubstring': replace_substring
+	'sublimeReplaceSubstring': replace_substring,
+	'sublimeGetOption': settings.get
 }
 
 # create JS environment

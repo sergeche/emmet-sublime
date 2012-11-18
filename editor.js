@@ -89,10 +89,6 @@ var editorProxy = emmet.exec(function(require, _) {
 			var view = activeView();
 			var pos = this.getCaretPos();
 
-			if (view.match_selector(pos, 'text.xml') || view.match_selector(pos, 'xsl')) {
-				return 'xml';
-			}				
-
 			if (view.match_selector(pos, 'string.quoted.double.block.python')
 				|| view.match_selector(pos, 'source.coffee string')
 				|| view.match_selector(pos, 'string.unquoted.heredoc')) {
@@ -174,7 +170,9 @@ function pyPreprocessText(value) {
 
 	value = ts.processText(value, tabstopOptions);
 
-	if (lastZero) {
+	if (sublimeGetOption('insert_final_tabstop', false) && !/\$\{0\}$/.test(value)) {
+		value += '${0}';
+	} else if (lastZero) {
 		value = require('utils').replaceSubstring(value, '${0}', lastZero);
 	}
 	
