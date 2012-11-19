@@ -1,0 +1,34 @@
+Thank you for installing Emmet — a toolkit that can greatly improve your workflow. Note that this plugin automatically downloads and installs PyV8 binary (see status bar message). After PyV8 was downloaded, please restart editor to finish installation process.
+
+Emmet provides the following actions:
+
+* Expand Abbreviation – Tab or Ctrl+E
+* Interactive “Expand Abbreviation” — Ctrl+Alt+Enter
+* Match Tag Pair Outward – ⌃D (Mac) / Ctrl+, (PC)
+* Match Tag Pair Inward – ⌃J / Ctrl+Alt+,
+* Go to Matching Pair – ⇧⌃T / Ctrl+Alt+J
+* Wrap With Abbreviation — ⌃W / Shift+Ctrl+G
+* Go to Edit Point — Ctrl+Alt+→ or Ctrl+Alt+←
+* Select Item – ⇧⌘. or ⇧⌘, / Shift+Ctrl+. or Shift+Ctrl+,
+* Toggle Comment — ⇧⌘/ / Shift+Ctrl+/
+* Split/Join Tag — ⇧⌘' / Shift+Ctrl+`
+* Remove Tag – ⌘' / Shift+Ctrl+;
+* Update Image Size — ⇧⌃I / Ctrl+U
+* Evaluate Math Expression — ⇧⌘Y / Shift+Ctrl+Y
+* Reflect CSS Value – ⇧⌘R / Shift+Ctrl+R
+* Encode/Decode Image to data:URL – ⇧⌃D / Ctrl+'
+
+Increment/Decrement Number actions:
+
+* Increment by 1: Ctrl+↑
+* Decrement by 1: Ctrl+↓
+* Increment by 0.1: Alt+↑
+* Decrement by 0.1: Alt+↓
+* Increment by 10: ⌥⌘↑ / Shift+Alt+↑
+* Decrement by 10: ⌥⌘↓ / Shift+Alt+↓
+
+Read the project main page about how to disable default keyboard shortcuts and solve other possible issues:
+https://github.com/sergeche/emmet-sublime
+
+Documentation and examples:
+http://docs.emmet.io
