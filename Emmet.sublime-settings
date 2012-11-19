@@ -54,6 +54,10 @@
 	// at the end of expanded abbreviation
 	"insert_final_tabstop": false,
 
+	// Try to automatically detect XHTML dialect in HTML documents.
+	// With this option enabled, your custom profile for HTML documents may not work.
+	"autodetect_xhtml": true,
+
 	// Custom snippets definitions, as per https://github.com/sergeche/zen-coding/blob/v0.7.1/snippets.json
 	"snippets": {
 		// "html": {

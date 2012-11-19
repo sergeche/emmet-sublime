@@ -89,6 +89,12 @@ var editorProxy = emmet.exec(function(require, _) {
 			var view = activeView();
 			var pos = this.getCaretPos();
 
+			if (view.match_selector(pos, 'text.html') 
+				&& sublimeGetOption('autodetect_xhtml', false)
+				&& require('actionUtils').isXHTML(this)) {
+				return 'xhtml';
+			}
+
 			if (view.match_selector(pos, 'string.quoted.double.block.python')
 				|| view.match_selector(pos, 'source.coffee string')
 				|| view.match_selector(pos, 'string.unquoted.heredoc')) {

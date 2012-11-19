@@ -5315,13 +5315,22 @@ emmet.define('actionUtils', function(require, _) {
 				 	var profile = require('resources').getVariable('profile');
 				 	if (!profile) { // no forced profile, guess from content
 					 	// html or xhtml?
-				 		profile = editor.getContent().search(/<!DOCTYPE[^>]+XHTML/i) != -1 ? 'xhtml': 'html';
+				 		profile = this.isXHTML(editor) ? 'xhtml': 'html';
 				 	}
 
 				 	return profile;
 			}
 
 			return 'xhtml';
+		},
+		
+		/**
+		 * Tries to detect if current document is XHTML one.
+		 * @param {IEmmetEditor} editor
+		 * @returns {Boolean}
+		 */
+		isXHTML: function(editor) {
+			return editor.getContent().search(/<!DOCTYPE[^>]+XHTML/i) != -1;
 		}
 	};
 });/**
