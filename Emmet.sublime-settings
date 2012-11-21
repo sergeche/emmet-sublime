@@ -21,7 +21,7 @@
 	// A regexp for scope name: if it matches, Tab handler won’t work
 	// The reason to use this preference is that ST2 has buggy scope matcher
 	// which may still trigger Tab handler even if it's restricted by context
-	"disable_tab_abbreviations_for_regexp": "source\\..+?\\stext\\.html",
+	"disable_tab_abbreviations_for_regexp": "source\\.(?!css).+?\\stext\\.html",
 
 	// Exit tabstop mode when enter key is pressed
 	"clear_fields_on_enter_key": true,

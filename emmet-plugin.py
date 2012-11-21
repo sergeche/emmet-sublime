@@ -137,6 +137,10 @@ def should_handle_tab_key():
 	view = active_view()
 	scopes = settings.get('disabled_single_snippet_for_scopes', None)
 	cur_scope = view.syntax_name(view.sel()[0].begin())
+
+	if sublime.score_selector(cur_scope, 'source.css'):
+		return True
+
 	if not scopes or not sublime.score_selector(cur_scope, scopes):
 		return True
 
@@ -293,7 +297,7 @@ class TabExpandHandler(sublime_plugin.EventListener):
 		if (not settings.get('disable_completions', False) and 
 			self.correct_syntax(view) and 
 			self.completion_handler(view)):
-			return None
+				return None
 
 		caret_pos = view.sel()[0].begin()
 		cur_scope = view.syntax_name(caret_pos)
