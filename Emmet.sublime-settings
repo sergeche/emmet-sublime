@@ -58,7 +58,15 @@
 	// With this option enabled, your custom profile for HTML documents may not work.
 	"autodetect_xhtml": true,
 
-	// Custom snippets definitions, as per https://github.com/sergeche/zen-coding/blob/v0.7.1/snippets.json
+	///////////////////////////////
+	// Emmet customization
+	// Each section has the same meaning as the same-named JSON file 
+	// described here:
+	// http://docs.emmet.io/customization/
+	///////////////////////////////
+
+
+	// Custom snippets definitions, as per https://github.com/emmetio/emmet/blob/master/snippets.json
 	"snippets": {
 		// "html": {
 		// 	"abbreviations": {
@@ -67,96 +75,18 @@
 		// }
 	},
 
-	// Core preferences
+	// Emmet preferences
+	// List of all available preferences:
+	// http://docs.emmet.io/customization/preferences/
 	"preferences": {
-		// Defines a symbol that should be placed between CSS property and
-		// value when expanding CSS abbreviations.
-		"css.valueSeparator": ": ",
+		// "css.valueSeparator": ": ",
+		// "css.propertyEnd": ";"
+	},
 
-		// Defines a symbol that should be placed at the end of CSS property
-		// when expanding CSS abbreviations.
-		"css.propertyEnd": ";",
-
-		// Automatically generate vendor-prefixed copies of expanded CSS
-		// property. By default, Emmet will generate vendor-prefixed
-		// properties only when you put dash before abbreviation
-		// (e.g. <code>-bxsh</code>). With this option enabled, you don’t
-		// need dashes before abbreviations: Emmet will produce
-		// vendor-prefixed properties for you.
-		"css.autoInsertVendorPrefixes": true,
-
-		// Indentation before closing brace of CSS rule. Some users prefere
-		// indented closing brace of CSS rule for better readability.
-		// This preference’s value will be automatically inserted before
-		// closing brace when user adds newline in newly created CSS rule
-		// (e.g. when “Insert formatted linebreak” action will be performed
-		// in CSS file). If you’re such user, you may want to write put a value
-		// like <code>\\n\\t</code> in this preference.
-		"css.closeBraceIndentation": "\n",
-
-		// The list of properties whose values ​​must not contain units.
-		"css.unitlessProperties": "z-index, line-height, opacity, font-weight",
-
-		// A comma-separated list of vendor-prefixes for which values should
-		// be generated.
-		"css.gradient.prefixes" : "webkit, moz, o",
-
-		// Generate gradient definition for old Webkit implementations
-		"css.gradient.oldWebkit" : true,
-
-		// Do not output default direction definition in generated gradients.
-		"css.gradient.omitDefaultDirection" : true,
-
-		// Defines a symbol that should be placed between CSS property and
-		// value when expanding CSS abbreviations in Stylus dialect.
-		"stylus.valueSeparator": " ",
-
-		// Defines a symbol that should be placed at the end of CSS property
-		// when expanding CSS abbreviations in Stylus dialect.
-		"stylus.propertyEnd": "",
-
-		// Defines a symbol that should be placed at the end of CSS property
-		// when expanding CSS abbreviations in SASS dialect.
-		"sass.propertyEnd": "",
-
-		// Class name’s element separator.
-		"bem.elementSeparator" : "__", 
-
-		// Class name’s modifier separator.
-		"bem.modifierSeparator": "_", 
-
-		// Symbol for describing short “block-element” notation. Class names
-		// prefixed with this symbol will be treated as element name for parent‘s
-		// block name. Each symbol instance traverses one level up in parsed
-		// tree for block name lookup. Empty value will disable short notation.
-		"bem.shortElementPrefix": "-", 
-
-		// A definition of comment that should be placed <i>after</i> matched
-		// element when <code>comment</code> filter is applied. This definition
-		// is an ERB-style template passed to <code>_.template()</code>
-		// function (see Underscore.js docs for details). In template context,
-		// the following properties and functions are availabe:\n
-		// <ul>
-		// 	<li><code>attr(name, before, after)</code> – a function that outputs
-		// 	specified attribute value concatenated with <code>before</code>
-		// 	and <code>after</code> strings. If attribute doesn\'t exists, the
-		// 	empty string will be returned.</li>
-		// 	<li><code>node</code> – current node (instance of <code>AbbreviationNode</code>)</li>
-		// 	<li><code>name</code> – name of current tag</li>
-		// 	<li><code>padding</code> – current string padding, can be used
-		// 	for formatting</li>
-		// </ul>
-		"filter.commentAfter" : "\n<!-- /<%= attr(\"id\", \"#\") %><%= attr(\"class\", \".\") %> -->",
-
-		// A definition of comment that should be placed <i>before</i> matched
-		// element when <code>comment</code> filter is applied.
-		// For more info, read description of <code>filter.commentAfter</code>
-		// property.
-		"filter.commentBefore": "",
-
-		// A comma-separated list of attribute names that should exist in abbreviatoin
-		// where comment should be added. If you wish to add comment for
-		// every element, set this option to <code>*</code>.
-		"filter.commentTrigger": "id, class"
+	// Output profiles for syntaxes
+	// http://docs.emmet.io/customization/syntax-profiles/
+	"syntaxProfiles": {
+		// Enable XHTML dialect for HTML syntax
+		// "html": "xhtml"
 	}
 }

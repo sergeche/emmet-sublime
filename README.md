@@ -1,6 +1,6 @@
 # Emmet for Sublime Text 2 plugin
 
-Official Emmet (previously called _Zen Coding_) for Sublime Text 2 plugin.
+Official Emmet plugin (previously called _Zen Coding_) for Sublime Text 2.
 
 *Warning:* this plugin may not work at all in some OSes since it written in JavaScript and uses [PyV8](http://code.google.com/p/pyv8/) and [Google V8](https://developers.google.com/v8/) binaries to run. If you experience problems or editor crashes please [fill an issue](https://github.com/sergeche/emmet-sublime/issues).
 
@@ -59,6 +59,10 @@ Or with [Package Control](http://wbond.net/sublime_packages/package_control):
 ## Extensions support ##
 
 You can easily [extend](http://docs.emmet.io/customization/) Emmet with new actions and filters or customize existing ones. In `Emmet.sublime-settings`, define `extensions_path` setting and Emmet will load all `.js` and `.json` files in specified folder at startup.
+
+The default value of `extensions_path` is `~/emmet`, which points to _emmet_ folder inside your OS user’s home folder.
+
+Also, you can create sections named as extension files (e.g. `snippets`, `preferences` and `syntaxProfiles`) inside user’s `Emmet.sublime-settings` file and write your customizations there. See [original settings file](https://github.com/sergeche/emmet-sublime/blob/master/Emmet.sublime-settings#L61) for examples.
 
 ## Overriding keyboard shortcuts ##
 

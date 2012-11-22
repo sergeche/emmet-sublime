@@ -107,7 +107,7 @@ addon = [
 				"operator": "equal"
 			}, {
 				"key": "selector",
-				"operand": "text.html source",
+				"operand": "text.html source.php",
 				"operator": "not_equal",
 				"match_all": True
 			}, {
