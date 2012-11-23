@@ -26,5 +26,5 @@
     "enable_emmet_keymap": true,
 
     // disable expanding abbreviation by Tab key when autocomplete popup is visible
-    "disable_tab_abbreviations_on_auto_complete": false
+    "disable_tab_abbreviations_on_auto_complete": true
 }
