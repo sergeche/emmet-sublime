@@ -484,7 +484,8 @@ class HandleEnterKey(sublime_plugin.TextCommand):
 			if view.substr(sublime.Region(caret_pos - 1, caret_pos)) == '>':
 				line_range = view.line(caret_pos)
 				line = view.substr(sublime.Region(line_range.begin(), caret_pos)) or ''
-				if re.search(r'<\w+\:?[\w\-]*(?:\s+[\w\:\-]+\s*=\s*([\'"]).*?\1)*\s*>$', line) is not None:
+				m = re.search(r'<(\w+\:?[\w\-]*)(?:\s+[\w\:\-]+\s*=\s*([\'"]).*?\1)*\s*>$', line)
+				if m and m.group(1).lower() not in settings.get('empty_elements', '').split():
 					snippet = '\n\t${0}'
 
 		view.run_command('insert_snippet', {'contents': snippet})
