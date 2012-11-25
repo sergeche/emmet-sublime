@@ -50,7 +50,7 @@
 	// used together with "disabled_on_single_snippets" option
 	"known_html_tags": "html head title base link meta style script noscript body section nav article aside h1 h2 h3 h4 h5 h6 hgroup header footer address p hr pre blockquote ol ul li dl dt dd figure figcaption div a em strong small s cite q dfn abbr data time code var samp kbd sub sup i b u mark ruby rt rp bdi bdo span br wbr ins del img iframe embed object param video audio source track canvas map area svg math table caption colgroup col tbody thead tfoot tr td th form fieldset legend label input button select datalist optgroup option textarea keygen output progress meter details summary command menu",
 
-	"empty_elements": "img br param source",
+	"empty_elements": "area base basefont br col frame hr img input isindex link meta param embed",
 
 	// If set to `true`, Emmet will automatically insert final tabstop
 	// at the end of expanded abbreviation
