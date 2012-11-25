@@ -9737,10 +9737,21 @@ emmet.define('cssResolver', function(require, _) {
 		},
 		
 		/**
-		 * @type {Array} List of unprefixed CSS properties that supported by 
-		 * current prefix. This list is used to generate all-prefixed property 
+		 * List of unprefixed CSS properties that supported by 
+		 * current prefix. This list is used to generate all-prefixed property
+		 * @returns {Array} 
 		 */
-		supports: null
+		properties: function() {
+			return getProperties('css.' + this.prefix + 'Properties') || [];
+		},
+		
+		/**
+		 * Check if given property is supported by current prefix
+		 * @param name
+		 */
+		supports: function(name) {
+			return _.include(this.properties(), name);
+		}
 	};
 	
 	
@@ -9910,7 +9921,7 @@ emmet.define('cssResolver', function(require, _) {
 				return data.prefix == prefix;
 			});
 		
-		return info && info.supports && _.include(info.supports, property);
+		return info && info.supports(property);
 	}
 	
 	/**
@@ -9993,14 +10004,6 @@ emmet.define('cssResolver', function(require, _) {
 		}
 		
 		return formatProperty(snippet, syntax);
-		
-		// format value separator
-		var ix = snippet.indexOf(':');
-		snippet = snippet.substring(0, ix).replace(/\s+$/, '') 
-			+ prefs.get('css.valueSeparator')
-			+ require('utils').trim(snippet.substring(ix + 1));
-		
-		return snippet;
 	}
 	
 	/**
@@ -10030,20 +10033,16 @@ emmet.define('cssResolver', function(require, _) {
 	}
 	
 	addPrefix('w', {
-		prefix: 'webkit',
-		supports: getProperties('css.webkitProperties')
+		prefix: 'webkit'
 	});
 	addPrefix('m', {
-		prefix: 'moz',
-		supports: getProperties('css.mozProperties')
+		prefix: 'moz'
 	});
 	addPrefix('s', {
-		prefix: 'ms',
-		supports: getProperties('css.msProperties')
+		prefix: 'ms'
 	});
 	addPrefix('o', {
-		prefix: 'o',
-		supports: getProperties('css.oProperties')
+		prefix: 'o'
 	});
 	
 	// I think nobody uses it
