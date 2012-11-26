@@ -9763,8 +9763,6 @@ emmet.define('cssResolver', function(require, _) {
 	
 	var defaultValue = '${1};';
 	
-	var valueSep = '-#';
-	
 	// XXX module preferences
 	var prefs = require('preferences');
 	prefs.define('css.valueSeparator', ': ',
@@ -10295,7 +10293,7 @@ emmet.define('cssResolver', function(require, _) {
 			var i = 0, il = abbr.length, value = '', ch;
 			while (i < il) {
 				ch = abbr.charAt(i);
-				if (isNumeric(ch) || (~valueSep.indexOf(ch) && isNumeric(abbr.charAt(i + 1)))) {
+				if (isNumeric(ch) || ch == '#' || (ch == '-' && isNumeric(abbr.charAt(i + 1)))) {
 					value = abbr.substring(i);
 					break;
 				}
