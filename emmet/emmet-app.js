@@ -3227,7 +3227,125 @@ emmet.define('xmlParser', function(require, _) {
 		}		
 	};
 });
+/*!
+ * string_score.js: String Scoring Algorithm 0.1.10 
+ *
+ * http://joshaven.com/string_score
+ * https://github.com/joshaven/string_score
+ *
+ * Copyright (C) 2009-2011 Joshaven Potter <yourtech@gmail.com>
+ * Special thanks to all of the contributors listed here https://github.com/joshaven/string_score
+ * MIT license: http://www.opensource.org/licenses/mit-license.php
+ *
+ * Date: Tue Mar 1 2011
+*/
+
 /**
+ * Scores a string against another string.
+ *  'Hello World'.score('he');     //=> 0.5931818181818181
+ *  'Hello World'.score('Hello');  //=> 0.7318181818181818
+ */
+emmet.define('string-score', function(require, _) {
+	return {
+		score: function(string, abbreviation, fuzziness) {
+			// If the string is equal to the abbreviation, perfect match.
+			  if (string == abbreviation) {return 1;}
+			  //if it's not a perfect match and is empty return 0
+			  if(abbreviation == "") {return 0;}
+
+			  var total_character_score = 0,
+			      abbreviation_length = abbreviation.length,
+			      string_length = string.length,
+			      start_of_string_bonus,
+			      abbreviation_score,
+			      fuzzies=1,
+			      final_score;
+			  
+			  // Walk through abbreviation and add up scores.
+			  for (var i = 0,
+			         character_score/* = 0*/,
+			         index_in_string/* = 0*/,
+			         c/* = ''*/,
+			         index_c_lowercase/* = 0*/,
+			         index_c_uppercase/* = 0*/,
+			         min_index/* = 0*/;
+			     i < abbreviation_length;
+			     ++i) {
+			    
+			    // Find the first case-insensitive match of a character.
+			    c = abbreviation.charAt(i);
+			    
+			    index_c_lowercase = string.indexOf(c.toLowerCase());
+			    index_c_uppercase = string.indexOf(c.toUpperCase());
+			    min_index = Math.min(index_c_lowercase, index_c_uppercase);
+			    index_in_string = (min_index > -1) ? min_index : Math.max(index_c_lowercase, index_c_uppercase);
+			    
+			    if (index_in_string === -1) { 
+			      if (fuzziness) {
+			        fuzzies += 1-fuzziness;
+			        continue;
+			      } else {
+			        return 0;
+			      }
+			    } else {
+			      character_score = 0.1;
+			    }
+			    
+			    // Set base score for matching 'c'.
+			    
+			    // Same case bonus.
+			    if (string[index_in_string] === c) { 
+			      character_score += 0.1; 
+			    }
+			    
+			    // Consecutive letter & start-of-string Bonus
+			    if (index_in_string === 0) {
+			      // Increase the score when matching first character of the remainder of the string
+			      character_score += 0.6;
+			      if (i === 0) {
+			        // If match is the first character of the string
+			        // & the first character of abbreviation, add a
+			        // start-of-string match bonus.
+			        start_of_string_bonus = 1; //true;
+			      }
+			    }
+			    else {
+			  // Acronym Bonus
+			  // Weighing Logic: Typing the first character of an acronym is as if you
+			  // preceded it with two perfect character matches.
+			  if (string.charAt(index_in_string - 1) === ' ') {
+			    character_score += 0.8; // * Math.min(index_in_string, 5); // Cap bonus at 0.4 * 5
+			  }
+			    }
+			    
+			    // Left trim the already matched part of the string
+			    // (forces sequential matching).
+			    string = string.substring(index_in_string + 1, string_length);
+			    
+			    total_character_score += character_score;
+			  } // end of for loop
+			  
+			  // Uncomment to weigh smaller words higher.
+			  // return total_character_score / string_length;
+			  
+			  abbreviation_score = total_character_score / abbreviation_length;
+			  //percentage_of_matched_string = abbreviation_length / string_length;
+			  //word_score = abbreviation_score * percentage_of_matched_string;
+			  
+			  // Reduce penalty for longer strings.
+			  //final_score = (word_score + abbreviation_score) / 2;
+			  final_score = ((abbreviation_score * (abbreviation_length / string_length)) + abbreviation_score) / 2;
+			  
+			  final_score = final_score / fuzzies;
+			  
+			  if (start_of_string_bonus && (final_score + 0.15 < 1)) {
+			    final_score += 0.15;
+			  }
+			  
+			  return final_score;
+		}
+	};
+});/**
  * Utility module for Emmet
  * @param {Function} require
  * @param {Underscore} _
@@ -4410,6 +4528,15 @@ emmet.define('resources', function(require, _) {
 		}
 	}
 	
+	/**
+	 * Normalizes snippet key name for better fuzzy search
+	 * @param {String} str
+	 * @returns {String}
+	 */
+	function normalizeName(str) {
+		return str.replace(/:/g, '-');
+	}
+	
 	return {
 		/**
 		 * Sets new unparsed data for specified settings vocabulary
@@ -4544,7 +4671,7 @@ emmet.define('resources', function(require, _) {
 		 * Definition is searched inside `snippets` and `abbreviations` 
 		 * subsections  
 		 * @param {String} syntax Top-level section name (syntax)
-		 * @param {Snippet name} name
+		 * @param {String} name Snippet name
 		 * @returns {Object}
 		 */
 		findSnippet: function(syntax, name, memo) {
@@ -4577,6 +4704,64 @@ emmet.define('resources', function(require, _) {
 			}
 			
 			return matchedItem;
+		},
+		
+		/**
+		 * Performs fuzzy search of snippet definition
+		 * @param {String} syntax Top-level section name (syntax)
+		 * @param {String} name Snippet name
+		 * @returns
+		 */
+		fuzzyFindSnippet: function(syntax, name, minScore) {
+			var cacheKey = 'fz-' + syntax;
+			minScore = minScore || 0.3;
+			if (!cache[cacheKey]) {
+				// create cached searcher instance
+				var stack = [], sectionKey = syntax;
+				var memo = [];
+				
+				do {
+					var section = this.getSection(sectionKey);
+					if (!section)
+						break;
+					
+					_.each(['snippets', 'abbreviations'], function(sectionName) {
+						var stackItem = {};
+						_.each(section[sectionName] || null, function(v, k) {
+							stackItem[k] = {
+								nk: normalizeName(k),
+								value: v,
+								type: sectionName
+							};
+						});
+						
+						stack.push(stackItem);
+					});
+					
+					memo.push(sectionKey);
+					sectionKey = section['extends'];
+				} while (sectionKey && !_.include(memo, sectionKey));
+				
+				
+				cache[cacheKey] = _.extend.apply(_, stack.reverse());
+			}
+			
+			var payload = cache[cacheKey];
+			var sc = require('string-score');
+			
+			name = normalizeName(name);
+			var scores = _.map(payload, function(value, key) {
+				return {
+					key: key,
+					score: sc.score(value.nk, name, 0.1)
+				};
+			});
+			
+			var result = _.last(_.sortBy(scores, 'score'));
+			if (result && result.score >= minScore) {
+				var k = result.key;
+				return parseItem(k, payload[k].value, payload[k].type);
+			}
 		}
 	};
 });/**
@@ -9844,6 +10029,20 @@ emmet.define('cssResolver', function(require, _) {
 			+ '(like <code>c#0</code>). Possible values are <code>upper</code>, '
 			+ '<code>lower</code> and <code>keep</code>.');
 	
+	prefs.define('css.fuzzySearch', true, 
+			'Enable fuzzy search among CSS snippet names. When enabled, every ' 
+			+ '<em>unknown</em> snippet will be scored against available snippet '
+			+ 'names (not values or CSS properties!). The match with best score '
+			+ 'will be used to resolve snippet value. For example, with this ' 
+			+ 'preference enabled, the following abbreviations are equal: '
+			+ '<code>ov:h</code> == <code>ov-h</code> == <code>o-h</code> == '
+			+ '<code>oh</code>');
+	
+	prefs.define('css.fuzzySearchMinScore', 0.3, 
+			'The minium score (from 0 to 1) that fuzzy-matched abbreviation should ' 
+			+ 'achive. Lower values may produce many false-positive matches, '
+			+ 'higher values may reduce possible matches.');
+	
 	
 	function isNumeric(ch) {
 		var code = ch && ch.charCodeAt(0);
@@ -10425,11 +10624,16 @@ emmet.define('cssResolver', function(require, _) {
 			snippet = resources.findSnippet(syntax, abbrData.property);
 			
 			// fallback to some old snippets like m:a
-			if (!snippet && ~abbrData.property.indexOf(':')) {
-				var parts = abbrData.property.split(':');
-				var propertyName = parts.shift();
-				snippet = resources.findSnippet(syntax, propertyName) || propertyName;
-				abbrData.values = this.parseValues(parts.join(':'));
+//			if (!snippet && ~abbrData.property.indexOf(':')) {
+//				var parts = abbrData.property.split(':');
+//				var propertyName = parts.shift();
+//				snippet = resources.findSnippet(syntax, propertyName) || propertyName;
+//				abbrData.values = this.parseValues(parts.join(':'));
+//			}
+			
+			if (!snippet && prefs.get('css.fuzzySearch')) {
+				// let’s try fuzzy search
+				snippet = resources.fuzzyFindSnippet(syntax, abbrData.property, parseFloat(prefs.get('css.fuzzySearchMinScore')));
 			}
 			
 			if (!snippet) {
