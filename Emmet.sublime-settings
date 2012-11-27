@@ -10,6 +10,10 @@
 	// work inside opening HTML attributes
 	"disable_completions": false,
 
+	// With this option enabled, all Emmet's CSS snippets
+	// will be available in standard auto-complete popup
+	"show_css_completions": true,
+
 	// Remove default HTML tag completions on plugin start
 	// You should restart editor after changing this option
 	"remove_html_completions": false,

@@ -127,6 +127,8 @@ var editorProxy = emmet.exec(function(require, _) {
 	};
 });
 
+var _completions = {};
+
 function require(name) {
 	return emmet.require(name);
 }
@@ -268,4 +270,29 @@ function pyExtractAbbreviation() {
 
 function pyHasSnippet(name) {
 	return !!emmet.require('resources').findSnippet(editorProxy.getSyntax(), name);
+}
+
+/**
+ * Get all available CSS completions. This method is optimized for CSS
+ * only since it should contain snippets only so it's not required
+ * to do extra parsing
+ */
+function pyGetCSSCompletions(dialect) {
+	if (!_completions[dialect]) {
+		var all = require('resources').getAllSnippets(dialect);
+		var css = require('cssResolver');
+		_completions[dialect] = _.map(all, function(v, k) {
+			var snippetValue = typeof v.parsedValue == 'object' 
+				? v.parsedValue.data
+				: v.value;
+			var snippet = css.transformSnippet(snippetValue, false, dialect);
+			return {
+				k: v.nk,
+				label: snippet.replace('${0}', ''),
+				v: snippet
+			};
+		});
+	}
+
+	return _completions[dialect];
 }

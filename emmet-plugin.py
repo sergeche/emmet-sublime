@@ -316,6 +316,16 @@ class TabExpandHandler(sublime_plugin.EventListener):
 		return run_action(lambda i, sel: ctx.js().locals.pyRunAction('expand_abbreviation'))
 
 	def on_query_completions(self, view, prefix, locations):
+		if view.match_selector(locations[0], "source.css - meta.selector.css - meta.property-value.css") and check_context():
+			l = []
+			if settings.get('show_css_completions', False):
+				completions = ctx.js().locals.pyGetCSSCompletions('css')
+				if completions:
+					for p in completions:
+						l.append(('%s\t%s' % (p['k'], p['label']), p['v']))
+
+			return (l, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+
 		if ( not self.correct_syntax(view) or
 			 settings.get('disable_completions', False) ): return []
 
