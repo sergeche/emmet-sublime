@@ -4534,7 +4534,7 @@ emmet.define('resources', function(require, _) {
 	 * @returns {String}
 	 */
 	function normalizeName(str) {
-		return str.replace(/:/g, '-');
+		return str.replace(/:$/, '').replace(/:/g, '-');
 	}
 	
 	return {
