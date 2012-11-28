@@ -1,0 +1,28 @@
+New features:
+
+Fuzzy search for CSS abbreviations
+==================================
+
+Emmet now supports fuzzy searching of unknowns CSS abbreviations.
+For example, instead of using ov:h abbreviation to get overflow: hidden, you can write, ov-h, ovh or even oh.
+
+Read more about fuzzy search feature:
+http://docs.emmet.io/css-abbreviations/fuzzy-search/
+
+Emmet CSS snippets in auto-complete popup
+=========================================
+
+All Emmet snippets are displayed in standard auto-complete popup,
+so you don't need to remember them all: just start typing first 
+letters of required CSS snippet and let editor do the rest 
+(works with fuzzy search too).
+
+To disable Emmet completions, set
+
+"show_css_completions": false
+
+preference in user's Emmet.sublime-settings
+
+------------------------------
+Follow me on Twitter: @emmetio
+------------------------------ 

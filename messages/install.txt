@@ -1,8 +1,10 @@
 Thank you for installing Emmet -- a toolkit that can greatly improve your workflow. Note that this plugin automatically downloads and installs PyV8 binary (see status bar message). 
 
-**************
-Please restart editor to finish installation process after PyV8 was downloaded.
-**************
+******************************
+Please restart editor 
+to finish installation process 
+after PyV8 was downloaded.
+******************************
 
 Tab key handler
 ==========================
@@ -28,3 +30,7 @@ https://github.com/sergeche/emmet-sublime
 
 Documentation and examples:
 http://docs.emmet.io
+
+------------------------------
+Follow me on Twitter: @emmetio
+------------------------------
