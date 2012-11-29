@@ -14,6 +14,9 @@
 	// will be available in standard auto-complete popup
 	"show_css_completions": true,
 
+	// List of scopes where Emmet CSS completions should be available
+	"css_completions_scope": "source.css - meta.selector.css - meta.property-value.css, source.scss - meta.selector.scss - meta.property-value.scss",
+
 	// Remove default HTML tag completions on plugin start
 	// You should restart editor after changing this option
 	"remove_html_completions": false,
@@ -47,7 +50,7 @@
 	// Tab trigger should be disabled when expanding simple abbreviation.
 	// If entered abbreviation (like `php`) wasn’t found in Emmet snippets list
 	// or "known_html_tags" preference, Tab handler will not be triggered.
-	// Leave this setting black to disable this feature
+	// Leave this setting blank to disable this feature
 	"disabled_single_snippet_for_scopes": "text.html",
 
 	// A space separated list of all known HTML tags,
