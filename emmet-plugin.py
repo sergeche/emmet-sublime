@@ -465,6 +465,20 @@ class ExpandAsYouType(WrapAsYouType):
 	input_message = "Enter Abbreviation: "
 
 	def setup(self):
+		view = active_view()
+		# adjust selection to non-space bounds
+		sels = []
+		for s in view.sel():
+			text = view.substr(s)
+			a = s.a + len(text) - len(text.lstrip())
+			b = s.b - len(text) + len(text.rstrip())
+
+			sels.append(sublime.Region(a, b))
+
+		view.sel().clear()
+		for s in sels:
+			view.sel().add(s)
+			
 		self.remember_sels(active_view())
 
 
