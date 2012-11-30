@@ -145,7 +145,7 @@ def should_handle_tab_key():
 		return True
 
 	abbr = ctx.js().locals.pyExtractAbbreviation()
-	if not re.match(r'^\w+$', abbr):
+	if not re.match(r'^[\w\:]+$', abbr):
 		# it's a complex expression
 		return True
 
