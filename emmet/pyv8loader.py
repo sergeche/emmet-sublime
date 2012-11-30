@@ -339,7 +339,7 @@ class PyV8Loader(threading.Thread):
 		# find package for current architecture
 		cur_item = None
 		for item in files:
-			if self.arch in item['description'].lower():
+			if self.arch in item['name']:
 				cur_item = item
 				break
 

@@ -12,6 +12,7 @@ import threading
 import imp
 import time
 import re
+import semver
 from file import File
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
@@ -24,6 +25,9 @@ def get_arch():
 	is_64bit = sys.maxsize > 2**32
 	system_name = platform.system()
 	if system_name == 'Darwin':
+		if semver.match(platform.mac_ver()[0], '<10.7.0'):
+			return 'mac106'
+
 		return 'osx'
 	if system_name == 'Windows':
 		return 'win64' if is_64bit else 'win32'
