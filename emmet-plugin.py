@@ -468,37 +468,15 @@ class ExpandAsYouType(WrapAsYouType):
 		self.remember_sels(active_view())
 
 
-class HandleEnterKey(sublime_plugin.TextCommand):
-	def run(self, edit, **kw):
-		view = active_view()
+class EnterKeyHandler(sublime_plugin.EventListener):
+	def on_query_context(self, view, key, op, operand, match_all):
+		if key != 'clear_fields_on_enter_key':
+			return None
+
 		if settings.get('clear_fields_on_enter_key', False):
 			view.run_command('clear_fields')
 
-		snippet = '\n${0}'
-
-		if len(view.sel()) > 1:
-			return view.run_command('insert_snippet', {'contents': snippet})
-
-		# let's see if we have to insert formatted linebreak
-		caret_pos = view.sel()[0].begin()
-		scope = view.syntax_name(caret_pos)
-		if sublime.score_selector(scope, settings.get('formatted_linebreak_scopes', '')):
-			snippet = '\n\t${0}\n'
-
-		# Looks like ST2 has buggy scope matcher: sometimes it will call
-		# this action even if context selector forbids that.
-		# Thus, we have to manually filter it.
-		elif 'source.' not in scope:
-			# checking a special case: caret right after opening tag,
-			# but not exactly between pairs
-			line_range = view.line(caret_pos)
-			line = view.substr(sublime.Region(line_range.begin(), caret_pos)) or ''
-
-			m = re.search(r'<(\w+\:?[\w\-]*)(?:\s+[\w\:\-]+\s*=\s*([\'"]).*?\2)*\s*>\s*$', line)
-			if m and m.group(1).lower() not in settings.get('empty_elements', '').split():
-				snippet = '\n\t${0}'
-		
-		view.run_command('insert_snippet', {'contents': snippet})
+		return True
 
 
 class RenameTag(sublime_plugin.TextCommand):

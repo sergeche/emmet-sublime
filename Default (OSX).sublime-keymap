@@ -445,16 +445,13 @@
         "keys": [
             "enter"
         ], 
-        "command": "handle_enter_key", 
+        "args": {
+            "contents": "\n\t${0}\n"
+        }, 
+        "command": "insert_snippet", 
         "context": [
             {
-                "operand": "text.html, text.xml", 
-                "match_all": true, 
-                "key": "selector"
-            }, 
-            {
-                "operand": "text.html source, php", 
-                "operator": "not_equal", 
+                "operand": "meta.scope.between-tag-pair.html, meta.scope.between-tag-pair.xml", 
                 "match_all": true, 
                 "key": "selector"
             }, 
@@ -462,6 +459,10 @@
                 "operand": false, 
                 "match_all": true, 
                 "key": "auto_complete_visible"
+            }, 
+            {
+                "match_all": true, 
+                "key": "clear_fields_on_enter_key"
             }, 
             {
                 "operand": false, 

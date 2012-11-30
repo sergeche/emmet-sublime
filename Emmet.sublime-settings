@@ -1,6 +1,9 @@
 {
 	// Copy any modified settings to `User/Emmet.sublime-settings`
 	// otherwise modifications will not survive updates.
+
+	// Path to folder where Emmet should look for extensions
+	// http://docs.emmet.io/customization/
 	"extensions_path": "~/emmet",
 
 	// Disable completions of HTML attributes
@@ -32,10 +35,6 @@
 
 	// Exit tabstop mode when enter key is pressed
 	"clear_fields_on_enter_key": true,
-
-	// List of HTML and XML scopes where Enter key should insert formatted 
-	// (e.g. with indentation) line break
-	"formatted_linebreak_scopes": "meta.scope.between-tag-pair.html, meta.scope.between-tag-pair.xml",
 
 	// A comma-separated list of disabled action names.
 	// Listed action will not be triggered by default keyboard
