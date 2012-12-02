@@ -67,7 +67,7 @@ addon = [
 				"operator": "equal"
 			}, {
 				"key": "selector",
-				"operand": "text.html source.php",
+				"operand": "text.html source.php, storage.type.templatetag.django",
 				"operator": "not_equal",
 				"match_all": True
 			}, {
@@ -107,7 +107,7 @@ addon = [
 				"operator": "equal"
 			}, {
 				"key": "selector",
-				"operand": "text.html source.php",
+				"operand": "text.html source.php, storage.type.templatetag.django",
 				"operator": "not_equal",
 				"match_all": True
 			}, {
