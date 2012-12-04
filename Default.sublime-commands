@@ -29,6 +29,14 @@
 	},
 
 	{
+		"caption": "Emmet: Go to Matching Pair",
+		"command": "run_emmet_action",
+		"args": {
+			"action": "matching_pair"
+		}
+	},
+
+	{
 		"caption": "Emmet: Next Edit Point",
 		"command": "run_emmet_action",
 		"args": {

@@ -3916,6 +3916,27 @@ emmet.define('utils', function(require, _) {
  * @param {Underscore} _
  */
 emmet.define('range', function(require, _) {
+	function cmp(a, b, op) {
+		switch (op) {
+			case 'eq':
+			case '==':
+				return a === b;
+			case 'lt':
+			case '<':
+				return a < b;
+			case 'lte':
+			case '<=':
+				return a <= b;
+			case 'gt':
+			case '>':
+				return a > b;
+			case 'gte':
+			case '>=':
+				return a >= b;
+		}
+	}
+	
+	
 	/**
 	 * @type Range
 	 * @constructor
@@ -3948,7 +3969,8 @@ emmet.define('range', function(require, _) {
 		 * @returns {Boolean}
 		 */
 		equal: function(range) {
-			return this.start === range.start && this.end === range.end;
+			return this.cmp(range, 'eq', 'eq');
+//			return this.start === range.start && this.end === range.end;
 		},
 		
 		/**
@@ -4007,7 +4029,17 @@ emmet.define('range', function(require, _) {
 		 * @param {Number} loc
 		 */
 		inside: function(loc) {
-			return this.start <= loc && this.end > loc;
+			return this.cmp(loc, 'lte', 'gt');
+//			return this.start <= loc && this.end > loc;
+		},
+		
+		/**
+		 * Returns a Boolean value that indicates whether a specified position 
+		 * is in a given range, but not equals bounds.
+		 * @param {Number} loc
+		 */
+		contains: function(loc) {
+			return this.cmp(loc, 'lt', 'gt');
 		},
 		
 		/**
@@ -4016,7 +4048,26 @@ emmet.define('range', function(require, _) {
 		 * @returns {Boolean} 
 		 */
 		include: function(r) {
-			return this.start <= r.start && this.end >= r.end;
+			return this.cmp(loc, 'lte', 'gte');
+//			return this.start <= r.start && this.end >= r.end;
+		},
+		
+		/**
+		 * Low-level comparision method
+		 * @param {Number} loc
+		 * @param {String} left Left comparison operator
+		 * @param {String} right Right comaprison operator
+		 */
+		cmp: function(loc, left, right) {
+			var a, b;
+			if (loc instanceof Range) {
+				a = loc.start;
+				b = loc.end;
+			} else {
+				a = b = loc;
+			}
+			
+			return cmp(this.start, a, left || '<=') && cmp(this.end, b, right || '>');
 		},
 		
 		/**
@@ -4980,7 +5031,12 @@ emmet.define('profile', function(require, _) {
 		self_closing_tag: 'xhtml',
 		
 		// Profile-level output filters, re-defines syntax filters 
-		filters: ''
+		filters: '',
+		
+		// Additional filters applied to abbreviation.
+		// Unlike "filters", this preference doesn't override default filters
+		// but add the instead every time given profile is chosen
+		extraFilters: ''
 	};
 	
 	/**
@@ -5076,7 +5132,7 @@ emmet.define('profile', function(require, _) {
 		createProfile('html', {self_closing_tag: false});
 		createProfile('xml', {self_closing_tag: true, tag_nl: true});
 		createProfile('plain', {tag_nl: false, indent: false, place_cursor: false});
-		createProfile('line', {tag_nl: false, indent: false});
+		createProfile('line', {tag_nl: false, indent: false, extraFilters: 's'});
 	}
 	
 	createDefaultProfiles();
@@ -5385,15 +5441,14 @@ emmet.define('actionUtils', function(require, _) {
 			var allowedSyntaxes = {'html': 1, 'xml': 1, 'xsl': 1};
 			var syntax = String(editor.getSyntax());
 			if (syntax in allowedSyntaxes) {
-				var tags = require('html_matcher').getTags(
-						String(editor.getContent()), 
-						editor.getCaretPos(), 
-						String(editor.getProfileName()));
+				var content = String(editor.getContent());
+				var tag = require('htmlMatcher').find(content, editor.getCaretPos());
 				
-				if (tags && tags[0] && tags[0].type == 'tag') {
+				if (tag && tag.type == 'tag') {
 					var reAttr = /([\w\-:]+)(?:\s*=\s*(?:(?:"((?:\\.|[^"])*)")|(?:'((?:\\.|[^'])*)')|([^>\s]+)))?/g;
-					var startTag = tags[0];
-					var tagAttrs = startTag.full_tag.replace(/^<[\w\-\:]+/, '');
+					var startTag = tag.open;
+					var tagAttrs = startTag.range.substring(content).replace(/^<[\w\-\:]+/, '');
+//					var tagAttrs = startTag.full_tag.replace(/^<[\w\-\:]+/, '');
 					var contextNode = {
 						name: startTag.name,
 						attributes: []
@@ -5466,34 +5521,15 @@ emmet.define('actionUtils', function(require, _) {
 		 * @returns {String} 
 		 */
 		detectSyntax: function(editor, hint) {
-			var caretPos = editor.getCaretPos();
 			var syntax = hint || 'html';
 			
-			if (!require('resources').hasSyntax(syntax))
+			if (!require('resources').hasSyntax(syntax)) {
 				syntax = 'html';
-			
-			if (syntax == 'html') {
-				// are we inside <style> tag?
-				var pair = require('html_matcher').getTags(editor.getContent(), caretPos);
-				if (pair && pair[0] && pair[0].type == 'tag' && pair[0].name.toLowerCase() == 'style') {
-					// check that we're actually inside the tag
-					if (pair[0].end <= caretPos && pair[1].start >= caretPos)
-						syntax = 'css';
-				}
 			}
 			
-            if (syntax == 'html') {
-            	// are we inside style attribute?
-                var tree = require('xmlEditTree').parseFromPosition(editor.getContent(), caretPos, true);
-                if (tree) {
-                    var attr = tree.itemFromPosition(caretPos, true);
-                    if (attr && attr.name().toLowerCase() == 'style') {
-                        var range = attr.valueRange(true);
-                        if (range.start <= caretPos && range.end >= caretPos)
-                            syntax = 'css';
-                    }
-                }
-            }
+			if (syntax == 'html' && (this.isStyle(editor) || this.isInlineCSS(editor))) {
+				syntax = 'css';
+			}
 			
 			return syntax;
 		},
@@ -5504,18 +5540,31 @@ emmet.define('actionUtils', function(require, _) {
 		 * @returns {String}
 		 */
 		detectProfile: function(editor) {
-			switch(editor.getSyntax()) {
-				 case 'xml':
-				 case 'xsl':
-				 	return 'xml';
-				 case 'html':
-				 	var profile = require('resources').getVariable('profile');
-				 	if (!profile) { // no forced profile, guess from content
-					 	// html or xhtml?
-				 		profile = this.isXHTML(editor) ? 'xhtml': 'html';
-				 	}
+			var syntax = editor.getSyntax();
+			
+			// get profile from syntax definition
+			var profile = require('resources').findItem(syntax, 'profile');
+			if (profile) {
+				return profile;
+			}
+			
+			switch(syntax) {
+				case 'xml':
+				case 'xsl':
+					return 'xml';
+				case 'css':
+					if (this.isInlineCSS(editor)) {
+						return 'line';
+					}
+					break;
+				case 'html':
+					var profile = require('resources').getVariable('profile');
+					if (!profile) { // no forced profile, guess from content
+						// html or xhtml?
+						profile = this.isXHTML(editor) ? 'xhtml': 'html';
+					}
 
-				 	return profile;
+					return profile;
 			}
 
 			return 'xhtml';
@@ -5528,6 +5577,38 @@ emmet.define('actionUtils', function(require, _) {
 		 */
 		isXHTML: function(editor) {
 			return editor.getContent().search(/<!DOCTYPE[^>]+XHTML/i) != -1;
+		},
+		
+		/**
+		 * Check if current caret position is inside &lt;style&gt; tag
+		 * @param {IEmmetEditor} editor
+		 * @returns
+		 */
+		isStyle: function(editor) {
+			var content = String(editor.getContent());
+			var caretPos = editor.getCaretPos();
+			var tag = require('htmlMatcher').tag(content, caretPos);
+			return tag && tag.open.name.toLowerCase() == 'style' 
+				&& tag.innerRange.cmp(caretPos, 'lte', 'gte');
+		},
+		
+		/**
+		 * Check if current caret position is inside "style" attribute of HTML
+		 * element
+		 * @param {IEmmetEditor} editor
+		 * @returns {Boolean}
+		 */
+		isInlineCSS: function(editor) {
+			var content = String(editor.getContent());
+			var caretPos = editor.getCaretPos();
+			var tree = require('xmlEditTree').parseFromPosition(content, caretPos, true);
+            if (tree) {
+                var attr = tree.itemFromPosition(caretPos, true);
+                return attr && attr.name().toLowerCase() == 'style' 
+                	&& attr.valueRange(true).cmp(caretPos, 'lte', 'gte');
+            }
+            
+            return false;
 		}
 	};
 });/**
@@ -5728,305 +5809,282 @@ emmet.define('base64', function(require, _) {
 		}
 	};
 });/**
- * @author Sergey Chikuyonok (serge.che@gmail.com)
- * @link http://chikuyonok.ru
- */(function(){
+ * HTML matcher: takes string and searches for HTML tag pairs for given position 
+ * 
+ * Unlike “classic” matchers, it parses content from the specified 
+ * position, not from the start, so it may work even outside HTML documents
+ * (for example, inside strings of programming languages like JavaScript, Python 
+ * etc.)
+ * @constructor
+ * @memberOf __htmlMatcherDefine
+ */
+emmet.define('htmlMatcher', function(require, _) {
 	// Regular Expressions for parsing tags and attributes
-	var start_tag = /^<([\w\:\-]+)((?:\s+[\w\-:]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/,
-		end_tag = /^<\/([\w\:\-]+)[^>]*>/,
-		attr = /([\w\-:]+)(?:\s*=\s*(?:(?:"((?:\\.|[^"])*)")|(?:'((?:\\.|[^'])*)')|([^>\s]+)))?/g;
-		
-	// Empty Elements - HTML 4.01
-	var empty = makeMap("area,base,basefont,br,col,frame,hr,img,input,isindex,link,meta,param,embed");
-
-	// Block Elements - HTML 4.01
-	var block = makeMap("address,applet,blockquote,button,center,dd,dir,div,dl,dt,fieldset,form,frameset,hr,iframe,isindex,li,map,menu,noframes,noscript,object,ol,p,pre,script,table,tbody,td,tfoot,th,thead,tr,ul");
-
-	// Inline Elements - HTML 4.01
-	var inline = makeMap("a,abbr,acronym,applet,b,basefont,bdo,big,br,button,cite,code,del,dfn,em,font,i,iframe,img,input,ins,kbd,label,map,object,q,s,samp,select,small,span,strike,strong,sub,sup,textarea,tt,u,var");
-
-	// Elements that you can, intentionally, leave open
-	// (and which close themselves)
-	var close_self = makeMap("colgroup,dd,dt,li,options,p,td,tfoot,th,thead,tr");
+	var reOpenTag = /^<([\w\:\-]+)((?:\s+[\w\-:]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/;
+	var reCloseTag = /^<\/([\w\:\-]+)[^>]*>/;
 	
-	/** Current matching mode */
-	var cur_mode = 'xhtml';
-	
-	/** Last matched HTML pair */
-	var last_match = {
-		opening_tag: null, // tag() or comment() object
-		closing_tag: null, // tag() or comment() object
-		start_ix: -1,
-		end_ix: -1
-	};
-	
-	function setMode(new_mode) {
-		if (!new_mode || new_mode != 'html')
-			new_mode = 'xhtml';
-			
-		cur_mode = new_mode;
-	}
-	
-	function tag(match, ix) {
-		var name = match[1].toLowerCase();
-		return  {
-			name: name,
-			full_tag: match[0],
-			start: ix,
-			end: ix + match[0].length,
-			unary: Boolean(match[3]) || (name in empty && cur_mode == 'html'),
-			has_close: Boolean(match[3]),
-			type: 'tag',
-			close_self: (name in close_self && cur_mode == 'html')
+	function openTag(i, match) {
+		return {
+			name: match[1],
+			selfClose: !!match[3],
+			/** @type Range */
+			range: require('range').create(i, match[0]),
+			type: 'open'
 		};
 	}
 	
-	function comment(start, end) {
+	function closeTag(i, match) {
 		return {
-			start: start,
-			end: end,
+			name: match[1],
+			/** @type Range */
+			range: require('range').create(i, match[0]),
+			type: 'close'
+		};
+	}
+	
+	function comment(i, match) {
+		return {
+			/** @type Range */
+			range: require('range').create(i, _.isNumber(match) ? match - i : match[0]),
 			type: 'comment'
 		};
 	}
 	
-	function makeMap(str){
-		var obj = {}, items = str.split(",");
-		for ( var i = 0; i < items.length; i++ )
-			obj[ items[i] ] = true;
-		return obj;
-	}
-	
 	/**
-	 * Makes selection ranges for matched tag pair
-	 * @param {tag} opening_tag
-	 * @param {tag} closing_tag
-	 * @param {Number} ix
-	 */
-	function makeRange(opening_tag, closing_tag, ix) {
-		ix = ix || 0;
-		
-		var start_ix = -1, 
-			end_ix = -1;
-		
-		if (opening_tag && !closing_tag) { // unary element
-			start_ix = opening_tag.start;
-			end_ix = opening_tag.end;
-		} else if (opening_tag && closing_tag) { // complete element
-			if (
-				(opening_tag.start < ix && opening_tag.end > ix) || 
-				(closing_tag.start <= ix && closing_tag.end > ix)
-			) {
-				start_ix = opening_tag.start;
-				end_ix = closing_tag.end;
-			} else {
-				start_ix = opening_tag.end;
-				end_ix = closing_tag.start;
-			}
-		}
-		
-		return [start_ix, end_ix];
-	}
-	
-	/**
-	 * Save matched tag for later use and return found indexes
-	 * @param {tag} opening_tag
-	 * @param {tag} closing_tag
-	 * @param {Number} ix
-	 * @return {Array}
-	 */
-	function saveMatch(opening_tag, closing_tag, ix) {
-		ix = ix || 0;
-		last_match.opening_tag = opening_tag; 
-		last_match.closing_tag = closing_tag;
-		
-		var range = makeRange(opening_tag, closing_tag, ix);
-		last_match.start_ix = range[0];
-		last_match.end_ix = range[1];
-		
-		return last_match.start_ix != -1 ? [last_match.start_ix, last_match.end_ix] : null;
-	}
-	
-	/**
-	 * Handle unary tag: find closing tag if needed
+	 * Creates new tag matcher session
 	 * @param {String} text
-	 * @param {Number} ix
-	 * @param {tag} open_tag
-	 * @return {tag|null} Closing tag (or null if not found) 
 	 */
-	function handleUnaryTag(text, ix, open_tag) {
-		if (open_tag.has_close)
-			return null;
-		else {
-			// TODO finish this method
-		}
+	function createMatcher(text) {
+		var memo = {}, m;
+		return {
+			/**
+			 * Test if given position matches opening tag
+			 * @param {Number} i
+			 * @returns {Object} Matched tag object
+			 */
+			open: function(i) {
+				var m = this.matches(i);
+				return m && m.type == 'open' ? m : null;
+			},
+			
+			/**
+			 * Test if given position matches closing tag
+			 * @param {Number} i
+			 * @returns {Object} Matched tag object
+			 */
+			close: function(i) {
+				var m = this.matches(i);
+				return m && m.type == 'close' ? m : null;
+			},
+			
+			/**
+			 * Matches either opening or closing tag for given position
+			 * @param i
+			 * @returns
+			 */
+			matches: function(i) {
+				var key = 'p' + i;
+				
+				if (!(key in memo)) {
+					if (text.charAt(i) == '<') {
+						var substr = text.slice(i);
+						if (m = substr.match(reOpenTag)) {
+							memo[key] = openTag(i, m);
+						} else if (m = substr.match(reCloseTag)) {
+							memo[key] = closeTag(i, m);
+						} else {
+							// remember that given position contains no valid tag
+							memo[key] = false;
+						}
+					}
+				}
+				
+				return memo[key];
+			},
+			
+			/**
+			 * Returns original text
+			 * @returns {String}
+			 */
+			text: function() {
+				return text;
+			}
+		};
+	}
+	
+	function matches(text, pos, pattern) {
+		return text.substring(pos, pos + pattern.length) == pattern;
 	}
 	
 	/**
-	 * Search for matching tags in <code>html</code>, starting from 
-	 * <code>start_ix</code> position
-	 * @param {String} html Code to search
-	 * @param {Number} start_ix Character index where to start searching pair 
-	 * (commonly, current caret position)
-	 * @param {Function} action Function that creates selection range
-	 * @return {Array}
+	 * Search for closing pair of opening tag
+	 * @param {Object} open Open tag instance
+	 * @param {Object} matcher Matcher instance
 	 */
-	function findPair(html, start_ix, mode, action) {
-		action = action || makeRange;
-		setMode(mode);
-		
-		var forward_stack = [],
-			backward_stack = [],
-			/** @type {tag()} */
-			opening_tag = null,
-			/** @type {tag()} */
-			closing_tag = null,
-			html_len = html.length,
-			m,
-			ix,
-			tmp_tag;
-			
-		forward_stack.last = backward_stack.last = function() {
-			return this[this.length - 1];
-		};
-		
-		function hasMatch(str, start) {
-			if (arguments.length == 1)
-				start = ix;
-			return html.substr(start, str.length) == str;
-		}
-		
-		function searchCommentStart(from) {
-			while (from--) {
-				if (html.charAt(from) == '<' && hasMatch('<!--', from))
-					break;
-			}
-			
-			return from;
-		}
-		
-		// find opening tag
-		ix = start_ix;
-		while (ix-- && ix >= 0) {
-			var ch = html.charAt(ix);
-			if (ch == '<') {
-				var check_str = html.substring(ix, html_len);
-				
-				if ( (m = check_str.match(end_tag)) ) { // found closing tag
-					tmp_tag = tag(m, ix);
-					if (tmp_tag.start < start_ix && tmp_tag.end > start_ix) // direct hit on searched closing tag
-						closing_tag = tmp_tag;
-					else
-						backward_stack.push(tmp_tag);
-				} else if ( (m = check_str.match(start_tag)) ) { // found opening tag
-					tmp_tag = tag(m, ix);
-					
-					if (tmp_tag.unary) {
-						if (tmp_tag.start < start_ix && tmp_tag.end > start_ix) // exact match
-							// TODO handle unary tag 
-							return action(tmp_tag, null, start_ix);
-					} else if (backward_stack.last() && backward_stack.last().name == tmp_tag.name) {
-						backward_stack.pop();
-					} else { // found nearest unclosed tag
-						opening_tag = tmp_tag;
+	function findClosingPair(open, matcher) {
+		var stack = [], tag = null;
+		var text = matcher.text();
+		for (var pos = open.range.end, len = text.length; pos < len; pos++) {
+			if (matches(text, pos, '<!--')) {
+				// skip to end of comment
+				for (var j = pos; j < len; j++) {
+					if (matches(text, j, '-->')) {
+						pos = j + 3;
 						break;
 					}
-				} else if (check_str.indexOf('<!--') == 0) { // found comment start
-					var end_ix = check_str.search('-->') + ix + 3;
-					if (ix < start_ix && end_ix >= start_ix)
-						return action( comment(ix, end_ix) );
 				}
-			} else if (ch == '-' && hasMatch('-->')) { // found comment end
-				// search left until comment start is reached
-				ix = searchCommentStart(ix);
 			}
-		}
-		
-		if (!opening_tag)
-			return action(null);
-		
-		// find closing tag
-		if (!closing_tag) {
-			for (ix = start_ix; ix < html_len; ix++) {
-				var ch = html.charAt(ix);
-				if (ch == '<') {
-					var check_str = html.substring(ix, html_len);
+			
+			if (tag = matcher.matches(pos)) {
+				if (tag.type == 'open' && !tag.selfClose) {
+					stack.push(tag.name);
+				} else if (tag.type == 'close') {
+					if (!stack.length) { // found valid pair?
+						return tag.name == open.name ? tag : null;
+					}
 					
-					if ( (m = check_str.match(start_tag)) ) { // found opening tag
-						tmp_tag = tag(m, ix);
-						if (!tmp_tag.unary)
-							forward_stack.push( tmp_tag );
-					} else if ( (m = check_str.match(end_tag)) ) { // found closing tag
-						var tmp_tag = tag(m, ix);
-						if (forward_stack.last() && forward_stack.last().name == tmp_tag.name)
-							forward_stack.pop();
-						else { // found matched closing tag
-							closing_tag = tmp_tag;
-							break;
+					// check if current closing tag matches previously opened one
+					if (_.last(stack) == tag.name) {
+						stack.pop();
+					} else if (tag.name == open.name) {
+						// looks like stack contains unclosed elements,
+						// but current closing tag matches opening one
+						return tag;
+					} else {
+						var found = false;
+						while (stack.length && !found) {
+							var last = stack.pop();
+							if (last == tag.name) {
+								found = true;
+							}
 						}
-					} else if (hasMatch('<!--')) { // found comment
-						ix += check_str.search('-->') + 2;
-					}
-				} else if (ch == '-' && hasMatch('-->')) {
-					// looks like cursor was inside comment with invalid HTML
-					if (!forward_stack.last() || forward_stack.last().type != 'comment') {
-						var end_ix = ix + 3;
-						return action(comment( searchCommentStart(ix), end_ix ));
+						
+						// found invalid closing tag
+						if (!stack.length && !found) {
+							return null;
+						}
 					}
 				}
 			}
+			
 		}
-		
-		return action(opening_tag, closing_tag, start_ix);
 	}
 	
-	/**
-	 * Search for matching tags in <code>html</code>, starting 
-	 * from <code>start_ix</code> position. The result is automatically saved in 
-	 * <code>last_match</code> property
-	 * 
-	 * @return {Array|null}
-	 */
-	var HTMLPairMatcher = function(/* String */ html, /* Number */ start_ix, /*  */ mode){
-		return findPair(html, start_ix, mode, saveMatch);
+	return {
+		/**
+		 * Main function: search for tag pair in <code>text</code> for given 
+		 * position
+		 * @memberOf htmlMatcher
+		 * @param {String} text 
+		 * @param {Number} pos
+		 * @returns {Object}
+		 */
+		find: function(text, pos) {
+			var range = require('range');
+			var matcher = createMatcher(text); 
+			var open = null, close = null;
+			
+			for (var i = pos; i >= 0; i--) {
+				if (open = matcher.open(i)) {
+					// found opening tag
+					if (open.selfClose && open.range.cmp(pos, 'lt', 'gt')) {
+						// inside self-closing tag
+						break;
+					}
+					
+					close = findClosingPair(open, matcher);
+					if (close) {
+						// found closing tag.
+						var r = range.create2(open.range.start, close.range.end);
+						if (r.contains(pos)) {
+							break;
+						}
+					} else if (open.range.contains(pos)) {
+						// we inside empty HTML tag like <br>
+						break;
+					}
+					
+					open = null;
+				} else if (matches(text, i, '-->')) {
+					// skip back to comment start
+					for (var j = i - 1; j >= 0; j--) {
+						if (matches(text, j, '-->')) {
+							// found another comment end, do nothing
+							break;
+						} else if (matches(text, j, '<!--')) {
+							i = j;
+							break;
+						}
+					}
+				} else if (matches(text, i, '<!--')) {
+					// we're inside comment, match it
+					var j = i + 4, jl = text.length;
+					for (; j < jl; j++) {
+						if (matches(text, j, '-->')) {
+							j += 3;
+							break;
+						}
+					}
+					
+					open = comment(i, j);
+					break;
+				}
+			}
+			
+			if (open) {
+				var outerRange = null;
+				var innerRange = null;
+				
+				if (close) {
+					outerRange = range.create2(open.range.start, close.range.end);
+					innerRange = range.create2(open.range.end, close.range.start);
+				} else {
+					outerRange = innerRange = range.create2(open.range.start, open.range.end);
+				}
+				
+				if (open.type == 'comment') {
+					// adjust positions of inner range for comment
+					var _c = outerRange.substring(text);
+					innerRange.start += _c.length - _c.replace(/^<\!--\s*/, '').length;
+					innerRange.end -= _c.length - _c.replace(/\s*-->$/, '').length;
+				}
+				
+				return {
+					open: open,
+					close: close,
+					type: open.type == 'comment' ? 'comment' : 'tag',
+					innerRange: innerRange,
+					innerContent: function() {
+						return this.innerRange.substring(text);
+					},
+					outerRange: outerRange,
+					outerContent: function() {
+						return this.outerRange.substring(text);
+					},
+					range: !innerRange.length() || !innerRange.cmp(pos, 'lte', 'gte') ? outerRange : innerRange,
+					content: function() {
+						return this.range.substring(text);
+					},
+					source: text
+				};
+			}
+		},
+		
+		/**
+		 * The same as <code>find()</code> method, but restricts matched result 
+		 * to <code>tag</code> type
+		 * @param {String} text 
+		 * @param {Number} pos
+		 * @returns {Object}
+		 */
+		tag: function(text, pos) {
+			var result = this.find(text, pos);
+			if (result && result.type == 'tag') {
+				return result;
+			}
+		}
 	};
-	
-	HTMLPairMatcher.start_tag = start_tag;
-	HTMLPairMatcher.end_tag = end_tag;
-	
-	/**
-	 * Search for matching tags in <code>html</code>, starting from 
-	 * <code>start_ix</code> position. The difference between 
-	 * <code>HTMLPairMatcher</code> function itself is that <code>find</code> 
-	 * method doesn't save matched result in <code>last_match</code> property.
-	 * This method is generally used for lookups 
-	 */
-	HTMLPairMatcher.find = function(html, start_ix, mode) {
-		return findPair(html, start_ix, mode);
-	};
-	
-	/**
-	 * Search for matching tags in <code>html</code>, starting from 
-	 * <code>start_ix</code> position. The difference between 
-	 * <code>HTMLPairMatcher</code> function itself is that <code>getTags</code> 
-	 * method doesn't save matched result in <code>last_match</code> property 
-	 * and returns array of opening and closing tags
-	 * This method is generally used for lookups 
-	 */
-	HTMLPairMatcher.getTags = function(html, start_ix, mode) {
-		return findPair(html, start_ix, mode, function(opening_tag, closing_tag){
-			return [opening_tag, closing_tag];
-		});
-	};
-	
-	HTMLPairMatcher.last_match = last_match;
-	
-	try {
-		emmet.define('html_matcher', function() {
-			return HTMLPairMatcher;
-		});
-	} catch(e){}
-	
-})();/**
+});/**
  * Utility module for handling tabstops tokens generated by Emmet's 
  * "Expand Abbreviation" action. The main <code>extract</code> method will take
  * raw text (for example: <i>${0} some ${1:text}</i>), find all tabstops 
@@ -6659,13 +6717,19 @@ emmet.define('filters', function(require, _) {
 		composeList: function(syntax, profile, additionalFilters) {
 			profile = require('profile').get(profile);
 			var filters = list(profile.filters || require('resources').findItem(syntax, 'filters') || basicFilters);
+			
+			if (profile.extraFilters) {
+				filters = filters.concat(list(profile.extraFilters));
+			}
 				
-			if (additionalFilters)
+			if (additionalFilters) {
 				filters = filters.concat(list(additionalFilters));
+			}
 				
-			if (!filters || !filters.length)
+			if (!filters || !filters.length) {
 				// looks like unknown syntax, apply basic filters
 				filters = list(basicFilters);
+			}
 				
 			return filters;
 		},
@@ -8139,8 +8203,6 @@ emmet.define('wrapWithAbbreviation', function(require, _) {
 		var utils = require('utils');
 		/** @type emmet.editorUtils */
 		var editorUtils = require('editorUtils');
-		var matcher = require('html_matcher');
-		
 		abbr = abbr || editor.prompt("Enter abbreviation");
 		
 		if (!abbr) 
@@ -8148,30 +8210,25 @@ emmet.define('wrapWithAbbreviation', function(require, _) {
 		
 		abbr = String(abbr);
 		
-		var range = editor.getSelectionRange();
-		var startOffset = range.start;
-		var endOffset = range.end;
+		var range = require('range').create(editor.getSelectionRange());
 		
-		if (startOffset == endOffset) {
+		if (!range.length()) {
 			// no selection, find tag pair
-			range = matcher(info.content, startOffset, info.profile);
-			
-			if (!range || range[0] == -1) // nothing to wrap
+			var match = require('htmlMatcher').tag(info.content, range.start);
+			if (!match) {  // nothing to wrap
 				return false;
+			}
 			
-			/** @type Range */
-			var narrowedSel = utils.narrowToNonSpace(info.content, range[0], range[1] - range[0]);
-			startOffset = narrowedSel.start;
-			endOffset = narrowedSel.end;
+			range = utils.narrowToNonSpace(info.content, match.range);
 		}
 		
-		var newContent = utils.escapeText(info.content.substring(startOffset, endOffset));
+		var newContent = utils.escapeText(range.substring(info.content));
 		var result = module
 			.wrap(abbr, editorUtils.unindent(editor, newContent), info.syntax, 
 					info.profile, require('actionUtils').captureContext(editor));
 		
 		if (result) {
-			editor.replaceContent(result, startOffset, endOffset);
+			editor.replaceContent(result, range.start, range.end);
 			return true;
 		}
 		
@@ -8240,10 +8297,9 @@ emmet.exec(function(require, _) {
 			
 		if (!range.length()) {
 			// no selection, find matching tag
-			var pair = require('html_matcher').getTags(info.content, editor.getCaretPos(), info.profile);
-			if (pair && pair[0]) { // found pair
-				range.start = pair[0].start;
-				range.end = pair[1] ? pair[1].end : pair[0].end;
+			var tag = require('htmlMatcher').tag(info.content, editor.getCaretPos());
+			if (tag) { // found pair
+				range = tag.outerRange;
 			}
 		}
 		
@@ -8416,9 +8472,8 @@ emmet.exec(function(require, _) {
 			// current token, we have to make sure that cursor is not inside
 			// 'style' attribute of html element
 			var caretPos = editor.getCaretPos();
-			var pair = require('html_matcher').getTags(info.content, caretPos);
-			if (pair && pair[0] && pair[0].type == 'tag' && 
-					pair[0].start <= caretPos && pair[0].end >= caretPos) {
+			var tag = require('htmlMatcher').tag(info.content, caretPos);
+			if (tag && tag.open.range.inside(caretPos)) {
 				info.syntax = 'html';
 			}
 		}
@@ -9007,7 +9062,8 @@ emmet.exec(function(require, _) {
 emmet.exec(function(require, _) {
 	/** @type emmet.actions */
 	var actions = require('actions');
-	var matcher = require('html_matcher');
+	var matcher = require('htmlMatcher');
+	var lastMatch = null;
 	
 	/**
 	 * Find and select HTML tag pair
@@ -9015,54 +9071,60 @@ emmet.exec(function(require, _) {
 	 * @param {String} direction Direction of pair matching: 'in' or 'out'. 
 	 * Default is 'out'
 	 */
-	function matchPair(editor, direction, syntax) {
+	function matchPair(editor, direction) {
 		direction = String((direction || 'out').toLowerCase());
-		var info = require('editorUtils').outputInfo(editor, syntax);
-		syntax = info.syntax;
+		var info = require('editorUtils').outputInfo(editor);
 		
 		var range = require('range');
 		/** @type Range */
-		var selRange = range.create(editor.getSelectionRange());
+		var sel = range.create(editor.getSelectionRange());
 		var content = info.content;
-		/** @type Range */
-		var tagRange = null;
-		/** @type Range */
-		var _r;
 		
-		var oldOpenTag = matcher.last_match['opening_tag'];
-		var oldCloseTag = matcher.last_match['closing_tag'];
-			
-		if (direction == 'in' && oldOpenTag && selRange.length()) {
-//			user has previously selected tag and wants to move inward
-			if (!oldCloseTag) {
-//				unary tag was selected, can't move inward
-				return false;
-			} else if (oldOpenTag.start == selRange.start) {
-				if (content.charAt(oldOpenTag.end) == '<') {
-//					test if the first inward tag matches the entire parent tag's content
-					_r = range.create(matcher.find(content, oldOpenTag.end + 1, syntax));
-					if (_r.start == oldOpenTag.end && _r.end == oldCloseTag.start) {
-						tagRange = range.create(matcher(content, oldOpenTag.end + 1, syntax));
-					} else {
-						tagRange = range.create(oldOpenTag.end, oldCloseTag.start - oldOpenTag.end);
-					}
-				} else {
-					tagRange = range.create(oldOpenTag.end, oldCloseTag.start - oldOpenTag.end);
-				}
-			} else {
-				var newCursor = content.substring(0, oldCloseTag.start).indexOf('<', oldOpenTag.end);
-				var searchPos = newCursor != -1 ? newCursor + 1 : oldOpenTag.end;
-				tagRange = range.create(matcher(content, searchPos, syntax));
-			}
-		} else {
-			tagRange = range.create(matcher(content, selRange.end, syntax));
+		// validate previous match
+		if (lastMatch && !lastMatch.range.equal(sel)) {
+			lastMatch = null;
 		}
 		
-		if (tagRange && tagRange.start != -1) {
-			editor.createSelection(tagRange.start, tagRange.end);
+		if (lastMatch && sel.length()) {
+			if (direction == 'in') {
+				// user has previously selected tag and wants to move inward
+				if (lastMatch.type == 'tag' && !lastMatch.close) {
+					// unary tag was selected, can't move inward
+					return false;
+				} else {
+					if (lastMatch.range.equal(lastMatch.outerRange)) {
+						lastMatch.range = lastMatch.innerRange;
+					} else {
+						var narrowed = require('utils').narrowToNonSpace(content, lastMatch.innerRange);
+						lastMatch = matcher.find(content, narrowed.start + 1);
+						if (lastMatch && lastMatch.range.equal(sel) && lastMatch.outerRange.equal(sel)) {
+							lastMatch.range = lastMatch.innerRange;
+						}
+					}
+				}
+			} else {
+				if (
+						!lastMatch.innerRange.equal(lastMatch.outerRange) 
+						&& lastMatch.range.equal(lastMatch.innerRange) 
+						&& sel.equal(lastMatch.range)) {
+					lastMatch.range = lastMatch.outerRange;
+				} else {
+					lastMatch = matcher.find(content, sel.start);
+					if (lastMatch && lastMatch.range.equal(sel) && lastMatch.innerRange.equal(sel)) {
+						lastMatch.range = lastMatch.outerRange;
+					}
+				}
+			}
+		} else {
+			lastMatch = matcher.find(content, sel.start);
+		}
+		
+		if (lastMatch && !lastMatch.range.equal(sel)) {
+			editor.createSelection(lastMatch.range.start, lastMatch.range.end);
 			return true;
 		}
 		
+		lastMatch = null;
 		return false;
 	}
 	
@@ -9087,22 +9149,15 @@ emmet.exec(function(require, _) {
 			// looks like caret is outside of tag pair  
 			caretPos++;
 			
-		var tags = matcher.getTags(content, caretPos, String(editor.getProfileName()));
-			
-		if (tags && tags[0]) {
-			// match found
-			var openTag = tags[0];
-			var closeTag = tags[1];
-				
-			if (closeTag) { // exclude unary tags
-				if (openTag.start <= caretPos && openTag.end >= caretPos) {
-					editor.setCaretPos(closeTag.start);
-					return true;
-				} else if (closeTag.start <= caretPos && closeTag.end >= caretPos){
-					editor.setCaretPos(openTag.start);
-					return true;
-				}
+		var tag = matcher.tag(content, caretPos);
+		if (tag && tag.close) { // exclude unary tags
+			if (tag.open.range.inside(caretPos)) {
+				editor.setCaretPos(tag.close.range.start);
+			} else {
+				editor.setCaretPos(tag.open.range.start);
 			}
+			
+			return true;
 		}
 		
 		return false;
@@ -9119,22 +9174,22 @@ emmet.exec(function(require, _) {
 		var info = require('editorUtils').outputInfo(editor);
 		
 		// search for tag
-		var pair = require('html_matcher').getTags(info.content, editor.getCaretPos(), info.profile);
-		if (pair && pair[0]) {
-			if (!pair[1]) {
+		var tag = require('htmlMatcher').tag(info.content, editor.getCaretPos());
+		if (tag) {
+			if (!tag.close) {
 				// simply remove unary tag
-				editor.replaceContent(utils.getCaretPlaceholder(), pair[0].start, pair[0].end);
+				editor.replaceContent(utils.getCaretPlaceholder(), tag.range.start, tag.range.end);
 			} else {
 				// remove tag and its newlines
 				/** @type Range */
-				var tagContentRange = utils.narrowToNonSpace(info.content, pair[0].end, pair[1].start - pair[0].end);
+				var tagContentRange = utils.narrowToNonSpace(info.content, tag.innerRange);
 				/** @type Range */
 				var startLineBounds = utils.findNewlineBounds(info.content, tagContentRange.start);
 				var startLinePad = utils.getLinePadding(startLineBounds.substring(info.content));
 				var tagContent = tagContentRange.substring(info.content);
 				
 				tagContent = utils.unindentString(tagContent, startLinePad);
-				editor.replaceContent(utils.getCaretPlaceholder() + utils.escapeText(tagContent), pair[0].start, pair[1].end);
+				editor.replaceContent(utils.getCaretPlaceholder() + utils.escapeText(tagContent), tag.outerRange.start, tag.outerRange.end);
 			}
 			
 			return true;
@@ -9156,28 +9211,29 @@ emmet.exec(function(require, _) {
 	/**
 	 * @param {IEmmetEditor} editor
 	 * @param {Object} profile
-	 * @param {Object} htmlMatch
+	 * @param {Object} tag
 	 */
-	function joinTag(editor, profile, htmlMatch) {
+	function joinTag(editor, profile, tag) {
 		/** @type emmet.utils */
 		var utils = require('utils');
 		
-		var closingSlash = (profile.self_closing_tag === true) ? '/' : ' /';
-		var content = htmlMatch[0].full_tag.replace(/\s*>$/, closingSlash + '>');
+		// empty closing slash is a nonsense for this action
+		var slash = profile.selfClosing() || ' /';
+		var content = tag.open.range.substring(tag.source).replace(/\s*>$/, slash + '>');
 		
 		// add caret placeholder
-		if (content.length + htmlMatch[0].start < editor.getCaretPos())
+		if (content.length + tag.outerRange.start < editor.getCaretPos())
 			content += utils.getCaretPlaceholder();
 		else {
-			var d = editor.getCaretPos() - htmlMatch[0].start;
+			var d = editor.getCaretPos() - tag.outerRange.start;
 			content = utils.replaceSubstring(content, utils.getCaretPlaceholder(), d);
 		}
 		
-		editor.replaceContent(content, htmlMatch[0].start, htmlMatch[1].end);
+		editor.replaceContent(content, tag.outerRange.start, tag.outerRange.end);
 		return true;
 	}
 	
-	function splitTag(editor, profile, htmlMatch) {
+	function splitTag(editor, profile, tag) {
 		/** @type emmet.utils */
 		var utils = require('utils');
 		
@@ -9187,25 +9243,24 @@ emmet.exec(function(require, _) {
 		
 		// define tag content depending on profile
 		var tagContent = (profile.tag_nl === true) ? nl + pad + caret + nl : caret;
+		var content = tag.outerContent().replace(/\s*\/>$/, '>') + tagContent + '</' + tag.open.name + '>';
 				
-		var content = htmlMatch[0].full_tag.replace(/\s*\/>$/, '>') + tagContent + '</' + htmlMatch[0].name + '>';
-		editor.replaceContent(content, htmlMatch[0].start, htmlMatch[0].end);
+		editor.replaceContent(content, tag.outerRange.start, tag.outerRange.end);
 		return true;
 	}
 	
 	require('actions').add('split_join_tag', function(editor, profileName) {
-		var matcher = require('html_matcher');
+		var matcher = require('htmlMatcher');
 		
 		var info = require('editorUtils').outputInfo(editor, null, profileName);
 		var profile = require('profile').get(info.profile);
 		
 		// find tag at current position
-		var pair = matcher.getTags(info.content, editor.getCaretPos(), info.profile);
-		if (pair && pair[0]) {
-			if (pair[1]) { // join tag
-				return joinTag(editor, profile, pair);
-			}
-			return splitTag(editor, profile, pair);
+		var tag = matcher.tag(info.content, editor.getCaretPos());
+		if (tag) {
+			return tag.close 
+				? joinTag(editor, profile, tag) 
+				: splitTag(editor, profile, tag);
 		}
 		
 		return false;
@@ -9515,9 +9570,8 @@ emmet.exec(function(require, _) {
 		if (_.include(['html', 'xml', 'xsl'], info.syntax)) {
 			var pad = res.getVariable('indentation');
 			// let's see if we're breaking newly created tag
-			var pair = require('html_matcher').getTags(info.content, caretPos, info.profile);
-			
-			if (pair[0] && pair[1] && pair[0].type == 'tag' && pair[0].end == caretPos && pair[1].start == caretPos) {
+			var tag = require('htmlMatcher').tag(info.content, caretPos);
+			if (tag && !tag.innerRange.length()) {
 				editor.replaceContent(nl + pad + utils.getCaretPlaceholder() + nl, caretPos);
 				return true;
 			}
@@ -9606,7 +9660,7 @@ emmet.exec(function(require, _) {
  */
 emmet.exec(function(require, _) {
 	require('actions').add('merge_lines', function(editor) {
-		var matcher = require('html_matcher');
+		var matcher = require('htmlMatcher');
 		var utils = require('utils');
 		var editorUtils = require('editorUtils');
 		var info = editorUtils.outputInfo(editor);
@@ -9615,10 +9669,9 @@ emmet.exec(function(require, _) {
 		var selection = require('range').create(editor.getSelectionRange());
 		if (!selection.length()) {
 			// find matching tag
-			var pair = matcher(info.content, editor.getCaretPos(), info.profile);
+			var pair = matcher.find(info.content, editor.getCaretPos());
 			if (pair) {
-				selection.start = pair[0];
-				selection.end = pair[1];
+				selection = pair.outerRange;
 			}
 		}
 		

@@ -85,14 +85,14 @@ var editorProxy = emmet.exec(function(require, _) {
 				// * Python's multiline block
 				// * CoffeeScript string
 				// * PHP heredoc
-				return null;
+				return pyDetectProfile();
 			}
 
 			if (view.score_selector(pos, 'source string')) {
 				return 'line';
 			}
 
-			return null;
+			return pyDetectProfile();
 		},
 
 		prompt: function(title) {
@@ -192,15 +192,15 @@ function pyCaptureWrappingRange() {
 	
 	if (startOffset == endOffset) {
 		// no selection, find tag pair
-		var matcher = require('html_matcher');
-		range = matcher(info.content, startOffset, info.profile);
-		
-		if (!range || range[0] == -1) // nothing to wrap
+		var match = require('htmlMatcher').find(info.content, startOffset);
+		if (!match) {
+			// nothing to wrap
 			return null;
+		}
 		
 		/** @type Range */
 		var utils = require('utils');
-		var narrowedSel = utils.narrowToNonSpace(info.content, range[0], range[1] - range[0]);
+		var narrowedSel = utils.narrowToNonSpace(info.content, match.range);
 		startOffset = narrowedSel.start;
 		endOffset = narrowedSel.end;
 	}
@@ -294,15 +294,19 @@ function pyGetSyntax() {
 		return 'xsl';
 	}
 
+	var syntax = 'html';
+
 	// detect CSS-like syntaxes independently, 
 	// since it may cause collisions with some highlighters
 	if (/\b(less|scss|sass|css|stylus)\b/.test(scope)) {
-		return RegExp.$1;
+		syntax = RegExp.$1;
+	} else if (/\b(html|xml|haml)\b/.test(scope)) {
+		syntax = RegExp.$1;
 	}
 
-	if (/\b(html|xml|haml)\b/.test(scope)) {
-		return RegExp.$1;
-	}
+	return require('actionUtils').detectSyntax(editorProxy, syntax);
+}
 
-	return 'html';
+function pyDetectProfile(argument) {
+	return require('actionUtils').detectProfile(editorProxy);
 }

@@ -114,6 +114,7 @@ def update_settings():
 
 	ctx.reset()
 	ctx.load_user_data(json.dumps(payload))
+	ctx.js()
 
 def should_perform_action(name, view=None):
 	if not view:
@@ -133,7 +134,7 @@ def should_perform_action(name, view=None):
 
 	return name not in re.split(r'\s*,\s*', disabled_actions.strip())
 
-def should_handle_tab_key():
+def should_handle_tab_key(syntax=None):
 	view = active_view()
 	scopes = settings.get('disabled_single_snippet_for_scopes', None)
 	cur_scope = view.syntax_name(view.sel()[0].begin())
@@ -151,6 +152,13 @@ def should_handle_tab_key():
 
 	if re.match(r'^(lorem|lipsum)\d*$', abbr):
 		# hardcoded Lorem Ipsum generator
+		return True
+
+	# detect inline CSS
+	if syntax is None:
+		syntax = ctx.js().locals.pyGetSyntax();
+
+	if syntax == 'css':
 		return True
 
 	known_tags = settings.get('known_html_tags', '').split()
@@ -249,8 +257,8 @@ class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
 
 
 class TabExpandHandler(sublime_plugin.EventListener):
-	def correct_syntax(self, view):
-		return view.match_selector( view.sel()[0].b, cmpl.EMMET_SCOPE )
+	def correct_syntax(self, view, syntax='html'):
+		return syntax == 'html' and view.match_selector( view.sel()[0].b, cmpl.EMMET_SCOPE )
 
 	def html_elements_attributes(self, view, prefix, pos):
 		tag         = cmpl.find_tag_name(view, pos)
@@ -289,13 +297,17 @@ class TabExpandHandler(sublime_plugin.EventListener):
 		if key != 'is_abbreviation':
 			return None
 
-		if not check_context() or not should_handle_tab_key():
+		if not check_context():
+			return False;
+
+		syntax = ctx.js().locals.pyGetSyntax();
+		if not should_handle_tab_key(syntax):
 			return False
 
 		# we need to filter out attribute completions if 
 		# 'disable_completions' option is not active
 		if (not settings.get('disable_completions', False) and 
-			self.correct_syntax(view) and 
+			self.correct_syntax(view, syntax) and 
 			self.completion_handler(view)):
 				return None
 
@@ -324,10 +336,13 @@ class TabExpandHandler(sublime_plugin.EventListener):
 					for p in completions:
 						l.append(('%s\t%s' % (p['k'], p['label']), p['v']))
 
+			if not l:
+				return []
+
 			return (l, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
-		if ( not self.correct_syntax(view) or
-			 settings.get('disable_completions', False) ): return []
+		if not self.correct_syntax(view) or settings.get('disable_completions', False):
+			return []
 
 		handler = self.completion_handler(view)
 		if handler:
@@ -522,5 +537,5 @@ class EmmetInsertAttribute(sublime_plugin.TextCommand):
 
 class EmmetResetContext(sublime_plugin.TextCommand):
 	def run(self, edit, **kw):
-		ctx.reset()
+		update_settings()
 
