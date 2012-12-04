@@ -1298,7 +1298,7 @@ if (typeof exports !== 'undefined') {
  * @param {Underscore} _
  */
 emmet.define('abbreviationParser', function(require, _) {
-	var reValidName = /^[\w\-\$\:@\!]+\+?$/i;
+	var reValidName = /^[\w\-\$\:@\!%]+\+?$/i;
 	var reWord = /[\w\-:\$]/;
 	
 	var pairs = {
@@ -2070,7 +2070,7 @@ emmet.define('abbreviationParser', function(require, _) {
 	
 	function isAllowedChar(ch) {
 		var charCode = ch.charCodeAt(0);
-		var specialChars = '#.*:$-_!@|';
+		var specialChars = '#.*:$-_!@|%';
 		
 		return (charCode > 64 && charCode < 91)       // uppercase letter
 				|| (charCode > 96 && charCode < 123)  // lowercase letter
@@ -10161,7 +10161,7 @@ emmet.define('cssResolver', function(require, _) {
 	}
 	
 	function normalizeHexColor(value) {
-		var hex = value.replace(/^#+/, '');
+		var hex = value.replace(/^#+/, '') || '0';
 		var repeat = require('utils').repeatString;
 		var color = null;
 		switch (hex.length) {
@@ -10603,10 +10603,10 @@ emmet.define('cssResolver', function(require, _) {
 						stream.start = stream.pos;
 					}
 					
-					stream.match(/^\-?[0-9]*(\.[0-9]+)?[a-z\.]*/, true);
+					stream.match(/^\-?[0-9]*(\.[0-9]+)?[a-z%\.]*/, true);
 					values.push(stream.current());
 				} else {
-					stream.match(/^[0-9]*(\.[0-9]+)?[a-z]*/, true);
+					stream.match(/^[0-9]*(\.[0-9]*)?[a-z%]*/, true);
 					values.push(stream.current());
 				}
 				
@@ -10652,7 +10652,7 @@ emmet.define('cssResolver', function(require, _) {
 					return val;
 				
 				if (!unit)
-					return val + prefs.get(~val.indexOf('.') ? 'css.floatUnit' : 'css.intUnit');
+					return val.replace(/\.$/, '') + prefs.get(~val.indexOf('.') ? 'css.floatUnit' : 'css.intUnit');
 				
 				return val + getUnit(unit);
 			});
