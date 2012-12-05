@@ -214,14 +214,14 @@ function pyGetTagNameRanges() {
 		
 	// search for tag
 	try {
-		var pair = require('html_matcher').getTags(info.content, editorProxy.getCaretPos(), info.profile);
-		if (pair && pair[0]) {
-			var openingTag = info.content.substring(pair[0].start, pair[0].end);
-			var tagName = /^<([\w\-\:]+)/i.exec(openingTag)[1];
-			ranges.push([pair[0].start + 1, pair[0].start + 1 + tagName.length]);
+		var tag = require('htmlMatcher').tag(info.content, editorProxy.getCaretPos());
+		if (tag) {
+			var open = tag.open.range;
+			var tagName = /^<([\w\-\:]+)/i.exec(open.substring(info.content))[1];
+			ranges.push([open.start + 1, open.start + 1 + tagName.length]);
 
-			if (pair[1]) {
-				ranges.push([pair[1].start + 2, pair[1].start + 2 + tagName.length]);
+			if (tag.close) {
+				ranges.push([tag.close.range.start + 2, tag.close.range.start + 2 + tagName.length]);
 			}
 		}
 	} catch (e) {}
@@ -235,11 +235,11 @@ function pyGetTagRanges() {
 		
 	// search for tag
 	try {
-		var pair = require('html_matcher').getTags(info.content, editorProxy.getCaretPos(), info.profile);
-		if (pair && pair[0]) {
-			ranges.push([pair[0].start, pair[0].end]);
-			if (pair[1]) {
-				ranges.push([pair[1].start, pair[1].end]);
+		var tag = require('htmlMatcher').tag(info.content, editorProxy.getCaretPos());
+		if (tag) {
+			ranges.push(tag.open.range.toArray());
+			if (tag.close) {
+				ranges.push(tag.close.range.toArray());
 			}
 		}
 	} catch (e) {}
