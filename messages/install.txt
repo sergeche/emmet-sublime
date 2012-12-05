@@ -25,7 +25,7 @@ To disable Enter key handler, simply add the following option in your user's Pre
 Actions shortcuts
 ==========================
 
-Emmet has a number actions with keyboard shortcuts that may override ones you're using commonly (for example, Ctrl-E or Ctrl-Down). Please pead the project main page to get list of available actions and keyboard shortcuts and how to disable them:
+Emmet has a number actions with keyboard shortcuts that may override ones you're using commonly (for example, Ctrl-E or Ctrl-Down). Please read the project main page to get list of available actions and keyboard shortcuts and how to disable them:
 https://github.com/sergeche/emmet-sublime
 
 Documentation and examples:
