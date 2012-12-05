@@ -5924,6 +5924,7 @@ emmet.define('htmlMatcher', function(require, _) {
 	function findClosingPair(open, matcher) {
 		var stack = [], tag = null;
 		var text = matcher.text();
+		
 		for (var pos = open.range.end, len = text.length; pos < len; pos++) {
 			if (matches(text, pos, '<!--')) {
 				// skip to end of comment
@@ -5946,10 +5947,6 @@ emmet.define('htmlMatcher', function(require, _) {
 					// check if current closing tag matches previously opened one
 					if (_.last(stack) == tag.name) {
 						stack.pop();
-					} else if (tag.name == open.name) {
-						// looks like stack contains unclosed elements,
-						// but current closing tag matches opening one
-						return tag;
 					} else {
 						var found = false;
 						while (stack.length && !found) {
@@ -5959,9 +5956,8 @@ emmet.define('htmlMatcher', function(require, _) {
 							}
 						}
 						
-						// found invalid closing tag
 						if (!stack.length && !found) {
-							return null;
+							return tag.name == open.name ? tag : null;
 						}
 					}
 				}
@@ -8090,24 +8086,22 @@ emmet.define('expandAbbreviation', function(require, _) {
 	 * @param {String} profile Output profile name (html, xml, xhtml)
 	 */
 	actions.add('expand_abbreviation_with_tab', function(editor, syntax, profile) {
-		// do nothing if there is a selection
-		var sel = !!editor.getSelection();
+		var sel = editor.getSelection();
 		var indent = require('resources').getVariable('indentation');
-//		TODO create indentation
-//		if (sel) {
-//			// create a proper indentation, if there’s a selection that
-//			// spans multiple lines
-//			if (/[\r\n]/.test(sel)) {
-//				var info = require('editorUtils').outputInfo(editor, syntax);
-//				var selRange = require('range').create(editor.getSelectionRange());
-//				
-//			}
-//			
-//			return;
-//		}
+		if (sel) {
+			// indent selection
+			var utils = require('utils');
+			var selRange = require('range').create(editor.getSelectionRange());
+			var content = utils.padString(sel, indent);
+			
+			editor.replaceContent(indent + '${0}', editor.getCaretPos());
+			var replaceRange = require('range').create(editor.getCaretPos(), selRange.length());
+			editor.replaceContent(content, replaceRange.start, replaceRange.end, true);
+			editor.createSelection(replaceRange.start, replaceRange.start + content.length);
+			return;
+		}
 		
-		
-		if (sel || !actions.run('expand_abbreviation', editor, syntax, profile)) {
+		if (!actions.run('expand_abbreviation', editor, syntax, profile)) {
 			editor.replaceContent(indent, editor.getCaretPos());
 		}
 	}, {hidden: true});
