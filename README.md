@@ -1,6 +1,6 @@
 # Emmet for Sublime Text 2 plugin
 
-Official Emmet plugin (previously called _Zen Coding_) for Sublime Text 2.
+Official [Emmet](http://emmet.io) plugin (previously called _Zen Coding_) for Sublime Text 2.
 
 *Warning:* this plugin may not work at all in some OSes since it written in JavaScript and uses [PyV8](http://code.google.com/p/pyv8/) and [Google V8](https://developers.google.com/v8/) binaries to run. If you experience problems or editor crashes please [fill an issue](https://github.com/sergeche/emmet-sublime/issues).
 
