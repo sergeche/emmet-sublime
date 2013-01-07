@@ -9922,7 +9922,9 @@ emmet.exec(function(require, _) {
 	
 	require('actions').add('update_image_size', function(editor) {
 		var result;
-		if (String(editor.getSyntax()) == 'css') {
+		// this action will definitely won’t work in SASS dialect,
+		// but may work in SCSS or LESS
+		if (_.include(['css', 'less', 'scss'], String(editor.getSyntax()))) {
 			result = updateImageSizeCSS(editor);
 		} else {
 			result = updateImageSizeHTML(editor);
@@ -12632,6 +12634,28 @@ emmet.define('bootstrap', function(require, _) {
 	function getBasePath(path) {
 		return path.substring(0, path.length - getFileName(path).length);
 	}
+
+	/**
+	 * Normalizes profile definition: converts some
+	 * properties to valid data types
+	 * @param {Object} profile
+	 * @return {Object}
+	 */
+	function normalizeProfile(profile) {
+		if (_.isObject(profile)) {
+			if ('indent' in profile) {
+				profile.indent = !!profile.indent;
+			}
+
+			if ('self_closing_tag' in profile) {
+				if (_.isNumber(profile.self_closing_tag)) {
+					profile.self_closing_tag = !!profile.self_closing_tag;
+				}
+			}
+		}
+
+		return profile;
+	}
 	
 	return {
 		/**
@@ -12772,7 +12796,7 @@ emmet.define('bootstrap', function(require, _) {
 				if (!(syntax in snippets)) {
 					snippets[syntax] = {};
 				}
-				snippets[syntax].profile = options;
+				snippets[syntax].profile = normalizeProfile(options);
 			});
 			
 			this.loadSnippets(snippets);
@@ -12785,7 +12809,7 @@ emmet.define('bootstrap', function(require, _) {
 		loadProfiles: function(profiles) {
 			var profile = require('profile');
 			_.each(this.parseJSON(profiles), function(options, name) {
-				profile.create(name, options);
+				profile.create(name, normalizeProfile(options));
 			});
 		},
 		
