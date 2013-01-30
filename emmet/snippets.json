@@ -314,6 +314,7 @@
 			"ta:l": "text-align:left;",
 			"ta:c": "text-align:center;",
 			"ta:r": "text-align:right;",
+			"ta:j": "text-align:justify;",
 			"tal": "text-align-last:|;",
 			"tal:a": "text-align-last:auto;",
 			"tal:l": "text-align-last:left;",
