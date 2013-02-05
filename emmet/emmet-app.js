@@ -1277,6 +1277,11 @@ if (typeof exports !== 'undefined') {
 		exports = module.exports = emmet;
 	}
 	exports.emmet = emmet;
+}
+
+// export as Require.js module
+if (typeof define !== 'undefined') {
+	define(emmet);
 }/**
  * Emmet abbreviation parser.
  * Takes string abbreviation and recursively parses it into a tree. The parsed 
@@ -1299,7 +1304,7 @@ if (typeof exports !== 'undefined') {
  */
 emmet.define('abbreviationParser', function(require, _) {
 	var reValidName = /^[\w\-\$\:@\!%]+\+?$/i;
-	var reWord = /[\w\-:\$]/;
+	var reWord = /[\w\-:\$@]/;
 	
 	var pairs = {
 		'[': ']',
@@ -1428,6 +1433,8 @@ emmet.define('abbreviationParser', function(require, _) {
 			_.each(this.children, function(child) {
 				child.updateProperty(name, value);
 			});
+			
+			return this;
 		},
 		
 		/**
@@ -2026,16 +2033,18 @@ emmet.define('abbreviationParser', function(require, _) {
 	 * @returns {AbbreviationNode}
 	 */
 	function unroll(node) {
-		for (var i = node.children.length - 1, j, child; i >= 0; i--) {
+		for (var i = node.children.length - 1, j, child, maxCount; i >= 0; i--) {
 			child = node.children[i];
 			
 			if (child.isRepeating()) {
-				j = child.repeatCount;
+				maxCount = j = child.repeatCount;
 				child.repeatCount = 1;
 				child.updateProperty('counter', 1);
+				child.updateProperty('maxCount', maxCount);
 				while (--j > 0) {
 					child.parent.addChild(child.clone(), i + 1)
-						.updateProperty('counter', j + 1);
+						.updateProperty('counter', j + 1)
+						.updateProperty('maxCount', maxCount);
 				}
 			}
 		}
@@ -2080,7 +2089,7 @@ emmet.define('abbreviationParser', function(require, _) {
 	
 	// XXX add counter replacer function as output processor
 	outputProcessors.push(function(text, node) {
-		return require('utils').replaceCounter(text, node.counter);
+		return require('utils').replaceCounter(text, node.counter, node.maxCount);
 	});
 	
 	return {
@@ -3507,6 +3516,23 @@ emmet.define('utils', function(require, _) {
 		},
 		
 		/**
+		 * Returns list of paddings that should be used to align passed string
+		 * @param {Array} strings
+		 * @returns {Array}
+		 */
+		getStringsPads: function(strings) {
+			var lengths = _.map(strings, function(s) {
+				return _.isString(s) ? s.length : +s;
+			});
+			
+			var max = _.max(lengths);
+			return _.map(lengths, function(l) {
+				var pad = max - l;
+				return pad ? this.repeatString(' ', pad) : '';
+			}, this);
+		},
+		
+		/**
 		 * Indents text with padding
 		 * @param {String} text Text to indent
 		 * @param {String} pad Padding size (number) or padding itself (string)
@@ -3641,16 +3667,22 @@ emmet.define('utils', function(require, _) {
 		
 		/**
 		 * Replaces '$' character in string assuming it might be escaped with '\'
-		 * @param {String} str String where caracter should be replaced
-		 * @param {String} value Replace value. Might be a <code>Function</code>
+		 * @param {String} str String where character should be replaced
+		 * @param {String} value New value
 		 * @return {String}
 		 */
-		replaceCounter: function(str, value) {
+		replaceCounter: function(str, value, total) {
 			var symbol = '$';
 			// in case we received strings from Java, convert the to native strings
 			str = String(str);
 			value = String(value);
+			
+			if (/^\-?\d+$/.test(value)) {
+				value = +value;
+			}
+			
 			var that = this;
+			
 			return this.replaceUnescapedSymbol(str, symbol, function(str, symbol, pos, matchNum){
 				if (str.charAt(pos + 1) == '{' || that.isNumeric(str.charAt(pos + 1)) ) {
 					// it's a variable, skip it
@@ -3660,7 +3692,27 @@ emmet.define('utils', function(require, _) {
 				// replace sequense of $ symbols with padded number  
 				var j = pos + 1;
 				while(str.charAt(j) == '$' && str.charAt(j + 1) != '{') j++;
-				return [str.substring(pos, j), that.zeroPadString(value, j - pos)];
+				var pad = j - pos;
+				
+				// get counter base
+				var base = 0, decrement = false, m;
+				if (m = str.substr(j).match(/^@(\-?)(\d*)/)) {
+					j += m[0].length;
+					
+					if (m[1]) {
+						decrement = true;
+					}
+					
+					base = parseInt(m[2] || 1) - 1;
+				}
+				
+				if (decrement && total && _.isNumber(value)) {
+					value = total - value + 1;
+				}
+				
+				value += base;
+				
+				return [str.substring(pos, j), that.zeroPadString(value + '', pad)];
 			});
 		},
 		
@@ -5991,9 +6043,14 @@ emmet.define('htmlMatcher', function(require, _) {
 			for (var i = pos; i >= 0; i--) {
 				if (open = matcher.open(i)) {
 					// found opening tag
-					if (open.selfClose && open.range.cmp(pos, 'lt', 'gt')) {
-						// inside self-closing tag
-						break;
+					if (open.selfClose) {
+						if (open.range.cmp(pos, 'lt', 'gt')) {
+							// inside self-closing tag, found match
+							break;
+						}
+						
+						// outside self-closing tag, continue
+						continue;
 					}
 					
 					close = findClosingPair(open, matcher);
@@ -10125,6 +10182,10 @@ emmet.define('cssResolver', function(require, _) {
 			+ 'achive. Lower values may produce many false-positive matches, '
 			+ 'higher values may reduce possible matches.');
 	
+	prefs.define('css.alignVendor', false, 
+			'If set to <code>true</code>, all generated vendor-prefixed properties ' 
+			+ 'will be aligned by real property name.');
+	
 	
 	function isNumeric(ch) {
 		var code = ch && ch.charCodeAt(0);
@@ -10166,7 +10227,7 @@ emmet.define('cssResolver', function(require, _) {
 	 * @returns {String}
 	 */
 	function normalizeValue(value) {
-		if (value.charAt(0) == '-' && !/^\-[\.\d]/) {
+		if (value.charAt(0) == '-' && !/^\-[\.\d]/.test(value)) {
 			value = value.replace(/^\-+/, '');
 		}
 		
@@ -10234,30 +10295,6 @@ emmet.define('cssResolver', function(require, _) {
 	
 	function isValidKeyword(keyword) {
 		return _.include(prefs.getArray('css.keywords'), getKeyword(keyword));
-	}
-	
-	/**
-	 * Split snippet into a CSS property-value pair
-	 * @param {String} snippet
-	 */
-	function splitSnippet(snippet) {
-		var utils = require('utils');
-		snippet = utils.trim(snippet);
-		if (snippet.indexOf(':') == -1) {
-			return {
-				name: snippet,
-				value: defaultValue
-			};
-		}
-		
-		var pair = snippet.split(':');
-		
-		return {
-			name: utils.trim(pair.shift()),
-			// replace ${0} tabstop to produce valid vendor-prefixed values
-			// where possible
-			value: utils.trim(pair.join(':')).replace(/^(\$\{0\}|\$0)(\s*;?)$/, '${1}$2')
-		};
 	}
 	
 	/**
@@ -10705,15 +10742,11 @@ emmet.define('cssResolver', function(require, _) {
 			var valuesData = this.extractValues(prefixData.property);
 			var abbrData = _.extend(prefixData, valuesData);
 			
-			snippet = resources.findSnippet(syntax, abbrData.property);
-			
-			// fallback to some old snippets like m:a
-//			if (!snippet && ~abbrData.property.indexOf(':')) {
-//				var parts = abbrData.property.split(':');
-//				var propertyName = parts.shift();
-//				snippet = resources.findSnippet(syntax, propertyName) || propertyName;
-//				abbrData.values = this.parseValues(parts.join(':'));
-//			}
+			if (!snippet) {
+				snippet = resources.findSnippet(syntax, abbrData.property);
+			} else {
+				abbrData.values = null;
+			}
 			
 			if (!snippet && prefs.get('css.fuzzySearch')) {
 				// let’s try fuzzy search
@@ -10730,7 +10763,7 @@ emmet.define('cssResolver', function(require, _) {
 				return snippet;
 			}
 			
-			var snippetObj = splitSnippet(snippet);
+			var snippetObj = this.splitSnippet(snippet);
 			var result = [];
 			if (!value && abbrData.values) {
 				value = _.map(abbrData.values, function(val) {
@@ -10744,18 +10777,27 @@ emmet.define('cssResolver', function(require, _) {
 				? findPrefixes(snippetObj.name, autoInsertPrefixes && abbrData.prefixes != 'all')
 				: abbrData.prefixes;
 				
+				
+			var names = [], propName;
 			_.each(prefixes, function(p) {
 				if (p in vendorPrefixes) {
-					result.push(transformSnippet(
-							vendorPrefixes[p].transformName(snippetObj.name) 
-							+ ':' + snippetObj.value,
+					propName = vendorPrefixes[p].transformName(snippetObj.name);
+					names.push(propName);
+					result.push(transformSnippet(propName + ':' + snippetObj.value,
 							isImportant, syntax));
-					
 				}
 			});
 			
 			// put the original property
 			result.push(transformSnippet(snippetObj.name + ':' + snippetObj.value, isImportant, syntax));
+			names.push(snippetObj.name);
+			
+			if (prefs.get('css.alignVendor')) {
+				var pads = require('utils').getStringsPads(names);
+				result = _.map(result, function(prop, i) {
+					return pads[i] + prop;
+				});
+			}
 			
 			return result;
 		},
@@ -10777,6 +10819,30 @@ emmet.define('cssResolver', function(require, _) {
 				return snippet.data;
 			
 			return String(snippet);
+		},
+		
+		/**
+		 * Split snippet into a CSS property-value pair
+		 * @param {String} snippet
+		 */
+		splitSnippet: function(snippet) {
+			var utils = require('utils');
+			snippet = utils.trim(snippet);
+			if (snippet.indexOf(':') == -1) {
+				return {
+					name: snippet,
+					value: defaultValue
+				};
+			}
+			
+			var pair = snippet.split(':');
+			
+			return {
+				name: utils.trim(pair.shift()),
+				// replace ${0} tabstop to produce valid vendor-prefixed values
+				// where possible
+				value: utils.trim(pair.join(':')).replace(/^(\$\{0\}|\$0)(\s*;?)$/, '${1}$2')
+			};
 		},
 		
 		getSyntaxPreference: getSyntaxPreference,
@@ -10914,6 +10980,29 @@ emmet.define('cssGradient', function(require, _) {
 	}
 	
 	/**
+	 * Resolves property name (abbreviation): searches for snippet definition in 
+	 * 'resources' and returns new name of matched property
+	 */
+	function resolvePropertyName(name, syntax) {
+		var res = require('resources');
+		var prefs = require('preferences');
+		var snippet = res.findSnippet(syntax, name);
+		
+		if (!snippet && prefs.get('css.fuzzySearch')) {
+			snippet = res.fuzzyFindSnippet(syntax, name, 
+					parseFloat(prefs.get('css.fuzzySearchMinScore')));
+		}
+		
+		if (snippet) {
+			if (!_.isString(snippet)) {
+				snippet = snippet.data;
+			}
+			
+			return require('cssResolver').splitSnippet(snippet).name;
+		}
+	}
+	
+	/**
 	 * Fills-out implied positions in color-stops. This function is useful for
 	 * old Webkit gradient definitions
 	 */
@@ -11038,14 +11127,41 @@ emmet.define('cssGradient', function(require, _) {
 	function pasteGradient(property, gradient, valueRange) {
 		var rule = property.parent;
 		var utils = require('utils');
+		var alignVendor = require('preferences').get('css.alignVendor');
+		
+		// we may have aligned gradient definitions: find the smallest value
+		// separator
+		var sep = property.styleSeparator;
+		var before = property.styleBefore;
 		
 		// first, remove all properties within CSS rule with the same name and
 		// gradient definition
 		_.each(rule.getAll(getPrefixedNames(property.name())), function(item) {
 			if (item != property && /gradient/i.test(item.value())) {
+				if (item.styleSeparator.length < sep.length) {
+					sep = item.styleSeparator;
+				}
+				if (item.styleBefore.length < before.length) {
+					before = item.styleBefore;
+				}
 				rule.remove(item);
 			}
 		});
+		
+		if (alignVendor && sep != property.styleSeparator) {
+			// update prefix
+			if (before != property.styleBefore) {
+				var fullRange = property.fullRange();
+				rule._updateSource(before, fullRange.start, fullRange.start + property.styleBefore.length);
+				property.styleBefore = before;
+			}
+			
+			// update separator value
+			if (sep != property.styleSeparator) {
+				rule._updateSource(sep, property.nameRange().end, property.valueRange().start);
+				property.styleSeparator = sep;
+			}
+		}
 		
 		var value = property.value();
 		if (!valueRange)
@@ -11060,6 +11176,28 @@ emmet.define('cssGradient', function(require, _) {
 		
 		// create list of properties to insert
 		var propsToInsert = getPropertiesForGradient(gradient, property.name());
+		
+		// align prefixed values
+		if (alignVendor) {
+			var values = _.pluck(propsToInsert, 'value');
+			var names = _.pluck(propsToInsert, 'name');
+			values.push(property.value());
+			names.push(property.name());
+			
+			var valuePads = utils.getStringsPads(_.map(values, function(v) {
+				return v.substring(0, v.indexOf('('));
+			}));
+			
+			var namePads = utils.getStringsPads(names);
+			property.name(_.last(namePads) + property.name());
+			
+			_.each(propsToInsert, function(prop, i) {
+				prop.name = namePads[i] + prop.name;
+				prop.value = valuePads[i] + prop.value;
+			});
+			
+			property.value(_.last(valuePads) + property.value());
+		}
 		
 		// put vendor-prefixed definitions before current rule
 		_.each(propsToInsert, function(prop) {
@@ -11126,6 +11264,16 @@ emmet.define('cssGradient', function(require, _) {
 			
 			var sep = css.getSyntaxPreference('valueSeparator', syntax);
 			var end = css.getSyntaxPreference('propertyEnd', syntax);
+			
+			if (require('preferences').get('css.alignVendor')) {
+				var pads = require('utils').getStringsPads(_.map(props, function(prop) {
+					return prop.value.substring(0, prop.value.indexOf('('));
+				}));
+				_.each(props, function(prop, i) {
+					prop.value = pads[i] + prop.value;
+				});
+			}
+			
 			props = _.map(props, function(item) {
 				return item.name + sep + item.value + end;
 			});
@@ -11207,6 +11355,13 @@ emmet.define('cssGradient', function(require, _) {
 				
 				// make sure current property has terminating semicolon
 				css.property.end(';');
+				
+				// resolve CSS property name
+				console.log('resolving', css.property.name());
+				var resolvedName = resolvePropertyName(css.property.name(), syntax);
+				if (resolvedName) {
+					css.property.name(resolvedName);
+				}
 				
 				pasteGradient(css.property, g.gradient, g.valueRange);
 				editor.replaceContent(css.rule.toString(), ruleStart, ruleEnd, true);
