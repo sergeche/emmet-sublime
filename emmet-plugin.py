@@ -24,6 +24,9 @@ __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
 
 is_python3 = sys.version_info[0] > 2
 
+def is_st3():
+	return sublime.version()[0] == '3'
+
 class SublimeLoaderDelegate(LoaderDelegate):
 	def __init__(self, settings={}):
 		LoaderDelegate.__init__(self, settings)
@@ -237,8 +240,7 @@ def run_action(action, view=None):
 	r = ctx.js().locals.pyRunAction
 	result = False
 
-	# TODO fix edit object
-	# edit = view.begin_edit()
+	edit = is_st3() and view.begin_edit(1, 'emmet_action') or view.begin_edit()
 	max_sel_ix = len(sels) - 1
 
 	try:
@@ -266,7 +268,7 @@ def run_action(action, view=None):
 	view.erase_regions(region_key)
 
 	# TODO fix edit object
-	# view.end_edit(edit)
+	view.end_edit(edit)
 	return result
 
 class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
@@ -389,7 +391,9 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 				if view.substr(trailing).isspace():
 					view.erase(self.edit, trailing)
 
-		view.run_command('insert_snippet', { 'contents': value.decode('utf-8') })
+		if not is_python3:
+			value = value.decode('utf-8')
+		view.run_command('insert_snippet', { 'contents': value })
 
 	def insert(self, abbr):
 		view = self.view
@@ -408,7 +412,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 
 	def _real_insert(self, abbr):
 		view = self.view
-		self.edit = edit = view.begin_edit()
+		self.edit = edit = is_st3() and view.begin_edit(2, 'emmet_as_you_type') or view.begin_edit()
 		cmd_input = self.filter_input(abbr) or ''
 		try:
 			self.erase = self.run_command(view, cmd_input) is not False
@@ -475,7 +479,8 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 	# override method to correctly wrap abbreviations
 	def _real_insert(self, abbr):
 		view = self.view
-		self.edit = view.begin_edit()
+		self.edit = is_st3() and view.begin_edit(2, 'emmet_as_you_type') or view.begin_edit()
+
 		self.erase = True
 
 		# restore selections
