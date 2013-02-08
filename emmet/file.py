@@ -2,7 +2,10 @@
 @author Sergey Chikuyonok (serge.che@gmail.com)
 @link http://chikuyonok.ru
 '''
+import sys
 import os.path
+
+is_python3 = sys.version_info[0] > 2
 
 class File():
 	def __init__(self):
@@ -23,11 +26,11 @@ class File():
 		except:
 			return []
 
-		if isinstance(content, bytes):
-			content = content.decode('ascii')
-		
 		# return as array of character codes since PyV8 may corrupt
 		# binary data when python string is translated into JS string
+		if is_python3:
+			return [ch for ch in content]
+		
 		return [ord(ch) for ch in content]
 
 	def locate_file(self, editor_file, file_name):
