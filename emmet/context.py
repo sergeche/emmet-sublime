@@ -17,6 +17,8 @@ from file import File
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 CHECK_INTERVAL = 60 * 60 * 24
+is_python3 = sys.version_info[0] > 2
+
 # CHECK_INTERVAL = 1
 core_files = ['emmet-app.js', 'python-wrapper.js']
 
@@ -58,6 +60,7 @@ def js_log(message):
 	print(message)
 
 def unpack_pyv8(package_dir):
+	print("Unpack %s" % package_dir)
 	f = os.path.join(package_dir, 'pack.zip')
 	if not os.path.exists(f):
 		return
@@ -85,11 +88,14 @@ def unpack_pyv8(package_dir):
 	extracted_paths = []
 	for path in package_zip.namelist():
 		dest = path
-		try:
-			if not isinstance(dest, unicode):
-				dest = unicode(dest, 'utf-8', 'strict')
-		except (UnicodeDecodeError):
-			dest = unicode(dest, 'cp1252', 'replace')
+		print("Zip path: %s" % path)
+
+		if not is_python3:
+			try:
+				if not isinstance(dest, unicode):
+					dest = unicode(dest, 'utf-8', 'strict')
+			except UnicodeDecodeError:
+				dest = unicode(dest, 'cp1252', 'replace')
 
 		if os.name == 'nt':
 			regex = ':|\*|\?|"|<|>|\|'
@@ -206,6 +212,7 @@ class Context():
 		self._ctx = None
 		self._contrib = contrib
 		self._should_load_extension = True
+		print('PyV8 path: %s' % pyv8_path)
 		self.pyv8_path = os.path.abspath(os.path.join(pyv8_path, get_arch()))
 		self.pyv8_state = 'none'
 		self.delegate = delegate if delegate  else pyv8loader.LoaderDelegate()
@@ -237,7 +244,7 @@ class Context():
 				val = os.path.expanduser(val)
 
 			val = os.path.abspath(val)
-		except Exception, e:
+		except Exception as e:
 			return
 
 		if val == self._ext_path:
@@ -265,13 +272,14 @@ class Context():
 
 	def _load_pyv8(self):
 		"Attempts to load PyV8 module"
-		try:
-			import_pyv8()
-		except ImportError, e:
-			# Module not found, pass-through this error
-			# since we are going to try to download most recent version
-			# anyway
-			pass
+		import_pyv8()
+		# try:
+		# 	import_pyv8()
+		# except ImportError as e:
+		# 	# Module not found, pass-through this error
+		# 	# since we are going to try to download most recent version
+		# 	# anyway
+		# 	pass
 
 		config = get_loader_config(self.pyv8_path)
 
@@ -300,14 +308,14 @@ class Context():
 			self.pyv8_state = 'error'
 
 		# try to download most recent version of PyV8
-		thread = pyv8loader.PyV8Loader(get_arch(), self.pyv8_path, config)
-		thread.start()
-		self.pyv8_state = 'loading'
+		# thread = pyv8loader.PyV8Loader(get_arch(), self.pyv8_path, config)
+		# thread.start()
+		# self.pyv8_state = 'loading'
 		
-		# watch on download progress
-		prog = pyv8loader.ThreadProgress(thread, self.delegate)
-		prog.on('complete', on_complete)
-		prog.on('error', on_error)
+		# # watch on download progress
+		# prog = pyv8loader.ThreadProgress(thread, self.delegate)
+		# prog.on('complete', on_complete)
+		# prog.on('error', on_error)
 
 	def js(self):
 		"Returns JS context"

@@ -7,6 +7,9 @@ import sys
 import os.path
 import traceback
 
+BASE_PATH = os.path.abspath(os.path.dirname(__file__))
+sys.path += [BASE_PATH] + [os.path.join(BASE_PATH, f) for f in ['completions', 'emmet']]
+
 import completions as cmpl
 from completions.meta import HTML_ELEMENTS_ATTRIBUTES, HTML_ATTRIBUTES_VALUES
 from emmet.context import Context
@@ -16,6 +19,8 @@ __version__      = '1.0'
 __core_version__ = '1.0'
 __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
 					'"Nicholas Dudfield" <ndudfield@gmail.com>']
+
+is_python3 = sys.version_info.major > 2
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
@@ -77,7 +82,9 @@ def replace_substring(start, end, value, no_indent=False):
 		line = view.substr(view.line(view.sel()[0]))
 		value = unindent_text(value, get_line_padding(line))
 
-	view.run_command('insert_snippet', {'contents': value.decode('utf-8')})
+	if not is_python3:
+		value = value.decode('utf-8')
+	view.run_command('insert_snippet', {'contents': value})
 	# view.end_edit(edit)
 
 def unindent_text(text, pad):
@@ -179,6 +186,7 @@ contrib = {
 }
 
 # create JS environment
+print('Init: %s : %s' % (sublime.packages_path(), 'PyV8'))
 delegate = SublimeLoaderDelegate()
 ctx = Context(['../editor.js'], settings.get('extensions_path', None), 
 	contrib, pyv8_path=os.path.join(sublime.packages_path(), 'PyV8'),
@@ -233,7 +241,7 @@ def run_action(action, view=None):
 			# remember resulting selections
 			view.add_regions(region_key,
 					(view.get_regions(region_key) + list(view.sel())) , '')
-	except Exception, e:
+	except Exception as e:
 		view.erase_regions(region_key)
 		print(traceback.format_exc())
 		return

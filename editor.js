@@ -289,7 +289,8 @@ function pyGetCSSCompletions(dialect) {
  */
 function pyGetSyntax() {
 	var view = activeView();
-	var scope = view.syntax_name(view.sel()[0].begin());
+	var pt = view.sel()[0].begin();
+	var scope = 'scope_name' in view ? view.scope_name(pt) : view.syntax_name(pt);
 
 	if (~scope.indexOf('xsl')) {
 		return 'xsl';

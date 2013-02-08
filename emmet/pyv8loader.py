@@ -2,13 +2,25 @@
 import os
 import os.path
 import sys
-import urllib
-import urllib2
 import json
 import re
 import threading
 import subprocess
 import tempfile
+import collections
+
+is_python3 = sys.version_info.major > 2
+
+if is_python3:
+	import urllib.request as url_req
+	import urllib.error as url_err
+	import urllib.parse as url_parse
+else:
+	import urllib
+	import urllib2
+	url_req = urllib2
+	url_err = urllib2
+	url_parse = urllib2
 
 PACKAGES_URL = 'https://api.github.com/repos/emmetio/pyv8-binaries/downloads'
 
@@ -61,7 +73,7 @@ class ThreadProgress():
 		if event_name not in self._callbacks:
 			self._callbacks[event_name] = []
 
-		if callable(callback):
+		if isinstance(callback, collections.Callable):
 			self._callbacks[event_name].append(callback)
 
 		return self
@@ -143,7 +155,7 @@ class WgetDownloader(CliDownloader):
 				result = self.execute(command)
 				self.clean_tmp_file()
 				return result
-			except (NonCleanExitError) as (e):
+			except NonCleanExitError as e:
 				error_line = ''
 				with open(self.tmp_file) as f:
 					for line in list(f):
@@ -155,8 +167,7 @@ class WgetDownloader(CliDownloader):
 					regex = re.compile('^.*ERROR (\d+):.*', re.S)
 					if re.sub(regex, '\\1', error_line) == '503':
 						# GitHub and BitBucket seem to rate limit via 503
-						print ('%s: Downloading %s was rate limited' +
-							', trying again') % (__name__, url)
+						print('%s: Downloading %s was rate limited, trying again' % (__name__, url))
 						continue
 					error_string = 'HTTP error ' + re.sub('^.*? ERROR ', '',
 						error_line)
@@ -165,8 +176,7 @@ class WgetDownloader(CliDownloader):
 					error_string = re.sub('^.*?failed: ', '', error_line)
 					# GitHub and BitBucket seem to time out a lot
 					if error_string.find('timed out') != -1:
-						print ('%s: Downloading %s timed out, ' +
-							'trying again') % (__name__, url)
+						print('%s: Downloading %s timed out, trying again' % (__name__, url))
 						continue
 
 				else:
@@ -174,8 +184,8 @@ class WgetDownloader(CliDownloader):
 						error_line)
 
 				error_string = re.sub('\\.?\s*\n\s*$', '', error_string)
-				print '%s: %s %s downloading %s.' % (__name__, error_message,
-					error_string, url)
+				print('%s: %s %s downloading %s.' % (__name__, error_message,
+						error_string, url))
 			self.clean_tmp_file()
 			break
 		return False
@@ -205,27 +215,24 @@ class CurlDownloader(CliDownloader):
 			tries -= 1
 			try:
 				return self.execute(command)
-			except (NonCleanExitError) as (e):
+			except NonCleanExitError as e:
 				if e.returncode == 22:
 					code = re.sub('^.*?(\d+)\s*$', '\\1', e.output)
 					if code == '503':
 						# GitHub and BitBucket seem to rate limit via 503
-						print ('%s: Downloading %s was rate limited' +
-							', trying again') % (__name__, url)
+						print('%s: Downloading %s was rate limited, trying again' % (__name__, url))
 						continue
 					error_string = 'HTTP error ' + code
 				elif e.returncode == 6:
 					error_string = 'URL error host not found'
 				elif e.returncode == 28:
 					# GitHub and BitBucket seem to time out a lot
-					print ('%s: Downloading %s timed out, trying ' +
-						'again') % (__name__, url)
+					print('%s: Downloading %s timed out, trying again' % (__name__, url))
 					continue
 				else:
 					error_string = e.output.rstrip()
 
-				print '%s: %s %s downloading %s.' % (__name__, error_message,
-					error_string, url)
+				print('%s: %s %s downloading %s.' % (__name__, error_message, error_string, url))
 			break
 		return False
 
@@ -245,9 +252,9 @@ class UrlLib2Downloader():
 					proxies['https'] = http_proxy
 			if https_proxy:
 				proxies['https'] = https_proxy
-			proxy_handler = urllib2.ProxyHandler(proxies)
+			proxy_handler = url_req.ProxyHandler(proxies)
 		else:
-			proxy_handler = urllib2.ProxyHandler()
+			proxy_handler = url_req.ProxyHandler()
 		handlers = [proxy_handler]
 
 		# secure_url_match = re.match('^https://([^/]+)', url)
@@ -257,34 +264,30 @@ class UrlLib2Downloader():
 		# 	if not bundle_path:
 		# 		return False
 		# 	handlers.append(VerifiedHTTPSHandler(ca_certs=bundle_path))
-		urllib2.install_opener(urllib2.build_opener(*handlers))
+		url_req.install_opener(url_req.build_opener(*handlers))
 
 		while tries > 0:
 			tries -= 1
 			try:
-				request = urllib2.Request(url, headers={"User-Agent":
+				request = url_req.Request(url, headers={"User-Agent":
 					"Emmet PyV8 Loader"})
-				http_file = urllib2.urlopen(request, timeout=timeout)
+				http_file = url_req.urlopen(request, timeout=timeout)
 				return http_file.read()
 
-			except (urllib2.HTTPError) as (e):
+			except url_err.HTTPError as e:
 				# Bitbucket and Github ratelimit using 503 a decent amount
 				if str(e.code) == '503':
-					print ('%s: Downloading %s was rate limited, ' +
-						'trying again') % (__name__, url)
+					print('%s: Downloading %s was rate limited, trying again' % (__name__, url))
 					continue
-				print '%s: %s HTTP error %s downloading %s.' % (__name__,
-					error_message, str(e.code), url)
+				print('%s: %s HTTP error %s downloading %s.' % (__name__, error_message, str(e.code), url))
 
-			except (urllib2.URLError) as (e):
+			except url_err.URLError as e:
 				# Bitbucket and Github timeout a decent amount
 				if str(e.reason) == 'The read operation timed out' or \
 						str(e.reason) == 'timed out':
-					print ('%s: Downloading %s timed out, trying ' +
-						'again') % (__name__, url)
+					print('%s: Downloading %s timed out, trying again' % (__name__, url))
 					continue
-				print '%s: %s URL error %s downloading %s.' % (__name__,
-					error_message, str(e.reason), url)
+				print('%s: %s URL error %s downloading %s.' % (__name__, error_message, str(e.reason), url))
 			break
 		return False
 
@@ -305,7 +308,7 @@ class PyV8Loader(threading.Thread):
 
 	def download_url(self, url, error_message):
 		# TODO add settings
-		has_ssl = 'ssl' in sys.modules and hasattr(urllib2, 'HTTPSHandler')
+		has_ssl = 'ssl' in sys.modules and hasattr(url_req, 'HTTPSHandler')
 		is_ssl = re.search('^https://', url) != None
 
 		if (is_ssl and has_ssl) or not is_ssl:
@@ -315,7 +318,7 @@ class PyV8Loader(threading.Thread):
 				try:
 					downloader = downloader_class(self.settings)
 					break
-				except (BinaryNotFoundError):
+				except BinaryNotFoundError:
 					pass
 
 		if not downloader:
@@ -333,6 +336,9 @@ class PyV8Loader(threading.Thread):
 		if not packages:
 			self.exit_code = 1
 			return
+
+		if isinstance(packages, bytes):
+			packages = packages.decode('utf-8')
 
 		files = json.loads(packages)
 
@@ -371,7 +377,7 @@ class PyV8Loader(threading.Thread):
 		
 		try:
 			os.makedirs(self.download_path)
-		except Exception, e:
+		except Exception as e:
 			pass
 		
 		fp = open(os.path.join(self.download_path, 'pack.zip'), 'wb')
