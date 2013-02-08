@@ -24,8 +24,37 @@ __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
 
 is_python3 = sys.version_info[0] > 2
 
+# JS context
+ctx = None
+# Settings
+settings = None
+
 def is_st3():
 	return sublime.version()[0] == '3'
+
+def init():
+	"Init Emmet plugin"
+	# load settings
+	globals()['settings'] = sublime.load_settings('Emmet.sublime-settings')
+	settings.add_on_change('extensions_path', update_settings)
+
+	# provide some contributions to JS
+	contrib = {
+		'sublime': sublime, 
+		'sublimeReplaceSubstring': replace_substring,
+		'sublimeGetOption': settings.get
+	}
+
+	# create JS environment
+	delegate = SublimeLoaderDelegate()
+	globals()['ctx'] = Context(['../editor.js'], settings.get('extensions_path', None), 
+		contrib, pyv8_path=os.path.join(PACKAGES_PATH, 'PyV8'),
+		delegate=delegate)
+
+	update_settings()
+
+	if settings.get('remove_html_completions', False):
+		sublime.set_timeout(cmpl.remove_html_completions, 2000)
 
 class SublimeLoaderDelegate(LoaderDelegate):
 	def __init__(self, settings={}):
@@ -135,8 +164,6 @@ def get_scope(view, pt=-1):
 
 	return view.syntax_name(pt)
 
-
-
 def should_perform_action(name, view=None):
 	if not view:
 		view = active_view()
@@ -187,28 +214,6 @@ def should_handle_tab_key(syntax=None):
 		return True
 
 	return False
-
-# load settings
-settings = sublime.load_settings('Emmet.sublime-settings')
-settings.add_on_change('extensions_path', update_settings)
-
-# provide some contributions to JS
-contrib = {
-	'sublime': sublime, 
-	'sublimeReplaceSubstring': replace_substring,
-	'sublimeGetOption': settings.get
-}
-
-# create JS environment
-delegate = SublimeLoaderDelegate()
-ctx = Context(['../editor.js'], settings.get('extensions_path', None), 
-	contrib, pyv8_path=os.path.join(PACKAGES_PATH, 'PyV8'),
-	delegate=delegate)
-
-update_settings()
-
-if settings.get('remove_html_completions', False):
-	sublime.set_timeout(cmpl.remove_html_completions, 2000)
 
 def log(message):
 	if settings.get('debug', False):
@@ -267,7 +272,6 @@ def run_action(action, view=None):
 
 	view.erase_regions(region_key)
 
-	# TODO fix edit object
 	view.end_edit(edit)
 	return result
 
@@ -276,7 +280,6 @@ class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
 		# this is just a stub, the actual abbreviation expansion
 		# is done in TabExpandHandler.on_query_context
 		pass
-
 
 class TabExpandHandler(sublime_plugin.EventListener):
 	def correct_syntax(self, view, syntax='html'):
@@ -563,4 +566,12 @@ class EmmetInsertAttribute(sublime_plugin.TextCommand):
 class EmmetResetContext(sublime_plugin.TextCommand):
 	def run(self, edit, **kw):
 		update_settings()
+
+def plugin_loaded():
+	sublime.set_timeout(init, 200)
+
+##################
+# Init plugin
+if not is_python3:
+	init()
 
