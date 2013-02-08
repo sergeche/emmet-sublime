@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 import collections
 
-is_python3 = sys.version_info.major > 2
+is_python3 = sys.version_info[0] > 2
 
 if is_python3:
 	import urllib.request as url_req

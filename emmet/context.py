@@ -60,7 +60,6 @@ def js_log(message):
 	print(message)
 
 def unpack_pyv8(package_dir):
-	print("Unpack %s" % package_dir)
 	f = os.path.join(package_dir, 'pack.zip')
 	if not os.path.exists(f):
 		return
@@ -88,7 +87,6 @@ def unpack_pyv8(package_dir):
 	extracted_paths = []
 	for path in package_zip.namelist():
 		dest = path
-		print("Zip path: %s" % path)
 
 		if not is_python3:
 			try:
@@ -212,7 +210,6 @@ class Context():
 		self._ctx = None
 		self._contrib = contrib
 		self._should_load_extension = True
-		print('PyV8 path: %s' % pyv8_path)
 		self.pyv8_path = os.path.abspath(os.path.join(pyv8_path, get_arch()))
 		self.pyv8_state = 'none'
 		self.delegate = delegate if delegate  else pyv8loader.LoaderDelegate()

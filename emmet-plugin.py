@@ -8,6 +8,8 @@ import os.path
 import traceback
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
+PACKAGES_PATH = sublime.packages_path() or os.path.dirname(BASE_PATH)
+EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
 sys.path += [BASE_PATH] + [os.path.join(BASE_PATH, f) for f in ['completions', 'emmet']]
 
 import completions as cmpl
@@ -20,10 +22,7 @@ __core_version__ = '1.0'
 __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
 					'"Nicholas Dudfield" <ndudfield@gmail.com>']
 
-is_python3 = sys.version_info.major > 2
-
-BASE_PATH = os.path.abspath(os.path.dirname(__file__))
-EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
+is_python3 = sys.version_info[0] > 2
 
 class SublimeLoaderDelegate(LoaderDelegate):
 	def __init__(self, settings={}):
@@ -123,6 +122,18 @@ def update_settings():
 	ctx.load_user_data(json.dumps(payload))
 	ctx.js()
 
+def get_scope(view, pt=-1):
+	if pt == -1:
+		# use current caret position
+		pt = view.sel()[0].begin()
+
+	if hasattr(view, 'scope_name'):
+		return view.scope_name(pt)
+
+	return view.syntax_name(pt)
+
+
+
 def should_perform_action(name, view=None):
 	if not view:
 		view = active_view()
@@ -144,7 +155,7 @@ def should_perform_action(name, view=None):
 def should_handle_tab_key(syntax=None):
 	view = active_view()
 	scopes = settings.get('disabled_single_snippet_for_scopes', None)
-	cur_scope = view.syntax_name(view.sel()[0].begin())
+	cur_scope = get_scope(view)
 
 	if sublime.score_selector(cur_scope, 'source.css'):
 		return True
@@ -186,10 +197,9 @@ contrib = {
 }
 
 # create JS environment
-print('Init: %s : %s' % (sublime.packages_path(), 'PyV8'))
 delegate = SublimeLoaderDelegate()
 ctx = Context(['../editor.js'], settings.get('extensions_path', None), 
-	contrib, pyv8_path=os.path.join(sublime.packages_path(), 'PyV8'),
+	contrib, pyv8_path=os.path.join(PACKAGES_PATH, 'PyV8'),
 	delegate=delegate)
 
 update_settings()
@@ -227,7 +237,8 @@ def run_action(action, view=None):
 	r = ctx.js().locals.pyRunAction
 	result = False
 
-	edit = view.begin_edit()
+	# TODO fix edit object
+	# edit = view.begin_edit()
 	max_sel_ix = len(sels) - 1
 
 	try:
@@ -254,7 +265,8 @@ def run_action(action, view=None):
 
 	view.erase_regions(region_key)
 
-	view.end_edit(edit)
+	# TODO fix edit object
+	# view.end_edit(edit)
 	return result
 
 class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
@@ -294,7 +306,7 @@ class TabExpandHandler(sublime_plugin.EventListener):
 		# Try to find some more specific contextual abbreviation
 		for sub_selector, handler in COMPLETIONS:
 			h_name = handler.__name__
-			if h_name in black_list: continue
+			if not black_list or h_name in black_list: continue
 			if (view.match_selector(pos,  sub_selector) or
 				 view.match_selector(pos - 1,  sub_selector)):
 				return handler
@@ -320,7 +332,7 @@ class TabExpandHandler(sublime_plugin.EventListener):
 				return None
 
 		caret_pos = view.sel()[0].begin()
-		cur_scope = view.syntax_name(caret_pos)
+		cur_scope = get_scope(view)
 
 		# let's see if Tab key expander should be disabled for current scope
 		banned_scopes = settings.get('disable_tab_abbreviations_for_scopes', '')

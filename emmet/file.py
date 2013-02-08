@@ -21,7 +21,10 @@ class File():
 			content = fp.read()
 			fp.close()
 		except:
-			pass
+			return []
+
+		if isinstance(content, bytes):
+			content = content.decode('ascii')
 		
 		# return as array of character codes since PyV8 may corrupt
 		# binary data when python string is translated into JS string
