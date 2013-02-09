@@ -437,6 +437,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 		if not check_context(True):
 			return
 
+		self.edit = edit
 		self.setup()
 		self.erase = False
 

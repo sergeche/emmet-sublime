@@ -24,17 +24,19 @@ core_files = ['emmet-app.js', 'python-wrapper.js']
 
 def get_arch():
 	"Returns architecture name for PyV8 binary"
+	suffix = is_python3 and '-p3' or ''
+	p = lambda a: '%s%s' % (a, suffix)
 	is_64bit = sys.maxsize > 2**32
 	system_name = platform.system()
 	if system_name == 'Darwin':
 		if semver.match(platform.mac_ver()[0], '<10.7.0'):
-			return 'mac106'
+			return p('mac106')
 
 		return 'osx'
 	if system_name == 'Windows':
-		return 'win64' if is_64bit else 'win32'
+		return p('win64') if is_64bit else p('win32')
 	if system_name == 'Linux':
-		return 'linux64' if is_64bit else 'linux32'
+		return p('linux64') if is_64bit else p('linux32')
 
 def should_use_unicode():
 	"""
@@ -153,9 +155,10 @@ def import_pyv8():
 		globals()['PyV8'] = __import__('PyV8')
 		return
 
+	# find and load PyV8 in Python 3 style
+	loaded = False
 	f, pathname, description = imp.find_module('PyV8')
 	bin_f, bin_pathname, bin_description = imp.find_module('_PyV8')
-	loaded = False
 	if f:
 		try:
 			imp.acquire_lock()
@@ -269,14 +272,10 @@ class Context():
 
 	def _load_pyv8(self):
 		"Attempts to load PyV8 module"
-		import_pyv8()
-		# try:
-		# 	import_pyv8()
-		# except ImportError as e:
-		# 	# Module not found, pass-through this error
-		# 	# since we are going to try to download most recent version
-		# 	# anyway
-		# 	pass
+		try:
+			import_pyv8()
+		except ImportError as e:
+			print('Unable to find PyV8 module')
 
 		config = get_loader_config(self.pyv8_path)
 
