@@ -331,6 +331,7 @@ class PyV8Loader(threading.Thread):
 
 	def run(self):
 		# get list of available packages first
+		self.log('Loading %s' % PACKAGES_URL)
 		packages = self.download_url(PACKAGES_URL, 'Unable to download packages list.')
 
 		if not packages:
@@ -340,6 +341,7 @@ class PyV8Loader(threading.Thread):
 		if isinstance(packages, bytes):
 			packages = packages.decode('utf-8')
 
+		self.log(packages)
 		files = json.loads(packages)
 
 		# find package for current architecture

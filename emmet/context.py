@@ -305,14 +305,14 @@ class Context():
 			self.pyv8_state = 'error'
 
 		# try to download most recent version of PyV8
-		# thread = pyv8loader.PyV8Loader(get_arch(), self.pyv8_path, config)
-		# thread.start()
-		# self.pyv8_state = 'loading'
+		thread = pyv8loader.PyV8Loader(get_arch(), self.pyv8_path, config)
+		thread.start()
+		self.pyv8_state = 'loading'
 		
-		# # watch on download progress
-		# prog = pyv8loader.ThreadProgress(thread, self.delegate)
-		# prog.on('complete', on_complete)
-		# prog.on('error', on_error)
+		# watch on download progress
+		prog = pyv8loader.ThreadProgress(thread, self.delegate)
+		prog.on('complete', on_complete)
+		prog.on('error', on_error)
 
 	def js(self):
 		"Returns JS context"
