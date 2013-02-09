@@ -10,8 +10,7 @@ import traceback
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 PACKAGES_PATH = sublime.packages_path() or os.path.dirname(BASE_PATH)
 # EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
-# TODO get package name
-EMMET_GRAMMAR = 'Packages/Emmet/Emmet.tmLanguage'
+EMMET_GRAMMAR = 'Packages/%s/Emmet.tmLanguage' % os.path.basename(BASE_PATH)
 sys.path += [BASE_PATH] + [os.path.join(BASE_PATH, f) for f in ['completions', 'emmet']]
 
 import completions as cmpl
