@@ -4,8 +4,26 @@
 '''
 import sys
 import os.path
+import re
 
 is_python3 = sys.version_info[0] > 2
+
+if is_python3:
+	import urllib.request as urllib2
+else:
+	import urllib2
+
+def is_url(path):
+	return re.match(r'^https?://', path, re.IGNORECASE)
+
+def read_http(url, size):
+	response = urllib2.urlopen(url, timeout=5)
+	return response.read(size)
+
+def read_file(path, size):
+	with open(path, 'rb') as fp:
+		return fp.read(size)
+
 
 class File():
 	def __init__(self):
@@ -18,10 +36,10 @@ class File():
 		@type path: str
 		@return: str
 		"""
-		content = None
+		reader = is_url(path) and read_http or read_file
+
 		try:
-			with open(path, 'rb') as fp:
-				content = fp.read(size)
+			content = reader(path, size)
 		except Exception as e:
 			return callback(repr(e), None)
 
@@ -43,6 +61,9 @@ class File():
 		@type file_name: str
 		@return String or None if <code>file_name</code> cannot be located
 		"""
+		if is_url(file_name):
+			return file_name
+
 		result = None
 		
 		previous_parent = ''
