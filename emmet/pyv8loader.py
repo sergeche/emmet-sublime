@@ -139,7 +139,8 @@ class WgetDownloader(CliDownloader):
 
 		self.tmp_file = tempfile.NamedTemporaryFile().name
 		command = [self.wget, '--connect-timeout=' + str(int(timeout)), '-o',
-			self.tmp_file, '-O', '-', '-U', 'Emmet PyV8 Loader']
+			self.tmp_file, '-O', '-', '-U', 'Emmet PyV8 Loader',
+			'--no-check-certificate']
 
 		command.append(url)
 
