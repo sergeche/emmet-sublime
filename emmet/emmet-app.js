@@ -9849,15 +9849,23 @@ emmet.exec(function(require, _) {
 			throw "Can't find " + imgPath + ' file';
 		}
 		
-		var b64 = require('base64').encode(String(file.read(realImgPath)));
-		if (!b64) {
-			throw "Can't encode file content to base64";
-		}
-		
-		b64 = 'data:' + (actionUtils.mimeTypes[String(file.getExt(realImgPath))] || defaultMimeType) +
-			';base64,' + b64;
+		file.read(realImgPath, function(err, content) {
+			if (err) {
+				throw 'Unable to read ' + realImgPath + ': ' + err;
+			}
 			
-		editor.replaceContent('$0' + b64, pos, pos + imgPath.length);
+			var b64 = require('base64').encode(String(content));
+			if (!b64) {
+				throw "Can't encode file content to base64";
+			}
+			
+			b64 = 'data:' + (actionUtils.mimeTypes[String(file.getExt(realImgPath))] || defaultMimeType) +
+				';base64,' + b64;
+				
+			editor.replaceContent('$0' + b64, pos, pos + imgPath.length);
+		});
+		
+		
 		return true;
 	}
 
@@ -9904,21 +9912,19 @@ emmet.exec(function(require, _) {
 		var info = require('editorUtils').outputInfo(editor);
 		var xmlElem = require('xmlEditTree').parseFromPosition(info.content, offset, true);
 		if (xmlElem && (xmlElem.name() || '').toLowerCase() == 'img') {
-			
-			var size = getImageSizeForSource(editor, xmlElem.value('src'));
-			if (size) {
-				var compoundData = xmlElem.range(true);
-				xmlElem.value('width', size.width);
-				xmlElem.value('height', size.height, xmlElem.indexOf('width') + 1);
-				
-				return _.extend(compoundData, {
-					data: xmlElem.toString(),
-					caret: offset
-				});
-			}
+			getImageSizeForSource(editor, xmlElem.value('src'), function(size) {
+				if (size) {
+					var compoundData = xmlElem.range(true);
+					xmlElem.value('width', size.width);
+					xmlElem.value('height', size.height, xmlElem.indexOf('width') + 1);
+					
+					require('actionUtils').compoundUpdate(editor, _.extend(compoundData, {
+						data: xmlElem.toString(),
+						caret: offset
+					}));
+				}
+			});
 		}
-		
-		return null;
 	}
 	
 	/**
@@ -9935,21 +9941,20 @@ emmet.exec(function(require, _) {
 			// check if there is property with image under caret
 			var prop = cssRule.itemFromPosition(offset, true), m;
 			if (prop && (m = /url\((["']?)(.+?)\1\)/i.exec(prop.value() || ''))) {
-				var size = getImageSizeForSource(editor, m[2]);
-				if (size) {
-					var compoundData = cssRule.range(true);
-					cssRule.value('width', size.width + 'px');
-					cssRule.value('height', size.height + 'px', cssRule.indexOf('width') + 1);
-					
-					return _.extend(compoundData, {
-						data: cssRule.toString(),
-						caret: offset
-					});
-				}
+				getImageSizeForSource(editor, m[2], function(size) {
+					if (size) {
+						var compoundData = cssRule.range(true);
+						cssRule.value('width', size.width + 'px');
+						cssRule.value('height', size.height + 'px', cssRule.indexOf('width') + 1);
+						
+						require('actionUtils').compoundUpdate(editor, _.extend(compoundData, {
+							data: cssRule.toString(),
+							caret: offset
+						}));
+					}
+				});
 			}
 		}
-		
-		return null;
 	}
 	
 	/**
@@ -9957,37 +9962,43 @@ emmet.exec(function(require, _) {
 	 * @param {IEmmetEditor} editor
 	 * @param {String} src Image source (path or data:url)
 	 */
-	function getImageSizeForSource(editor, src) {
+	function getImageSizeForSource(editor, src, callback) {
 		var fileContent;
+		var au = require('actionUtils');
 		if (src) {
 			// check if it is data:url
 			if (/^data:/.test(src)) {
 				fileContent = require('base64').decode( src.replace(/^data\:.+?;.+?,/, '') );
-			} else {
-				var file = require('file');
-				var absPath = file.locateFile(editor.getFilePath(), src);
-				if (absPath === null) {
-					throw "Can't find " + src + ' file';
-				}
-				
-				fileContent = String(file.read(absPath));
+				return callback(au.getImageSize(fileContent));
 			}
 			
-			return require('actionUtils').getImageSize(fileContent);
+			var file = require('file');
+			var absPath = file.locateFile(editor.getFilePath(), src);
+			if (absPath === null) {
+				throw "Can't find " + src + ' file';
+			}
+			
+			file.read(absPath, 500, function(err, content) {
+				if (err) {
+					throw 'Unable to read ' + absPath + ': ' + err;
+				}
+				
+				content = String(content);
+				callback(au.getImageSize(content));
+			});
 		}
 	}
 	
 	require('actions').add('update_image_size', function(editor) {
-		var result;
 		// this action will definitely won’t work in SASS dialect,
 		// but may work in SCSS or LESS
 		if (_.include(['css', 'less', 'scss'], String(editor.getSyntax()))) {
-			result = updateImageSizeCSS(editor);
+			updateImageSizeCSS(editor);
 		} else {
-			result = updateImageSizeHTML(editor);
+			updateImageSizeHTML(editor);
 		}
 		
-		return require('actionUtils').compoundUpdate(editor, result);
+		return true;
 	});
 });/**
  * Resolver for fast CSS typing. Handles abbreviations with the following 
@@ -11148,7 +11159,7 @@ emmet.define('cssGradient', function(require, _) {
 			}
 		});
 		
-		if (alignVendor && sep != property.styleSeparator) {
+		if (alignVendor) {
 			// update prefix
 			if (before != property.styleBefore) {
 				var fullRange = property.fullRange();
@@ -12829,38 +12840,54 @@ emmet.define('bootstrap', function(require, _) {
 			var payload = {};
 			var utils = require('utils');
 			var userSnippets = null;
+			var that = this;
 			
-			_.each(fileList, function(f) {
-				switch (file.getExt(f)) {
-					case 'js':
-						try {
-							eval(file.read(f));
-						} catch (e) {
-							emmet.log('Unable to eval "' + f + '" file: '+ e);
+			var next = function() {
+				if (fileList.length) {
+					var f = fileList.shift();
+					file.read(f, function(err, content) {
+						if (err) {
+							emmet.log('Unable to read "' + f + '" file: '+ err);
+							return next();
 						}
-						break;
-					case 'json':
-						var fileName = getFileName(f).toLowerCase().replace(/\.json$/, '');
-						if (/^snippets/.test(fileName)) {
-							if (fileName === 'snippets') {
-								// data in snippets.json is more important to user
-								userSnippets = this.parseJSON(file.read(f));
-							} else {
-								payload.snippets = utils.deepMerge(payload.snippets || {}, this.parseJSON(file.read(f)));
-							}
-						} else {
-							payload[fileName] = file.read(f);
+												
+						switch (file.getExt(f)) {
+							case 'js':
+								try {
+									eval(content);
+								} catch (e) {
+									emmet.log('Unable to eval "' + f + '" file: '+ e);
+								}
+								break;
+							case 'json':
+								var fileName = getFileName(f).toLowerCase().replace(/\.json$/, '');
+								if (/^snippets/.test(fileName)) {
+									if (fileName === 'snippets') {
+										// data in snippets.json is more important to user
+										userSnippets = that.parseJSON(content);
+									} else {
+										payload.snippets = utils.deepMerge(payload.snippets || {}, that.parseJSON(content));
+									}
+								} else {
+									payload[fileName] = content;
+								}
+								
+								break;
 						}
 						
-						break;
+						next();
+					});
+				} else {
+					// complete
+					if (userSnippets) {
+						payload.snippets = utils.deepMerge(payload.snippets || {}, userSnippets);
+					}
+					
+					that.loadUserData(payload);
 				}
-			}, this);
+			};
 			
-			if (userSnippets) {
-				payload.snippets = utils.deepMerge(payload.snippets || {}, userSnippets);
-			}
-			
-			this.loadUserData(payload);
+			next();
 		},
 		
 		/**

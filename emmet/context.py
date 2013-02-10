@@ -32,7 +32,7 @@ def get_arch():
 		if semver.match(platform.mac_ver()[0], '<10.7.0'):
 			return p('mac106')
 
-		return 'osx'
+		return p('osx')
 	if system_name == 'Windows':
 		return p('win64') if is_64bit else p('win32')
 	if system_name == 'Linux':

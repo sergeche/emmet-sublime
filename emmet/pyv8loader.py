@@ -347,8 +347,9 @@ class PyV8Loader(threading.Thread):
 
 		# find package for current architecture
 		cur_item = None
+		bundle_name = 'pyv8-%s.zip' % self.arch
 		for item in files:
-			if self.arch in item['name']:
+			if bundle_name == item['name']:
 				cur_item = item
 				break
 

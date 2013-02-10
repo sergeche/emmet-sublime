@@ -11,7 +11,7 @@ class File():
 	def __init__(self):
 		pass
 
-	def read(self, path):
+	def read(self, path, size=-1, callback=None):
 		"""
 		Read file content and return it
 		@param path: File's relative or absolute path
@@ -20,18 +20,19 @@ class File():
 		"""
 		content = None
 		try:
-			fp = open(path, 'rb')
-			content = fp.read()
-			fp.close()
-		except:
-			return []
+			with open(path, 'rb') as fp:
+				content = fp.read(size)
+		except Exception as e:
+			return callback(repr(e), None)
 
 		# return as array of character codes since PyV8 may corrupt
 		# binary data when python string is translated into JS string
 		if is_python3:
-			return [ch for ch in content]
-		
-		return [ord(ch) for ch in content]
+			content = [ch for ch in content]
+		else:
+			content = [ord(ch) for ch in content]
+
+		callback(None, content)
 
 	def locate_file(self, editor_file, file_name):
 		"""
