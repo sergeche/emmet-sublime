@@ -42,6 +42,14 @@
 	// Use "all" value to disable all shortcuts at once
 	"disabled_keymap_actions": "",
 
+	// A comma-separated list of classes of bindings that over sublime text
+	// default shortcuts. Some enhance bindings with same functionality, others
+	// replace, yet others still replace bindings rarely used.
+	// classes: ["replaces", "replaces_infrequent", "enhances"]
+	// Use "all" value to disable all overriden shortcuts at once
+	// See OS specific keymaps for which binding are overridden.
+	"disabled_classes_of_default_bindings": "",
+
 	// By default, Emmet overrides Tab key to effectively expand abbreviations.
 	// The downside of this approach is that you can’t expand regular ST2
 	// snippets (like `php`). Since it’s not currently possible to get a list
