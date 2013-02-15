@@ -172,17 +172,26 @@ function pyPreprocessText(value) {
 
 function pyExpandAbbreviationAsYouType(abbr) {
 	var info = require('editorUtils').outputInfo(editorProxy);
-	var result = emmet.expandAbbreviation(abbr, info.syntax, info.profile, 
+	try {
+		var result = emmet.expandAbbreviation(abbr, info.syntax, info.profile, 
 					require('actionUtils').captureContext(editorProxy));
-	return pyPreprocessText(result);
+		return pyPreprocessText(result);
+	} catch (e) {
+		return '';
+	}
+	
 }
 
 function pyWrapAsYouType(abbr, content) {
 	var info = require('editorUtils').outputInfo(editorProxy);
 	content = require('utils').escapeText(content);
 	var ctx = require('actionUtils').captureContext(editorProxy);
-	var result = require('wrapWithAbbreviation').wrap(abbr, content, info.syntax, info.profile, ctx);
-	return pyPreprocessText(result);
+	try {
+		var result = require('wrapWithAbbreviation').wrap(abbr, content, info.syntax, info.profile, ctx);
+		return pyPreprocessText(result);
+	} catch(e) {
+		return '';
+	}
 }
 
 function pyCaptureWrappingRange() {

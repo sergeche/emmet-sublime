@@ -22,7 +22,8 @@ else:
 	url_err = urllib2
 	url_parse = urllib2
 
-PACKAGES_URL = 'https://api.github.com/repos/emmetio/pyv8-binaries/downloads'
+# PACKAGES_URL = 'https://api.github.com/repos/emmetio/pyv8-binaries/downloads'
+PACKAGES_URL = 'https://api.github.com/repos/emmetio/pyv8-binaries/contents'
 
 class LoaderDelegate():
 	"""
@@ -138,7 +139,8 @@ class WgetDownloader(CliDownloader):
 
 		self.tmp_file = tempfile.NamedTemporaryFile().name
 		command = [self.wget, '--connect-timeout=' + str(int(timeout)), '-o',
-			self.tmp_file, '-O', '-', '-U', 'Emmet PyV8 Loader']
+			self.tmp_file, '-O', '-', '-U', 'Emmet PyV8 Loader',
+			'--no-check-certificate']
 
 		command.append(url)
 
@@ -331,6 +333,7 @@ class PyV8Loader(threading.Thread):
 
 	def run(self):
 		# get list of available packages first
+		self.log('Loading %s' % PACKAGES_URL)
 		packages = self.download_url(PACKAGES_URL, 'Unable to download packages list.')
 
 		if not packages:
@@ -344,8 +347,9 @@ class PyV8Loader(threading.Thread):
 
 		# find package for current architecture
 		cur_item = None
+		bundle_name = 'pyv8-%s.zip' % self.arch
 		for item in files:
-			if self.arch in item['name']:
+			if bundle_name == item['name']:
 				cur_item = item
 				break
 
@@ -354,27 +358,20 @@ class PyV8Loader(threading.Thread):
 			self.exit_code = 2
 			return
 
-		if cur_item['id'] == self.config['last_id']:
+		if cur_item['sha'] == self.config['last_id']:
 			self.log('You have the most recent PyV8 binary')
 			return
 
-		# Reduce HTTP roundtrips: try to download binary from 
-		# http://cloud.github.com directly
-		url = re.sub(r'^https?:\/\/github\.com', 'http://cloud.github.com', item['html_url'])
+		url = 'https://raw.github.com/emmetio/pyv8-binaries/master/%s' % cur_item['name']
 		self.log('Loading PyV8 binary from %s' % url)
 		package = self.download_url(url, 'Unable to download package from %s' % url)
 		if not package:
-			url = item['html_url']
-			self.log('Loading PyV8 binary from %s' % url)
-			package = self.download_url(url, 'Unable to download package from %s' % url)
-			if not package:
-				self.exit_code = 3
-				return
+			self.exit_code = 3
+			return
 
 		# we should only save downloaded package and delegate module
 		# loading/unloading to main thread since improper PyV8 unload
 		# may cause editor crash
-		
 		try:
 			os.makedirs(self.download_path)
 		except Exception as e:
@@ -384,6 +381,6 @@ class PyV8Loader(threading.Thread):
 		fp.write(package)
 		fp.close()
 
-		self.result = cur_item['id']
+		self.result = cur_item['sha']
 		# Done!
 		

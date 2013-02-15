@@ -9,7 +9,8 @@ import traceback
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 PACKAGES_PATH = sublime.packages_path() or os.path.dirname(BASE_PATH)
-EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
+# EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
+EMMET_GRAMMAR = 'Packages/%s/Emmet.tmLanguage' % os.path.basename(BASE_PATH)
 sys.path += [BASE_PATH] + [os.path.join(BASE_PATH, f) for f in ['completions', 'emmet']]
 
 import completions as cmpl
@@ -101,7 +102,6 @@ def check_context(verbose=False):
 
 def replace_substring(start, end, value, no_indent=False):
 	view = active_view()
-	# edit = view.begin_edit()
 
 	view.sel().clear()
 	view.sel().add(sublime.Region(start, end or start)) 
@@ -116,7 +116,6 @@ def replace_substring(start, end, value, no_indent=False):
 	if not is_python3:
 		value = value.decode('utf-8')
 	view.run_command('insert_snippet', {'contents': value})
-	# view.end_edit(edit)
 
 def unindent_text(text, pad):
 	"""
@@ -263,7 +262,6 @@ def run_action(action, view=None):
 	r = ctx.js().locals.pyRunAction
 	result = False
 
-	edit = is_st3() and view.begin_edit(1, 'emmet_action') or view.begin_edit()
 	max_sel_ix = len(sels) - 1
 
 	try:
@@ -290,7 +288,6 @@ def run_action(action, view=None):
 
 	view.erase_regions(region_key)
 
-	view.end_edit(edit)
 	return result
 
 class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
@@ -433,13 +430,11 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 
 	def _real_insert(self, abbr):
 		view = self.view
-		self.edit = edit = is_st3() and view.begin_edit(2, 'emmet_as_you_type') or view.begin_edit()
 		cmd_input = self.filter_input(abbr) or ''
 		try:
 			self.erase = self.run_command(view, cmd_input) is not False
 		except:
 			pass
-		view.end_edit(edit)
 
 	def undo(self):
 		if self.erase:
@@ -459,6 +454,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 		if not check_context(True):
 			return
 
+		self.edit = edit
 		self.setup()
 		self.erase = False
 
@@ -500,7 +496,6 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 	# override method to correctly wrap abbreviations
 	def _real_insert(self, abbr):
 		view = self.view
-		self.edit = is_st3() and view.begin_edit(2, 'emmet_as_you_type') or view.begin_edit()
 
 		self.erase = True
 
@@ -519,7 +514,6 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 			self.run_command(view, self._prev_output)
 
 		run_action(ins, view)
-		view.end_edit(self.edit)
 
 class ExpandAsYouType(WrapAsYouType):
 	default_input = 'div'
