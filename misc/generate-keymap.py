@@ -2,6 +2,26 @@ import os.path
 import json
 import copy
 
+import collections
+
+try:                basestring
+except NameError:   basestring = str
+
+class O(str): pass
+
+class R(O):
+	key="replaces"
+	def __repr__(self):
+		return "%s(%s)" % (type(self).__name__, str.__repr__(self))
+	def __deepcopy__(self, val):
+		return self
+
+class E(O):
+	key="enhances"
+
+class RU(O):
+	key="replaces_infrequent"
+
 keymap = {
 	"expand_abbreviation": "ctrl+e",
 	"match_pair_outward": {"mac": "ctrl+d", "pc": "ctrl+,"},
