@@ -168,6 +168,9 @@ def default_override_binding_is_disabled_by_class(binding_override_class):
 		disabled_classes = settings.get('disabled_classes_'
 										'of_default_bindings', '')
 		if disabled_classes:
+			if disabled_classes == 'all':
+				return True
+			
 			binding_override_class=binding_override_class[:-8] # :_default
 			if any(r.strip() == binding_override_class for r in
 				   disabled_classes.split(',')):
