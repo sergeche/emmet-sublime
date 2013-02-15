@@ -2,16 +2,36 @@ import os.path
 import json
 import copy
 
+import collections
+
+try:                basestring
+except NameError:   basestring = str
+
+class O(str): pass
+
+class R(O):
+	key="replaces"
+	def __repr__(self):
+		return "%s(%s)" % (type(self).__name__, str.__repr__(self))
+	def __deepcopy__(self, val):
+		return self
+
+class E(O):
+	key="enhances"
+
+class RU(O):
+	key="replaces_infrequent"
+
 keymap = {
-	"expand_abbreviation": "ctrl+e",
+	"expand_abbreviation": RU("ctrl+e"),
 	"match_pair_outward": {"mac": "ctrl+d", "pc": "ctrl+,"},
 	"match_pair_inward": {"mac": "ctrl+j", "pc": "ctrl+shift+0"},
 	"matching_pair": {"mac": "ctrl+shift+t", "pc": "ctrl+alt+j"},
 	"next_edit_point": "ctrl+alt+right",
 	"prev_edit_point": "ctrl+alt+left",
 	"toggle_comment": {
-		"mac": "super+shift+forward_slash",
-		"pc": "ctrl+shift+forward_slash",
+		"mac": E("super+shift+forward_slash"),
+		"pc": E("ctrl+shift+forward_slash"),
 		"context": [{
 			"key": "selector", 
 			"operand": "source.css - source.css.less, text.xml, text.html",
@@ -21,18 +41,18 @@ keymap = {
 	"split_join_tag": {"mac": "shift+super+'", "pc": "shift+ctrl+`"},
 	"remove_tag": {"mac": "super+'", "pc": "shift+ctrl+;"},
 	"evaluate_math_expression": {"mac": "shift+super+y", "pc": "shift+ctrl+y"},
-	"increment_number_by_1": "ctrl+up",
-	"decrement_number_by_1": "ctrl+down",
+	"increment_number_by_1": R("ctrl+up"),
+	"decrement_number_by_1": R("ctrl+down"),
 	"increment_number_by_01": "alt+up",
 	"decrement_number_by_01": "alt+down",
-	"increment_number_by_10": {"mac": "alt+super+up", "pc": "shift+alt+up"},
-	"decrement_number_by_10": {"mac": "alt+super+down", "pc": "shift+alt+down"},
+	"increment_number_by_10": {"mac": "alt+super+up", "pc": R("shift+alt+up")},
+	"decrement_number_by_10": {"mac": "alt+super+down", "pc": R("shift+alt+down")},
 	"select_next_item": {"mac": "shift+super+.", "pc": "shift+ctrl+."},
 	"select_previous_item": {"mac": "shift+super+,", "pc": "shift+ctrl+,"},
-	"reflect_css_value": {"mac": "shift+super+r", "pc": "shift+ctrl+r"},
+	"reflect_css_value": {"mac": "shift+super+r", "pc": R("shift+ctrl+r")},
 	"rename_tag": {"mac": "super+shift+k", "pc": "shift+ctrl+'"},
 	"encode_decode_data_url": {"mac": "shift+ctrl+d", "pc": "ctrl+'"},
-	"update_image_size": {"mac": "shift+ctrl+i", "pc": "ctrl+u"},
+	"update_image_size": {"mac": "shift+ctrl+i", "pc": R("ctrl+u")},
 
 	"expand_as_you_type": {
 		"keys": ["ctrl+alt+enter"],
@@ -45,7 +65,7 @@ keymap = {
 
 	"wrap_as_you_type": {
 		"mac": "ctrl+w", 
-		"pc": "shift+ctrl+g",
+		"pc": R("shift+ctrl+g"),
 		"context": [{
 			"key": "setting.is_widget", 
 			"operand": False, 
@@ -137,7 +157,8 @@ addon = [
 
 	# insert linebreak with formatting
 	{
-		"keys": ["enter"], 
+		"__doc__": "insert linebreak with formatting",
+		"keys": [E("enter")],
 		"command": "insert_snippet",
 		"args": {"contents": "\n\t${0}\n"},
 		"context": [
@@ -205,7 +226,7 @@ _dir = os.path.dirname(os.path.abspath(__file__))
 standalone_actions = ["wrap_as_you_type", "expand_as_you_type", "rename_tag"]
 
 def create_record(k, v, os_type):
-	if isinstance(v, basestring):
+	if isinstance(v, (basestring, O)):
 		v = {"keys": [v]}
 	else:
 		v = copy.deepcopy(v)
@@ -214,8 +235,8 @@ def create_record(k, v, os_type):
 		v['keys'] = [v[os_type]]
 
 	if 'pc' in v:
-		del v['pc'] 
-	
+		del v['pc']
+
 	if 'mac' in v:
 		del v['mac']
 
@@ -228,13 +249,52 @@ def create_record(k, v, os_type):
 	if 'context' not in v:
 		v['context'] = []
 
-	v['context'].append({'key': 'emmet_action_enabled.%s' % k})
+	ctx = {'key': 'emmet_action_enabled.%s' % k}
+	
+	keys = v['keys'][0]
+	if isinstance(keys, O): ctx['key'] += ('.%s_default' %  type(keys).key)
+	v['context'].append(ctx)
 
 	if len(v['context']) > 1:
 		for ctx in v['context']:
 			ctx['match_all'] = True
 
 	return v
+
+def generate_override_header(editor_keymap):
+	overrides = collections.defaultdict(list)
+
+	header = []
+	H= lambda s='': header.append('// ' +  s)
+	for v in editor_keymap:
+		for b in v['keys']:
+			if isinstance(b, O):
+				overrides[type(b).key].append(v)
+
+	def get_command(b):
+		if '__doc__' in b:
+			cmd  = b['__doc__']
+		else:
+			cmd = b['command']
+			if cmd == 'run_emmet_action':
+				cmd = b['args']['action']
+		return cmd
+
+	for k, v in sorted(overrides.items()):
+		v = sorted(v, key=lambda i: i['keys'][0])
+
+		header_mapping = dict (
+			replaces = 'default bindings',
+			replaces_infrequent = 'infreqently used default bindings',
+			enhances = 'default bindings, enhancing same function ')
+
+		H(("(%s) Overrides of " + header_mapping[k]) % k)
+		H()
+		for b in v:
+			H('   %-40s : %s' %  (get_command(b), b['keys'][0]) )
+		H()
+
+	return '\n'.join(header) + '\n'
 
 def generate_keymap_file(path):
 	os_type = 'mac' if '(OSX)' in path else 'pc'
@@ -244,7 +304,7 @@ def generate_keymap_file(path):
 	editor_keymap = [create_record(k, v, os_type) for k, v in keymap.items()] + addon
 	content = json.dumps(editor_keymap, indent=4)
 	f = open(path, 'w')
-	f.write(header + content)
+	f.write(header + generate_override_header(editor_keymap) + content)
 	f.close()
 
 for path in ['../Default (OSX).sublime-keymap', '../Default (Windows).sublime-keymap', '../Default (Linux).sublime-keymap']:
