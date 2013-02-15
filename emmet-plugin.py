@@ -172,7 +172,7 @@ def default_override_binding_is_disabled_by_class(binding_override_class):
 			binding_override_class=binding_override_class[:-8] # :_default
 			if any(r.strip() == binding_override_class for r in
 				   disabled_classes.split(',')):
-				return False
+				return True
 
 def should_perform_action(name, view=None, binding_override_class=None):
 	if not view:
