@@ -164,12 +164,26 @@ def get_scope(view, pt=-1):
 
 	return view.syntax_name(pt)
 
-def should_perform_action(name, view=None):
+def default_override_binding_is_disabled_by_class(binding_override_class):
+	if binding_override_class is not None:
+		disabled_classes = settings.get('disabled_classes_'
+										'of_default_bindings', '')
+		if disabled_classes:
+			binding_override_class=binding_override_class[:-8] # :_default
+			if any(r.strip() == binding_override_class for r in
+				   disabled_classes.split(',')):
+				return False
+
+def should_perform_action(name, view=None, binding_override_class=None):
 	if not view:
 		view = active_view()
 
 	# fallback to old check
 	if not view.settings().get('enable_emmet_keymap', True):
+		return False
+
+	# Disable entire classes of over-ridden defaults
+	if default_override_binding_is_disabled_by_class(binding_override_class): 
 		return False
 
 	disabled_actions = settings.get('disabled_keymap_actions', '')
@@ -229,8 +243,12 @@ class ActionContextHandler(sublime_plugin.EventListener):
 		if not key.startswith('emmet_action_enabled.'):
 			return None
 
-		prefix, name = key.split('.')
-		return should_perform_action(name, view)
+		prefix, name = key.split('.', 1)
+		if '.' in name:
+			name, binding_override_class = name.split('.')
+		else:
+			binding_override_class = None
+		return should_perform_action(name, view, binding_override_class)
 
 def run_action(action, view=None):
 	if not check_context(True):
