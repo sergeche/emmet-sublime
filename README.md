@@ -6,7 +6,7 @@ Official [Emmet](http://emmet.io) plugin (previously called _Zen Coding_) for Su
 
 ## How to install
 
-1. Clone or [download](/sergeche/emmet-sublime/archive/master.zip) git repo into your packages folder (in ST2, find Browse Packages... menu item to open this folder)
+1. Clone or [download](https://github.com/sergeche/emmet-sublime/archive/master.zip) git repo into your packages folder (in ST2, find Browse Packages... menu item to open this folder)
 2. Restart ST2 editor (if required)
 
 Or with [Package Control](http://wbond.net/sublime_packages/package_control):
