@@ -261,6 +261,41 @@ def create_record(k, v, os_type):
 
 	return v
 
+def generate_override_header(editor_keymap):
+	overrides = collections.defaultdict(list)
+
+	header = []
+	H= lambda s='': header.append('// ' +  s)
+	for v in editor_keymap:
+		for b in v['keys']:
+			if isinstance(b, O):
+				overrides[type(b).key].append(v)
+
+	def get_command(b):
+		if '__doc__' in b:
+			cmd  = b['__doc__']
+		else:
+			cmd = b['command']
+			if cmd == 'run_emmet_action':
+				cmd = b['args']['action']
+		return cmd
+
+	for k, v in sorted(overrides.items()):
+		v = sorted(v, key=lambda i: i['keys'][0])
+
+		header_mapping = dict (
+			replaces = 'default bindings',
+			replaces_infrequent = 'infreqently used default bindings',
+			enhances = 'default bindings, enhancing same function ')
+
+		H(("(%s) Overrides of " + header_mapping[k]) % k)
+		H()
+		for b in v:
+			H('   %-40s : %s' %  (get_command(b), b['keys'][0]) )
+		H()
+
+	return '\n'.join(header) + '\n'
+
 def generate_keymap_file(path):
 	os_type = 'mac' if '(OSX)' in path else 'pc'
 	path = os.path.abspath(os.path.join(_dir, path))
@@ -269,7 +304,7 @@ def generate_keymap_file(path):
 	editor_keymap = [create_record(k, v, os_type) for k, v in keymap.items()] + addon
 	content = json.dumps(editor_keymap, indent=4)
 	f = open(path, 'w')
-	f.write(header + content)
+	f.write(header + generate_override_header(editor_keymap) + content)
 	f.close()
 
 for path in ['../Default (OSX).sublime-keymap', '../Default (Windows).sublime-keymap', '../Default (Linux).sublime-keymap']:
