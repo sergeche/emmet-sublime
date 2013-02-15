@@ -23,15 +23,15 @@ class RU(O):
 	key="replaces_infrequent"
 
 keymap = {
-	"expand_abbreviation": "ctrl+e",
+	"expand_abbreviation": RU("ctrl+e"),
 	"match_pair_outward": {"mac": "ctrl+d", "pc": "ctrl+,"},
 	"match_pair_inward": {"mac": "ctrl+j", "pc": "ctrl+shift+0"},
 	"matching_pair": {"mac": "ctrl+shift+t", "pc": "ctrl+alt+j"},
 	"next_edit_point": "ctrl+alt+right",
 	"prev_edit_point": "ctrl+alt+left",
 	"toggle_comment": {
-		"mac": "super+shift+forward_slash",
-		"pc": "ctrl+shift+forward_slash",
+		"mac": E("super+shift+forward_slash"),
+		"pc": E("ctrl+shift+forward_slash"),
 		"context": [{
 			"key": "selector", 
 			"operand": "source.css - source.css.less, text.xml, text.html",
@@ -41,18 +41,18 @@ keymap = {
 	"split_join_tag": {"mac": "shift+super+'", "pc": "shift+ctrl+`"},
 	"remove_tag": {"mac": "super+'", "pc": "shift+ctrl+;"},
 	"evaluate_math_expression": {"mac": "shift+super+y", "pc": "shift+ctrl+y"},
-	"increment_number_by_1": "ctrl+up",
-	"decrement_number_by_1": "ctrl+down",
+	"increment_number_by_1": R("ctrl+up"),
+	"decrement_number_by_1": R("ctrl+down"),
 	"increment_number_by_01": "alt+up",
 	"decrement_number_by_01": "alt+down",
-	"increment_number_by_10": {"mac": "alt+super+up", "pc": "shift+alt+up"},
-	"decrement_number_by_10": {"mac": "alt+super+down", "pc": "shift+alt+down"},
+	"increment_number_by_10": {"mac": "alt+super+up", "pc": R("shift+alt+up")},
+	"decrement_number_by_10": {"mac": "alt+super+down", "pc": R("shift+alt+down")},
 	"select_next_item": {"mac": "shift+super+.", "pc": "shift+ctrl+."},
 	"select_previous_item": {"mac": "shift+super+,", "pc": "shift+ctrl+,"},
-	"reflect_css_value": {"mac": "shift+super+r", "pc": "shift+ctrl+r"},
+	"reflect_css_value": {"mac": "shift+super+r", "pc": R("shift+ctrl+r")},
 	"rename_tag": {"mac": "super+shift+k", "pc": "shift+ctrl+'"},
 	"encode_decode_data_url": {"mac": "shift+ctrl+d", "pc": "ctrl+'"},
-	"update_image_size": {"mac": "shift+ctrl+i", "pc": "ctrl+u"},
+	"update_image_size": {"mac": "shift+ctrl+i", "pc": R("ctrl+u")},
 
 	"expand_as_you_type": {
 		"keys": ["ctrl+alt+enter"],
@@ -65,7 +65,7 @@ keymap = {
 
 	"wrap_as_you_type": {
 		"mac": "ctrl+w", 
-		"pc": "shift+ctrl+g",
+		"pc": R("shift+ctrl+g"),
 		"context": [{
 			"key": "setting.is_widget", 
 			"operand": False, 
@@ -157,7 +157,8 @@ addon = [
 
 	# insert linebreak with formatting
 	{
-		"keys": ["enter"], 
+		"__doc__": "insert linebreak with formatting",
+		"keys": [E("enter")],
 		"command": "insert_snippet",
 		"args": {"contents": "\n\t${0}\n"},
 		"context": [
