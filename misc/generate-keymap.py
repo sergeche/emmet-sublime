@@ -226,7 +226,7 @@ _dir = os.path.dirname(os.path.abspath(__file__))
 standalone_actions = ["wrap_as_you_type", "expand_as_you_type", "rename_tag"]
 
 def create_record(k, v, os_type):
-	if isinstance(v, basestring):
+	if isinstance(v, (basestring, O)):
 		v = {"keys": [v]}
 	else:
 		v = copy.deepcopy(v)
@@ -235,8 +235,8 @@ def create_record(k, v, os_type):
 		v['keys'] = [v[os_type]]
 
 	if 'pc' in v:
-		del v['pc'] 
-	
+		del v['pc']
+
 	if 'mac' in v:
 		del v['mac']
 
@@ -249,7 +249,11 @@ def create_record(k, v, os_type):
 	if 'context' not in v:
 		v['context'] = []
 
-	v['context'].append({'key': 'emmet_action_enabled.%s' % k})
+	ctx = {'key': 'emmet_action_enabled.%s' % k}
+	
+	keys = v['keys'][0]
+	if isinstance(keys, O): ctx['key'] += ('.%s_default' %  type(keys).key)
+	v['context'].append(ctx)
 
 	if len(v['context']) > 1:
 		for ctx in v['context']:
