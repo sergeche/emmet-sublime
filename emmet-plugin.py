@@ -14,11 +14,12 @@ EMMET_GRAMMAR = 'Packages/%s/Emmet.tmLanguage' % os.path.basename(BASE_PATH)
 sys.path += [BASE_PATH] + [os.path.join(BASE_PATH, f) for f in ['completions', 'emmet']]
 
 import completions as cmpl
+import emmet.pyv8loader as pyv8loader
 from completions.meta import HTML_ELEMENTS_ATTRIBUTES, HTML_ATTRIBUTES_VALUES
 from emmet.context import Context
 from emmet.pyv8loader import LoaderDelegate
 
-__version__      = '1.0'
+__version__      = '1.1'
 __core_version__ = '1.0'
 __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
 					'"Nicholas Dudfield" <ndudfield@gmail.com>']
@@ -39,6 +40,19 @@ def init():
 	globals()['settings'] = sublime.load_settings('Emmet.sublime-settings')
 	settings.add_on_change('extensions_path', update_settings)
 
+	# setup environment for PyV8 loading
+	pyv8_paths = [
+		os.path.join(PACKAGES_PATH, 'PyV8'),
+		os.path.join(PACKAGES_PATH, 'PyV8', pyv8loader.get_arch()),
+		os.path.join(PACKAGES_PATH, 'PyV8', 'pyv8-%s' % pyv8loader.get_arch())
+	]
+
+	sys.path += pyv8_paths
+
+	# unpack recently loaded binary, is exists
+	for p in pyv8_paths:
+		pyv8loader.unpack_pyv8(p)
+	
 	# provide some contributions to JS
 	contrib = {
 		'sublime': sublime, 
@@ -48,9 +62,14 @@ def init():
 
 	# create JS environment
 	delegate = SublimeLoaderDelegate()
-	globals()['ctx'] = Context(['../editor.js'], settings.get('extensions_path', None), 
-		contrib, pyv8_path=os.path.join(PACKAGES_PATH, 'PyV8'),
-		delegate=delegate)
+	globals()['ctx'] = Context(
+		files=['../editor.js'], 
+		ext_path=settings.get('extensions_path', None), 
+		contrib=contrib, 
+		logger=delegate.log
+	)
+
+	pyv8loader.load(pyv8_paths[1], delegate)
 
 	update_settings()
 
@@ -58,12 +77,20 @@ def init():
 		sublime.set_timeout(cmpl.remove_html_completions, 2000)
 
 class SublimeLoaderDelegate(LoaderDelegate):
-	def __init__(self, settings={}):
+	def __init__(self, settings=None):
+
+		if settings is None:
+			settings = sublime.load_settings('Preferences.sublime-settings')
+
 		LoaderDelegate.__init__(self, settings)
+		self.state = None
 		self.message = 'Loading PyV8 binary, please wait'
 		self.i = 0
 		self.addend = 1
 		self.size = 8
+
+	def on_start(self, *args, **kwargs):
+		self.state = 'loading'
 
 	def on_progress(self, *args, **kwargs):
 		before = self.i % self.size
@@ -78,10 +105,19 @@ class SublimeLoaderDelegate(LoaderDelegate):
 		sublime.set_timeout(lambda: sublime.status_message(msg), 0)
 
 	def on_complete(self, *args, **kwargs):
+		self.state = 'complete'
 		sublime.set_timeout(lambda: sublime.status_message('PyV8 binary successfully loaded'), 0)
 
 	def on_error(self, exit_code=-1, thread=None):
+		self.state = 'error'
 		sublime.set_timeout(lambda: show_pyv8_error(exit_code), 0)
+
+	def setting(self, name, default=None):
+		"Returns specified setting name"
+		return self.settings.get(name, default)
+
+	def log(self, message):
+		print('Emmet: %s' % message)
 
 def show_pyv8_error(exit_code):
 	if 'PyV8' not in sys.modules:
