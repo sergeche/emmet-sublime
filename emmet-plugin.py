@@ -28,8 +28,11 @@ is_python3 = sys.version_info[0] > 2
 
 # JS context
 ctx = None
-# Settings
+# Emmet Settings
 settings = None
+
+# Default ST settings
+user_settings = None
 
 def is_st3():
 	return sublime.version()[0] == '3'
@@ -37,6 +40,7 @@ def is_st3():
 def init():
 	"Init Emmet plugin"
 	# load settings
+	globals()['user_settings'] = sublime.load_settings('Preferences.sublime-settings')
 	globals()['settings'] = sublime.load_settings('Emmet.sublime-settings')
 	settings.add_on_change('extensions_path', update_settings)
 
@@ -129,7 +133,7 @@ def active_view():
 def check_context(verbose=False):
 	"Checks if JS context is completely available"
 	if not ctx.js():
-		if (verbose):
+		if verbose:
 			sublime.message_dialog('Please wait a bit while PyV8 binary is being downloaded')
 		return False
 
@@ -308,25 +312,9 @@ def run_action(action, view=None):
 
 	return result
 
-class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
-	def run(self, edit, **kw):
-		# this is just a stub, the actual abbreviation expansion
-		# is done in TabExpandHandler.on_query_context
-		pass
-
-class TabExpandHandler(sublime_plugin.EventListener):
+class TabAndCompletionsHandler():
 	def correct_syntax(self, view, syntax='html'):
 		return syntax == 'html' and view.match_selector( view.sel()[0].b, cmpl.EMMET_SCOPE )
-
-	def html_elements_attributes(self, view, prefix, pos):
-		tag         = cmpl.find_tag_name(view, pos)
-		values      = HTML_ELEMENTS_ATTRIBUTES.get(tag, [])
-		return [(v,   '%s\t@%s' % (v,v), '%s="$1"' % v) for v in values]
-
-	def html_attributes_values(self, view, prefix, pos):
-		attr        = cmpl.find_attribute_name(view, pos)
-		values      = HTML_ATTRIBUTES_VALUES.get(attr, [])
-		return [(v, '%s\t@=%s' % (v,v), v) for v in values]
 
 	def completion_handler(self, view):
 		"Returns completions handler fo current caret position"
@@ -351,13 +339,20 @@ class TabExpandHandler(sublime_plugin.EventListener):
 
 		return None
 
-	def on_query_context(self, view, key, op, operand, match_all):
-		if key != 'is_abbreviation':
-			return None
+	def html_elements_attributes(self, view, prefix, pos):
+		tag         = cmpl.find_tag_name(view, pos)
+		values      = HTML_ELEMENTS_ATTRIBUTES.get(tag, [])
+		return [(v,   '%s\t@%s' % (v,v), '%s="$1"' % v) for v in values]
 
+	def html_attributes_values(self, view, prefix, pos):
+		attr        = cmpl.find_attribute_name(view, pos)
+		values      = HTML_ATTRIBUTES_VALUES.get(attr, [])
+		return [(v, '%s\t@=%s' % (v,v), v) for v in values]
+
+	def expand_by_tab(self, view):
 		if not check_context():
 			return False;
-
+			
 		syntax = ctx.js().locals.pyGetSyntax();
 		if not should_handle_tab_key(syntax):
 			return False
@@ -377,15 +372,43 @@ class TabExpandHandler(sublime_plugin.EventListener):
 		if banned_scopes and view.score_selector(caret_pos, banned_scopes):
 			return None
 
-		# Sometimes ST2 matcher may corectly filter scope context,
+		# Sometimes ST2 matcher may incorrectly filter scope context,
 		# check it against special regexp
 		banned_regexp = settings.get('disable_tab_abbreviations_for_regexp', None)
 		if banned_regexp and re.search(banned_regexp, cur_scope):
 			return None
 
 		return run_action(lambda i, sel: ctx.js().locals.pyRunAction('expand_abbreviation'))
+		
+
+class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
+	def run(self, edit, **kw):
+		if settings.get('use_old_tab_handler', False):
+			return
+			
+		view = active_view()
+		h = TabAndCompletionsHandler()
+		if not h.expand_by_tab(view):
+			# try to mimic default Tab behaviour of Sublime Text
+			view.run_command('insert_best_completion', {
+				'default': '\t',
+				'exact': user_settings.get('tab_completion', True)
+			})
+
+
+class TabExpandHandler(sublime_plugin.EventListener):
+	def on_query_context(self, view, key, op, operand, match_all):
+		if key != 'is_abbreviation':
+			return None
+
+		if settings.get('use_old_tab_handler', False):
+			h = TabAndCompletionsHandler()
+			return h.expand_by_tab(view)
+
+		return check_context()
 
 	def on_query_completions(self, view, prefix, locations):
+		h = TabAndCompletionsHandler()
 		if view.match_selector(locations[0], settings.get('css_completions_scope', '')) and check_context():
 			l = []
 			if settings.get('show_css_completions', False):
@@ -399,10 +422,10 @@ class TabExpandHandler(sublime_plugin.EventListener):
 
 			return (l, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
-		if not self.correct_syntax(view) or settings.get('disable_completions', False):
+		if not h.correct_syntax(view) or settings.get('disable_completions', False):
 			return []
 
-		handler = self.completion_handler(view)
+		handler = h.completion_handler(view)
 		if handler:
 			pos = view.sel()[0].b
 			completions = handler(view, prefix, pos)
