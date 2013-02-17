@@ -6437,8 +6437,9 @@ emmet.define('tabStops', function(require, _) {
 					return require('utils').getCaretPlaceholder();
 				
 				var attr = node.attribute(varName);
-				if (!_.isUndefined(attr))
+				if (!_.isUndefined(attr) && attr !== str) {
 					return attr;
+				}
 				
 				var varValue = res.getVariable(varName);
 				if (varValue)
@@ -6450,11 +6451,6 @@ emmet.define('tabStops', function(require, _) {
 					
 				return '${' + placeholderMemo[varName] + ':' + varName + '}';
 			};
-		},
-		
-		resetPlaceholderCounter: function() {
-			console.log('deprecated');
-			startPlaceholderNum = 100;
 		},
 		
 		/**
@@ -9849,15 +9845,23 @@ emmet.exec(function(require, _) {
 			throw "Can't find " + imgPath + ' file';
 		}
 		
-		var b64 = require('base64').encode(String(file.read(realImgPath)));
-		if (!b64) {
-			throw "Can't encode file content to base64";
-		}
-		
-		b64 = 'data:' + (actionUtils.mimeTypes[String(file.getExt(realImgPath))] || defaultMimeType) +
-			';base64,' + b64;
+		file.read(realImgPath, function(err, content) {
+			if (err) {
+				throw 'Unable to read ' + realImgPath + ': ' + err;
+			}
 			
-		editor.replaceContent('$0' + b64, pos, pos + imgPath.length);
+			var b64 = require('base64').encode(String(content));
+			if (!b64) {
+				throw "Can't encode file content to base64";
+			}
+			
+			b64 = 'data:' + (actionUtils.mimeTypes[String(file.getExt(realImgPath))] || defaultMimeType) +
+				';base64,' + b64;
+				
+			editor.replaceContent('$0' + b64, pos, pos + imgPath.length);
+		});
+		
+		
 		return true;
 	}
 
@@ -9904,21 +9908,19 @@ emmet.exec(function(require, _) {
 		var info = require('editorUtils').outputInfo(editor);
 		var xmlElem = require('xmlEditTree').parseFromPosition(info.content, offset, true);
 		if (xmlElem && (xmlElem.name() || '').toLowerCase() == 'img') {
-			
-			var size = getImageSizeForSource(editor, xmlElem.value('src'));
-			if (size) {
-				var compoundData = xmlElem.range(true);
-				xmlElem.value('width', size.width);
-				xmlElem.value('height', size.height, xmlElem.indexOf('width') + 1);
-				
-				return _.extend(compoundData, {
-					data: xmlElem.toString(),
-					caret: offset
-				});
-			}
+			getImageSizeForSource(editor, xmlElem.value('src'), function(size) {
+				if (size) {
+					var compoundData = xmlElem.range(true);
+					xmlElem.value('width', size.width);
+					xmlElem.value('height', size.height, xmlElem.indexOf('width') + 1);
+					
+					require('actionUtils').compoundUpdate(editor, _.extend(compoundData, {
+						data: xmlElem.toString(),
+						caret: offset
+					}));
+				}
+			});
 		}
-		
-		return null;
 	}
 	
 	/**
@@ -9935,21 +9937,20 @@ emmet.exec(function(require, _) {
 			// check if there is property with image under caret
 			var prop = cssRule.itemFromPosition(offset, true), m;
 			if (prop && (m = /url\((["']?)(.+?)\1\)/i.exec(prop.value() || ''))) {
-				var size = getImageSizeForSource(editor, m[2]);
-				if (size) {
-					var compoundData = cssRule.range(true);
-					cssRule.value('width', size.width + 'px');
-					cssRule.value('height', size.height + 'px', cssRule.indexOf('width') + 1);
-					
-					return _.extend(compoundData, {
-						data: cssRule.toString(),
-						caret: offset
-					});
-				}
+				getImageSizeForSource(editor, m[2], function(size) {
+					if (size) {
+						var compoundData = cssRule.range(true);
+						cssRule.value('width', size.width + 'px');
+						cssRule.value('height', size.height + 'px', cssRule.indexOf('width') + 1);
+						
+						require('actionUtils').compoundUpdate(editor, _.extend(compoundData, {
+							data: cssRule.toString(),
+							caret: offset
+						}));
+					}
+				});
 			}
 		}
-		
-		return null;
 	}
 	
 	/**
@@ -9957,37 +9958,43 @@ emmet.exec(function(require, _) {
 	 * @param {IEmmetEditor} editor
 	 * @param {String} src Image source (path or data:url)
 	 */
-	function getImageSizeForSource(editor, src) {
+	function getImageSizeForSource(editor, src, callback) {
 		var fileContent;
+		var au = require('actionUtils');
 		if (src) {
 			// check if it is data:url
 			if (/^data:/.test(src)) {
 				fileContent = require('base64').decode( src.replace(/^data\:.+?;.+?,/, '') );
-			} else {
-				var file = require('file');
-				var absPath = file.locateFile(editor.getFilePath(), src);
-				if (absPath === null) {
-					throw "Can't find " + src + ' file';
-				}
-				
-				fileContent = String(file.read(absPath));
+				return callback(au.getImageSize(fileContent));
 			}
 			
-			return require('actionUtils').getImageSize(fileContent);
+			var file = require('file');
+			var absPath = file.locateFile(editor.getFilePath(), src);
+			if (absPath === null) {
+				throw "Can't find " + src + ' file';
+			}
+			
+			file.read(absPath, 500, function(err, content) {
+				if (err) {
+					throw 'Unable to read ' + absPath + ': ' + err;
+				}
+				
+				content = String(content);
+				callback(au.getImageSize(content));
+			});
 		}
 	}
 	
 	require('actions').add('update_image_size', function(editor) {
-		var result;
 		// this action will definitely won’t work in SASS dialect,
 		// but may work in SCSS or LESS
 		if (_.include(['css', 'less', 'scss'], String(editor.getSyntax()))) {
-			result = updateImageSizeCSS(editor);
+			updateImageSizeCSS(editor);
 		} else {
-			result = updateImageSizeHTML(editor);
+			updateImageSizeHTML(editor);
 		}
 		
-		return require('actionUtils').compoundUpdate(editor, result);
+		return true;
 	});
 });/**
  * Resolver for fast CSS typing. Handles abbreviations with the following 
@@ -10151,7 +10158,7 @@ emmet.define('cssResolver', function(require, _) {
 	prefs.define('css.keywords', 'auto, inherit', 
 			'A comma-separated list of valid keywords that can be used in CSS abbreviations.');
 	
-	prefs.define('css.keywordAliases', 'a:auto, i:inherit, s:solid, da:dashed, do:dotted', 
+	prefs.define('css.keywordAliases', 'a:auto, i:inherit, s:solid, da:dashed, do:dotted, t:transparent', 
 			'A comma-separated list of keyword aliases, used in CSS abbreviation. '
 			+ 'Each alias should be defined as <code>alias:keyword_name</code>.');
 	
@@ -10240,6 +10247,10 @@ emmet.define('cssResolver', function(require, _) {
 	
 	function normalizeHexColor(value) {
 		var hex = value.replace(/^#+/, '') || '0';
+		if (hex.toLowerCase() == 't') {
+			return 'transparent';
+		}
+		
 		var repeat = require('utils').repeatString;
 		var color = null;
 		switch (hex.length) {
@@ -10648,7 +10659,7 @@ emmet.define('cssResolver', function(require, _) {
 			
 			while (ch = stream.next()) {
 				if (ch == '#') {
-					stream.match(/^[0-9a-f]+/, true);
+					stream.match(/^t|[0-9a-f]+/i, true);
 					values.push(stream.current());
 				} else if (ch == '-') {
 					if (isValidKeyword(_.last(values)) || 
@@ -11148,7 +11159,7 @@ emmet.define('cssGradient', function(require, _) {
 			}
 		});
 		
-		if (alignVendor && sep != property.styleSeparator) {
+		if (alignVendor) {
 			// update prefix
 			if (before != property.styleBefore) {
 				var fullRange = property.fullRange();
@@ -12097,7 +12108,24 @@ emmet.exec(function(require, _) {
 emmet.exec(function(require, _){
 	var placeholder = '%s';
 	
-	function getIndentation() {
+	/** @type preferences */
+	var prefs = require('preferences');
+	prefs.define('format.noIndentTags', 'html', 
+			'A comma-separated list of tag names that should not get inner indentation.');
+	
+	prefs.define('format.forceIndentationForTags', 'body', 
+		'A comma-separated list of tag names that should <em>always</em> get inner indentation.');
+	
+	/**
+	 * Get indentation for given node
+	 * @param {AbbreviationNode} node
+	 * @returns {String}
+	 */
+	function getIndentation(node) {
+		if (_.include(prefs.getArray('format.noIndentTags') || [], node.name())) {
+			return '';
+		}
+		
 		return require('resources').getVariable('indentation');
 	}
 	
@@ -12217,10 +12245,14 @@ emmet.exec(function(require, _){
 		var abbrUtils = require('abbreviationUtils');
 		var isUnary = abbrUtils.isUnary(item);
 		var nl = utils.getNewline();
+		var indent = getIndentation(item);
 			
 		// formatting output
 		if (profile.tag_nl !== false) {
 			var forceNl = profile.tag_nl === true && (profile.tag_nl_leaf || item.children.length);
+			if (!forceNl) {
+				forceNl = _.include(prefs.getArray('format.forceIndentationForTags') || [], item.name());
+			}
 			
 			// formatting block-level elements
 			if (!item.isTextNode()) {
@@ -12234,14 +12266,14 @@ emmet.exec(function(require, _){
 						item.end = nl + item.end;
 						
 					if (abbrUtils.hasTagsInContent(item) || (forceNl && !item.children.length && !isUnary))
-						item.start += nl + getIndentation();
+						item.start += nl + indent;
 				} else if (abbrUtils.isInline(item) && hasBlockSibling(item) && !isVeryFirstChild(item)) {
 					item.start = nl + item.start;
 				} else if (abbrUtils.isInline(item) && shouldBreakInsideInline(item, profile)) {
 					item.end = nl + item.end;
 				}
 				
-				item.padding = getIndentation() ;
+				item.padding = indent;
 			}
 		}
 		
@@ -12454,8 +12486,15 @@ emmet.exec(function(require, _) {
 		item.start = utils.replaceSubstring(item.start, start, item.start.indexOf(placeholder), placeholder);
 		item.end = utils.replaceSubstring(item.end, end, item.end.indexOf(placeholder), placeholder);
 		
-		if (!item.children.length && !isUnary && item.content.indexOf(cursor) == -1)
+		// should we put caret placeholder after opening tag?
+		if (
+				!item.children.length 
+				&& !isUnary 
+				&& !~item.content.indexOf(cursor)
+				&& !require('tabStops').extract(item.content).tabstops.length
+			) {
 			item.start += cursor;
+		}
 		
 		return item;
 	}
@@ -12829,38 +12868,54 @@ emmet.define('bootstrap', function(require, _) {
 			var payload = {};
 			var utils = require('utils');
 			var userSnippets = null;
+			var that = this;
 			
-			_.each(fileList, function(f) {
-				switch (file.getExt(f)) {
-					case 'js':
-						try {
-							eval(file.read(f));
-						} catch (e) {
-							emmet.log('Unable to eval "' + f + '" file: '+ e);
+			var next = function() {
+				if (fileList.length) {
+					var f = fileList.shift();
+					file.read(f, function(err, content) {
+						if (err) {
+							emmet.log('Unable to read "' + f + '" file: '+ err);
+							return next();
 						}
-						break;
-					case 'json':
-						var fileName = getFileName(f).toLowerCase().replace(/\.json$/, '');
-						if (/^snippets/.test(fileName)) {
-							if (fileName === 'snippets') {
-								// data in snippets.json is more important to user
-								userSnippets = this.parseJSON(file.read(f));
-							} else {
-								payload.snippets = utils.deepMerge(payload.snippets || {}, this.parseJSON(file.read(f)));
-							}
-						} else {
-							payload[fileName] = file.read(f);
+												
+						switch (file.getExt(f)) {
+							case 'js':
+								try {
+									eval(content);
+								} catch (e) {
+									emmet.log('Unable to eval "' + f + '" file: '+ e);
+								}
+								break;
+							case 'json':
+								var fileName = getFileName(f).toLowerCase().replace(/\.json$/, '');
+								if (/^snippets/.test(fileName)) {
+									if (fileName === 'snippets') {
+										// data in snippets.json is more important to user
+										userSnippets = that.parseJSON(content);
+									} else {
+										payload.snippets = utils.deepMerge(payload.snippets || {}, that.parseJSON(content));
+									}
+								} else {
+									payload[fileName] = content;
+								}
+								
+								break;
 						}
 						
-						break;
+						next();
+					});
+				} else {
+					// complete
+					if (userSnippets) {
+						payload.snippets = utils.deepMerge(payload.snippets || {}, userSnippets);
+					}
+					
+					that.loadUserData(payload);
 				}
-			}, this);
+			};
 			
-			if (userSnippets) {
-				payload.snippets = utils.deepMerge(payload.snippets || {}, userSnippets);
-			}
-			
-			this.loadUserData(payload);
+			next();
 		},
 		
 		/**

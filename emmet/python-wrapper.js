@@ -1,5 +1,11 @@
+var console = {
+	log: function(msg) {
+		log(msg);
+	}
+};
+
 /**
- * Simple function alias to run Zen Coding action.
+ * Simple function alias to run Emmet action.
  * <code>editorProxy</code> object should be defined
  * in concrete plugin implementation.
  */
@@ -16,6 +22,7 @@ function pyLoadUserData(data) {
 }
 
 function pyLoadExtensions(fileList) {
+	fileList = _.toArray(fileList);
 	emmet.require('bootstrap').loadExtensions(fileList);
 }
 
@@ -25,10 +32,24 @@ function pyResetUserData() {
 
 emmet.define('file', function(require, _) {
 	return {
-		read: function(path) {
-			return _.map(pyFile.read(path) || [], function(b) {
-				return String.fromCharCode(b);
-			}).join('');
+		read: function(path, size, callback) {
+			var args = _.rest(arguments);
+			callback = _.last(args);
+			args = _.initial(args);
+			if (!args.length) {
+				size = -1;
+			}
+
+			pyFile.read(path, size, function(err, content) {
+				if (err) {
+					return callback(err, content);
+				}
+
+				content = _.map(content || [], function(b) {
+					return String.fromCharCode(b);
+				}).join('');
+				callback(null, content);
+			});
 		},
 
 		locateFile: function(editorFile, fileName) {

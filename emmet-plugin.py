@@ -7,26 +7,94 @@ import sys
 import os.path
 import traceback
 
+BASE_PATH = os.path.abspath(os.path.dirname(__file__))
+PACKAGES_PATH = sublime.packages_path() or os.path.dirname(BASE_PATH)
+# EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
+EMMET_GRAMMAR = 'Packages/%s/Emmet.tmLanguage' % os.path.basename(BASE_PATH)
+sys.path += [BASE_PATH] + [os.path.join(BASE_PATH, f) for f in ['completions', 'emmet']]
+
 import completions as cmpl
+import emmet.pyv8loader as pyv8loader
 from completions.meta import HTML_ELEMENTS_ATTRIBUTES, HTML_ATTRIBUTES_VALUES
 from emmet.context import Context
 from emmet.pyv8loader import LoaderDelegate
 
-__version__      = '1.0'
+__version__      = '1.1'
 __core_version__ = '1.0'
 __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
 					'"Nicholas Dudfield" <ndudfield@gmail.com>']
 
-BASE_PATH = os.path.abspath(os.path.dirname(__file__))
-EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
+is_python3 = sys.version_info[0] > 2
+
+# JS context
+ctx = None
+# Emmet Settings
+settings = None
+
+# Default ST settings
+user_settings = None
+
+def is_st3():
+	return sublime.version()[0] == '3'
+
+def init():
+	"Init Emmet plugin"
+	# load settings
+	globals()['user_settings'] = sublime.load_settings('Preferences.sublime-settings')
+	globals()['settings'] = sublime.load_settings('Emmet.sublime-settings')
+	settings.add_on_change('extensions_path', update_settings)
+
+	# setup environment for PyV8 loading
+	pyv8_paths = [
+		os.path.join(PACKAGES_PATH, 'PyV8'),
+		os.path.join(PACKAGES_PATH, 'PyV8', pyv8loader.get_arch()),
+		os.path.join(PACKAGES_PATH, 'PyV8', 'pyv8-%s' % pyv8loader.get_arch())
+	]
+
+	sys.path += pyv8_paths
+
+	# unpack recently loaded binary, is exists
+	for p in pyv8_paths:
+		pyv8loader.unpack_pyv8(p)
+	
+	# provide some contributions to JS
+	contrib = {
+		'sublime': sublime, 
+		'sublimeReplaceSubstring': replace_substring,
+		'sublimeGetOption': settings.get
+	}
+
+	# create JS environment
+	delegate = SublimeLoaderDelegate()
+	globals()['ctx'] = Context(
+		files=['../editor.js'], 
+		ext_path=settings.get('extensions_path', None), 
+		contrib=contrib, 
+		logger=delegate.log
+	)
+
+	pyv8loader.load(pyv8_paths[1], delegate)
+
+	update_settings()
+
+	if settings.get('remove_html_completions', False):
+		sublime.set_timeout(cmpl.remove_html_completions, 2000)
 
 class SublimeLoaderDelegate(LoaderDelegate):
-	def __init__(self, settings={}):
+	def __init__(self, settings=None):
+
+		if settings is None:
+			settings = user_settings
+
 		LoaderDelegate.__init__(self, settings)
+		self.state = None
 		self.message = 'Loading PyV8 binary, please wait'
 		self.i = 0
 		self.addend = 1
 		self.size = 8
+
+	def on_start(self, *args, **kwargs):
+		self.state = 'loading'
 
 	def on_progress(self, *args, **kwargs):
 		before = self.i % self.size
@@ -41,10 +109,19 @@ class SublimeLoaderDelegate(LoaderDelegate):
 		sublime.set_timeout(lambda: sublime.status_message(msg), 0)
 
 	def on_complete(self, *args, **kwargs):
+		self.state = 'complete'
 		sublime.set_timeout(lambda: sublime.status_message('PyV8 binary successfully loaded'), 0)
 
 	def on_error(self, exit_code=-1, thread=None):
+		self.state = 'error'
 		sublime.set_timeout(lambda: show_pyv8_error(exit_code), 0)
+
+	def setting(self, name, default=None):
+		"Returns specified setting name"
+		return self.settings.get(name, default)
+
+	def log(self, message):
+		print('Emmet: %s' % message)
 
 def show_pyv8_error(exit_code):
 	if 'PyV8' not in sys.modules:
@@ -56,7 +133,7 @@ def active_view():
 def check_context(verbose=False):
 	"Checks if JS context is completely available"
 	if not ctx.js():
-		if (verbose):
+		if verbose:
 			sublime.message_dialog('Please wait a bit while PyV8 binary is being downloaded')
 		return False
 
@@ -65,20 +142,22 @@ def check_context(verbose=False):
 
 def replace_substring(start, end, value, no_indent=False):
 	view = active_view()
-	# edit = view.begin_edit()
 
 	view.sel().clear()
 	view.sel().add(sublime.Region(start, end or start)) 
 
+	if not is_python3:
+		value = value.decode('utf-8')
+
 	# XXX a bit naive indentation control. It handles most common
 	# `no_indent` usages like replacing CSS rule content, but may not
 	# produce expected result in all possible situations
+
 	if no_indent:
 		line = view.substr(view.line(view.sel()[0]))
 		value = unindent_text(value, get_line_padding(line))
 
-	view.run_command('insert_snippet', {'contents': value.decode('utf-8')})
-	# view.end_edit(edit)
+	view.run_command('insert_snippet', {'contents': value})
 
 def unindent_text(text, pad):
 	"""
@@ -116,6 +195,16 @@ def update_settings():
 	ctx.load_user_data(json.dumps(payload))
 	ctx.js()
 
+def get_scope(view, pt=-1):
+	if pt == -1:
+		# use current caret position
+		pt = view.sel()[0].begin()
+
+	if hasattr(view, 'scope_name'):
+		return view.scope_name(pt)
+
+	return view.syntax_name(pt)
+
 def should_perform_action(name, view=None):
 	if not view:
 		view = active_view()
@@ -137,7 +226,7 @@ def should_perform_action(name, view=None):
 def should_handle_tab_key(syntax=None):
 	view = active_view()
 	scopes = settings.get('disabled_single_snippet_for_scopes', None)
-	cur_scope = view.syntax_name(view.sel()[0].begin())
+	cur_scope = get_scope(view)
 
 	if sublime.score_selector(cur_scope, 'source.css'):
 		return True
@@ -166,28 +255,6 @@ def should_handle_tab_key(syntax=None):
 		return True
 
 	return False
-
-# load settings
-settings = sublime.load_settings('Emmet.sublime-settings')
-settings.add_on_change('extensions_path', update_settings)
-
-# provide some contributions to JS
-contrib = {
-	'sublime': sublime, 
-	'sublimeReplaceSubstring': replace_substring,
-	'sublimeGetOption': settings.get
-}
-
-# create JS environment
-delegate = SublimeLoaderDelegate()
-ctx = Context(['../editor.js'], settings.get('extensions_path', None), 
-	contrib, pyv8_path=os.path.join(sublime.packages_path(), 'PyV8'),
-	delegate=delegate)
-
-update_settings()
-
-if settings.get('remove_html_completions', False):
-	sublime.set_timeout(cmpl.remove_html_completions, 2000)
 
 def log(message):
 	if settings.get('debug', False):
@@ -219,7 +286,6 @@ def run_action(action, view=None):
 	r = ctx.js().locals.pyRunAction
 	result = False
 
-	edit = view.begin_edit()
 	max_sel_ix = len(sels) - 1
 
 	try:
@@ -233,7 +299,7 @@ def run_action(action, view=None):
 			# remember resulting selections
 			view.add_regions(region_key,
 					(view.get_regions(region_key) + list(view.sel())) , '')
-	except Exception, e:
+	except Exception as e:
 		view.erase_regions(region_key)
 		print(traceback.format_exc())
 		return
@@ -246,29 +312,11 @@ def run_action(action, view=None):
 
 	view.erase_regions(region_key)
 
-	view.end_edit(edit)
 	return result
 
-class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
-	def run(self, edit, **kw):
-		# this is just a stub, the actual abbreviation expansion
-		# is done in TabExpandHandler.on_query_context
-		pass
-
-
-class TabExpandHandler(sublime_plugin.EventListener):
+class TabAndCompletionsHandler():
 	def correct_syntax(self, view, syntax='html'):
 		return syntax == 'html' and view.match_selector( view.sel()[0].b, cmpl.EMMET_SCOPE )
-
-	def html_elements_attributes(self, view, prefix, pos):
-		tag         = cmpl.find_tag_name(view, pos)
-		values      = HTML_ELEMENTS_ATTRIBUTES.get(tag, [])
-		return [(v,   '%s\t@%s' % (v,v), '%s="$1"' % v) for v in values]
-
-	def html_attributes_values(self, view, prefix, pos):
-		attr        = cmpl.find_attribute_name(view, pos)
-		values      = HTML_ATTRIBUTES_VALUES.get(attr, [])
-		return [(v, '%s\t@=%s' % (v,v), v) for v in values]
 
 	def completion_handler(self, view):
 		"Returns completions handler fo current caret position"
@@ -286,20 +334,27 @@ class TabExpandHandler(sublime_plugin.EventListener):
 		# Try to find some more specific contextual abbreviation
 		for sub_selector, handler in COMPLETIONS:
 			h_name = handler.__name__
-			if h_name in black_list: continue
+			if not black_list or h_name in black_list: continue
 			if (view.match_selector(pos,  sub_selector) or
 				 view.match_selector(pos - 1,  sub_selector)):
 				return handler
 
 		return None
 
-	def on_query_context(self, view, key, op, operand, match_all):
-		if key != 'is_abbreviation':
-			return None
+	def html_elements_attributes(self, view, prefix, pos):
+		tag         = cmpl.find_tag_name(view, pos)
+		values      = HTML_ELEMENTS_ATTRIBUTES.get(tag, [])
+		return [(v,   '%s\t@%s' % (v,v), '%s="$1"' % v) for v in values]
 
+	def html_attributes_values(self, view, prefix, pos):
+		attr        = cmpl.find_attribute_name(view, pos)
+		values      = HTML_ATTRIBUTES_VALUES.get(attr, [])
+		return [(v, '%s\t@=%s' % (v,v), v) for v in values]
+
+	def expand_by_tab(self, view):
 		if not check_context():
 			return False;
-
+			
 		syntax = ctx.js().locals.pyGetSyntax();
 		if not should_handle_tab_key(syntax):
 			return False
@@ -312,22 +367,50 @@ class TabExpandHandler(sublime_plugin.EventListener):
 				return None
 
 		caret_pos = view.sel()[0].begin()
-		cur_scope = view.syntax_name(caret_pos)
+		cur_scope = get_scope(view)
 
 		# let's see if Tab key expander should be disabled for current scope
 		banned_scopes = settings.get('disable_tab_abbreviations_for_scopes', '')
 		if banned_scopes and view.score_selector(caret_pos, banned_scopes):
 			return None
 
-		# Sometimes ST2 matcher may corectly filter scope context,
+		# Sometimes ST2 matcher may incorrectly filter scope context,
 		# check it against special regexp
 		banned_regexp = settings.get('disable_tab_abbreviations_for_regexp', None)
 		if banned_regexp and re.search(banned_regexp, cur_scope):
 			return None
 
 		return run_action(lambda i, sel: ctx.js().locals.pyRunAction('expand_abbreviation'))
+		
+
+class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
+	def run(self, edit, **kw):
+		if settings.get('use_old_tab_handler', False):
+			return
+			
+		view = active_view()
+		h = TabAndCompletionsHandler()
+		if not h.expand_by_tab(view):
+			# try to mimic default Tab behaviour of Sublime Text
+			view.run_command('insert_best_completion', {
+				'default': '\t',
+				'exact': user_settings.get('tab_completion', True)
+			})
+
+
+class TabExpandHandler(sublime_plugin.EventListener):
+	def on_query_context(self, view, key, op, operand, match_all):
+		if key != 'is_abbreviation':
+			return None
+
+		if settings.get('use_old_tab_handler', False):
+			h = TabAndCompletionsHandler()
+			return h.expand_by_tab(view)
+
+		return check_context()
 
 	def on_query_completions(self, view, prefix, locations):
+		h = TabAndCompletionsHandler()
 		if view.match_selector(locations[0], settings.get('css_completions_scope', '')) and check_context():
 			l = []
 			if settings.get('show_css_completions', False):
@@ -341,10 +424,10 @@ class TabExpandHandler(sublime_plugin.EventListener):
 
 			return (l, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
-		if not self.correct_syntax(view) or settings.get('disable_completions', False):
+		if not h.correct_syntax(view) or settings.get('disable_completions', False):
 			return []
 
-		handler = self.completion_handler(view)
+		handler = h.completion_handler(view)
 		if handler:
 			pos = view.sel()[0].b
 			completions = handler(view, prefix, pos)
@@ -369,7 +452,9 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 				if view.substr(trailing).isspace():
 					view.erase(self.edit, trailing)
 
-		view.run_command('insert_snippet', { 'contents': value.decode('utf-8') })
+		if not is_python3:
+			value = value.decode('utf-8')
+		view.run_command('insert_snippet', { 'contents': value })
 
 	def insert(self, abbr):
 		view = self.view
@@ -388,13 +473,11 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 
 	def _real_insert(self, abbr):
 		view = self.view
-		self.edit = edit = view.begin_edit()
 		cmd_input = self.filter_input(abbr) or ''
 		try:
 			self.erase = self.run_command(view, cmd_input) is not False
 		except:
 			pass
-		view.end_edit(edit)
 
 	def undo(self):
 		if self.erase:
@@ -414,6 +497,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 		if not check_context(True):
 			return
 
+		self.edit = edit
 		self.setup()
 		self.erase = False
 
@@ -455,7 +539,7 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 	# override method to correctly wrap abbreviations
 	def _real_insert(self, abbr):
 		view = self.view
-		self.edit = view.begin_edit()
+
 		self.erase = True
 
 		# restore selections
@@ -473,7 +557,6 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 			self.run_command(view, self._prev_output)
 
 		run_action(ins, view)
-		view.end_edit(self.edit)
 
 class ExpandAsYouType(WrapAsYouType):
 	default_input = 'div'
@@ -538,4 +621,12 @@ class EmmetInsertAttribute(sublime_plugin.TextCommand):
 class EmmetResetContext(sublime_plugin.TextCommand):
 	def run(self, edit, **kw):
 		update_settings()
+
+def plugin_loaded():
+	sublime.set_timeout(init, 200)
+
+##################
+# Init plugin
+if not is_python3:
+	init()
 
