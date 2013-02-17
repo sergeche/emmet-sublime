@@ -284,7 +284,7 @@ function pyGetCSSCompletions(dialect) {
 			return {
 				k: v.nk,
 				label: snippet.replace(/\:\s*\$\{0\}\s*;?$/, ''),
-				v: snippet
+				v: css.expandToSnippet(v.nk, dialect)
 			};
 		});
 	}
