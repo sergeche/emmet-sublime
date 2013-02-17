@@ -84,7 +84,7 @@ class SublimeLoaderDelegate(LoaderDelegate):
 	def __init__(self, settings=None):
 
 		if settings is None:
-			settings = sublime.load_settings('Preferences.sublime-settings')
+			settings = user_settings
 
 		LoaderDelegate.__init__(self, settings)
 		self.state = None
