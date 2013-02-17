@@ -146,15 +146,17 @@ def replace_substring(start, end, value, no_indent=False):
 	view.sel().clear()
 	view.sel().add(sublime.Region(start, end or start)) 
 
+	if not is_python3:
+		value = value.decode('utf-8')
+
 	# XXX a bit naive indentation control. It handles most common
 	# `no_indent` usages like replacing CSS rule content, but may not
 	# produce expected result in all possible situations
+
 	if no_indent:
 		line = view.substr(view.line(view.sel()[0]))
 		value = unindent_text(value, get_line_padding(line))
 
-	if not is_python3:
-		value = value.decode('utf-8')
 	view.run_command('insert_snippet', {'contents': value})
 
 def unindent_text(text, pad):
