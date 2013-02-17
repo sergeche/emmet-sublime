@@ -6437,8 +6437,9 @@ emmet.define('tabStops', function(require, _) {
 					return require('utils').getCaretPlaceholder();
 				
 				var attr = node.attribute(varName);
-				if (!_.isUndefined(attr))
+				if (!_.isUndefined(attr) && attr !== str) {
 					return attr;
+				}
 				
 				var varValue = res.getVariable(varName);
 				if (varValue)
@@ -6450,11 +6451,6 @@ emmet.define('tabStops', function(require, _) {
 					
 				return '${' + placeholderMemo[varName] + ':' + varName + '}';
 			};
-		},
-		
-		resetPlaceholderCounter: function() {
-			console.log('deprecated');
-			startPlaceholderNum = 100;
 		},
 		
 		/**
@@ -10162,7 +10158,7 @@ emmet.define('cssResolver', function(require, _) {
 	prefs.define('css.keywords', 'auto, inherit', 
 			'A comma-separated list of valid keywords that can be used in CSS abbreviations.');
 	
-	prefs.define('css.keywordAliases', 'a:auto, i:inherit, s:solid, da:dashed, do:dotted', 
+	prefs.define('css.keywordAliases', 'a:auto, i:inherit, s:solid, da:dashed, do:dotted, t:transparent', 
 			'A comma-separated list of keyword aliases, used in CSS abbreviation. '
 			+ 'Each alias should be defined as <code>alias:keyword_name</code>.');
 	
@@ -10251,6 +10247,10 @@ emmet.define('cssResolver', function(require, _) {
 	
 	function normalizeHexColor(value) {
 		var hex = value.replace(/^#+/, '') || '0';
+		if (hex.toLowerCase() == 't') {
+			return 'transparent';
+		}
+		
 		var repeat = require('utils').repeatString;
 		var color = null;
 		switch (hex.length) {
@@ -10659,7 +10659,7 @@ emmet.define('cssResolver', function(require, _) {
 			
 			while (ch = stream.next()) {
 				if (ch == '#') {
-					stream.match(/^[0-9a-f]+/, true);
+					stream.match(/^t|[0-9a-f]+/i, true);
 					values.push(stream.current());
 				} else if (ch == '-') {
 					if (isValidKeyword(_.last(values)) || 
@@ -12108,7 +12108,24 @@ emmet.exec(function(require, _) {
 emmet.exec(function(require, _){
 	var placeholder = '%s';
 	
-	function getIndentation() {
+	/** @type preferences */
+	var prefs = require('preferences');
+	prefs.define('format.noIndentTags', 'html', 
+			'A comma-separated list of tag names that should not get inner indentation.');
+	
+	prefs.define('format.forceIndentationForTags', 'body', 
+		'A comma-separated list of tag names that should <em>always</em> get inner indentation.');
+	
+	/**
+	 * Get indentation for given node
+	 * @param {AbbreviationNode} node
+	 * @returns {String}
+	 */
+	function getIndentation(node) {
+		if (_.include(prefs.getArray('format.noIndentTags') || [], node.name())) {
+			return '';
+		}
+		
 		return require('resources').getVariable('indentation');
 	}
 	
@@ -12228,10 +12245,14 @@ emmet.exec(function(require, _){
 		var abbrUtils = require('abbreviationUtils');
 		var isUnary = abbrUtils.isUnary(item);
 		var nl = utils.getNewline();
+		var indent = getIndentation(item);
 			
 		// formatting output
 		if (profile.tag_nl !== false) {
 			var forceNl = profile.tag_nl === true && (profile.tag_nl_leaf || item.children.length);
+			if (!forceNl) {
+				forceNl = _.include(prefs.getArray('format.forceIndentationForTags') || [], item.name());
+			}
 			
 			// formatting block-level elements
 			if (!item.isTextNode()) {
@@ -12245,14 +12266,14 @@ emmet.exec(function(require, _){
 						item.end = nl + item.end;
 						
 					if (abbrUtils.hasTagsInContent(item) || (forceNl && !item.children.length && !isUnary))
-						item.start += nl + getIndentation();
+						item.start += nl + indent;
 				} else if (abbrUtils.isInline(item) && hasBlockSibling(item) && !isVeryFirstChild(item)) {
 					item.start = nl + item.start;
 				} else if (abbrUtils.isInline(item) && shouldBreakInsideInline(item, profile)) {
 					item.end = nl + item.end;
 				}
 				
-				item.padding = getIndentation() ;
+				item.padding = indent;
 			}
 		}
 		
@@ -12465,8 +12486,15 @@ emmet.exec(function(require, _) {
 		item.start = utils.replaceSubstring(item.start, start, item.start.indexOf(placeholder), placeholder);
 		item.end = utils.replaceSubstring(item.end, end, item.end.indexOf(placeholder), placeholder);
 		
-		if (!item.children.length && !isUnary && item.content.indexOf(cursor) == -1)
+		// should we put caret placeholder after opening tag?
+		if (
+				!item.children.length 
+				&& !isUnary 
+				&& !~item.content.indexOf(cursor)
+				&& !require('tabStops').extract(item.content).tabstops.length
+			) {
 			item.start += cursor;
+		}
 		
 		return item;
 	}
