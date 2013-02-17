@@ -218,13 +218,13 @@ function pyCaptureWrappingRange() {
 	return [startOffset, endOffset];
 }
 
-function pyGetTagNameRanges() {
+function pyGetTagNameRanges(pos) {
 	var ranges = [];
 	var info = require('editorUtils').outputInfo(editorProxy);
 		
 	// search for tag
 	try {
-		var tag = require('htmlMatcher').tag(info.content, editorProxy.getCaretPos());
+		var tag = require('htmlMatcher').tag(info.content, pos);
 		if (tag) {
 			var open = tag.open.range;
 			var tagName = /^<([\w\-\:]+)/i.exec(open.substring(info.content))[1];

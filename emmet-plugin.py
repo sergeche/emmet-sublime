@@ -596,13 +596,19 @@ class RenameTag(sublime_plugin.TextCommand):
 		if not check_context(True):
 			return
 
-		ranges = ctx.js().locals.pyGetTagNameRanges()
-		if ranges:
-			view = active_view()
-			view.sel().clear()
-			for r in ranges:
-				view.sel().add(sublime.Region(r[0], r[1]))
-			view.show(view.sel())
+		view = active_view()
+		sels = list(view.sel())
+		sel_cleared = False
+		for s in sels:
+			ranges = ctx.js().locals.pyGetTagNameRanges(s.begin())
+			if ranges:
+				if not sel_cleared:
+					view.sel().clear()
+					sel_cleared = True
+					
+				for r in ranges:
+					view.sel().add(sublime.Region(r[0], r[1]))
+				view.show(view.sel())
 
 class EmmetInsertAttribute(sublime_plugin.TextCommand):
 	def run(self, edit, attribute=None, **kw):
