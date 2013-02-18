@@ -5,7 +5,6 @@ import os.path
 import codecs
 import json
 import gc
-import pyv8loader
 import imp
 import re
 from file import File

@@ -9974,7 +9974,7 @@ emmet.exec(function(require, _) {
 				throw "Can't find " + src + ' file';
 			}
 			
-			file.read(absPath, 500, function(err, content) {
+			file.read(absPath, function(err, content) {
 				if (err) {
 					throw 'Unable to read ' + absPath + ': ' + err;
 				}
