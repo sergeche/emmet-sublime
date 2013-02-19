@@ -75,10 +75,7 @@ def init():
 
 	update_settings()
 
-	def load():
-		pyv8loader.load(pyv8_paths[1], delegate)
-
-	sublime.set_timeout(load, 0)
+	pyv8loader.load(pyv8_paths[1], delegate) 
 
 	if settings.get('remove_html_completions', False):
 		sublime.set_timeout(cmpl.remove_html_completions, 2000)
@@ -87,7 +84,10 @@ class SublimeLoaderDelegate(LoaderDelegate):
 	def __init__(self, settings=None):
 
 		if settings is None:
-			settings = user_settings
+			settings = {}
+			for k in ['http_proxy', 'https_proxy', 'timeout']:
+				if user_settings.has(k):
+					settings[k] = user_settings.get(k, None)
 
 		LoaderDelegate.__init__(self, settings)
 		self.state = None
