@@ -12870,10 +12870,12 @@ emmet.define('bootstrap', function(require, _) {
 			var userSnippets = null;
 			var that = this;
 			
+			var reader = _.bind(file.readText || file.read, file);
+			
 			var next = function() {
 				if (fileList.length) {
 					var f = fileList.shift();
-					file.read(f, function(err, content) {
+					reader(f, function(err, content) {
 						if (err) {
 							emmet.log('Unable to read "' + f + '" file: '+ err);
 							return next();
