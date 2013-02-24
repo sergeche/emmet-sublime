@@ -498,7 +498,7 @@ class PyV8Loader(threading.Thread):
 			self.delegate.log('Unable to download PyV8 binary due to invalid downloader')
 			return False
 
-		timeout = self.delegate.settings.get('timeout', 6)
+		timeout = self.delegate.settings.get('timeout', 60)
 		# timeout = 3
 		return downloader.download(url.replace(' ', '%20'), error_message, timeout, 3)
 
