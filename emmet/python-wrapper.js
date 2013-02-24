@@ -51,21 +51,30 @@ emmet.define('file', function(require, _) {
 		read: function(path, size, callback) {
 			var params = this._parseParams(arguments);
 
-			pyFile.read(params.path, params.size, function(err, content) {
-				if (err) {
-					return params.callback(err, content);
-				}
+			try {
+				pyFile.read(params.path, params.size, function(err, content) {
+					if (err) {
+						return params.callback(err, content);
+					}
 
-				content = _.map(content || [], function(b) {
-					return String.fromCharCode(b);
-				}).join('');
-				params.callback(null, content);
-			});
+					content = _.map(content || [], function(b) {
+						return String.fromCharCode(b);
+					}).join('');
+					params.callback(null, content);
+				});
+			} catch(e) {
+				params.callback(e);
+			}
 		},
 
 		readText: function() {
 			var params = this._parseParams(arguments);
-			pyFile.read_text(params.path, params.size, params.callback);
+			try {
+				pyFile.read_text(params.path, params.size, params.callback);	
+			} catch(e) {
+				params.callback(e);
+			}
+			
 		},
 
 		locateFile: function(editorFile, fileName) {
