@@ -291,7 +291,7 @@ def get_edit(view, edit_token=None):
 
 	return edit
 
-def run_action(action, view=None, edit_token=None):
+def run_action(action, view=None):
 	if not check_context(True):
 		return
 
@@ -304,7 +304,7 @@ def run_action(action, view=None, edit_token=None):
 	r = ctx.js().locals.pyRunAction
 	result = False
 
-	edit = get_edit(view, edit_token)
+	# edit = get_edit(view, edit_token)
 	max_sel_ix = len(sels) - 1
 
 	try:
@@ -331,8 +331,8 @@ def run_action(action, view=None, edit_token=None):
 
 	view.erase_regions(region_key)
 
-	if edit:
-		view.end_edit(edit)
+	# if edit:
+		# view.end_edit(edit)
 	return result
 
 class TabAndCompletionsHandler():
@@ -400,9 +400,11 @@ class TabAndCompletionsHandler():
 		banned_regexp = settings.get('disable_tab_abbreviations_for_regexp', None)
 		if banned_regexp and re.search(banned_regexp, cur_scope):
 			return None
-
+		
 		return run_action(lambda i, sel: ctx.js().locals.pyRunAction('expand_abbreviation'))
 		
+		# view.run_command('run_emmet_action',
+		# 						{'action':'expand_abbreviation'})
 
 class ExpandAbbreviationByTab(sublime_plugin.TextCommand):
 	def run(self, edit, **kw):
@@ -458,51 +460,38 @@ class TabExpandHandler(sublime_plugin.EventListener):
 		
 
 class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
-	filter_input = lambda s, i: i
-	selection = ''
-	grammar = EMMET_GRAMMAR
-	edit_token = None
+	input_message         = "Enter Input"
+	default_input         = ""
+	process_panel_input   = lambda s, i: i.title()
 
-	def setup(self):
-		pass
+	# Note that this must be of form `Packages/$Package/Emmet.tmLanguage` on ST3
+	# NOT an absolute path!
+	panel_grammar         = EMMET_GRAMMAR
 
-	def run_command(self, view, value):
-		if '\n' in value:
+	def is_enabled(self):
+		return True
+
+	def run_command(self, edit, view, processed_input):
+		if '\n' in processed_input:
 			for sel in view.sel():
 				trailing = sublime.Region(sel.end(), view.line(sel).end())
 				if view.substr(trailing).isspace():
-					view.erase(self.edit, trailing)
+					view.erase(edit, trailing)
 
-		if not is_python3:
-			value = value.decode('utf-8')
-		view.run_command('insert_snippet', { 'contents': value })
+		view.run_command('insert_snippet', { 'contents': processed_input })
 
-	def insert(self, abbr):
-		view = self.view
-
+	def on_panel_change(self, abbr):
 		if not abbr and self.erase:
 			self.undo()
 			self.erase = False
 			return
 
 		def inner_insert():
-			self._real_insert(abbr)
-			self.view.run_command('hide_auto_complete')
+			self.view.run_command(self.name(), dict(panel_input=abbr))
+			# self.view.run_command('hide_auto_complete')
 
 		self.undo()
 		sublime.set_timeout(inner_insert, 0)
-
-	def _real_insert(self, abbr):
-		view = self.view
-		self.edit = get_edit(view, self.edit_token)
-		cmd_input = self.filter_input(abbr) or ''
-		try:
-			self.erase = self.run_command(view, cmd_input) is not False
-		except:
-			pass
-
-		if self.edit:
-			view.end_edit(self.edit)
 
 	def undo(self):
 		if self.erase:
@@ -518,39 +507,53 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 			s = view.substr(sel)
 			self._sel_items.append(unindent_text(s, get_line_padding(line)))
 
-	def run(self, edit, **args):
-		if not check_context(True):
-			return
+	def on_panel_done(self, abbr):
+		pass
 
-		self.edit = edit
-		self.setup()
-		self.erase = False
+	def run(self, edit, panel_input=None, **kwargs):
 
-		if hasattr(edit, 'edit_token'):
-			self.edit_token = edit.edit_token
+		if panel_input is None:
+			self.setup(edit, self.view, **kwargs)
+			self.erase = False
 
-		panel = self.view.window().show_input_panel (
-			self.input_message, self.default_input, None, self.insert, self.undo )
+			panel = self.view.window().show_input_panel (
+				self.input_message,
+				self.default_input,
+				self.on_panel_done,              # on_done
+				self.on_panel_change,           # on_change
+				self.undo)                       # on_cancel
 
-		panel.sel().clear()
-		panel.sel().add(sublime.Region(0, panel.size()))
+			panel.sel().clear()
+			panel.sel().add(sublime.Region(0, panel.size()))
 
-		if self.grammar:
-			panel.set_syntax_file(self.grammar)
-			setting = panel.settings().set
+			if self.panel_grammar:
+				panel.set_syntax_file(self.panel_grammar)
+				panel_setting = panel.settings().set
 
-			setting('line_numbers',   False)
-			setting('gutter',         False)
-			setting('auto_complete',  False)
-			setting('tab_completion', False)
-			# setting('auto_id_class',  True)
+				panel_setting('line_numbers',   False)
+				panel_setting('gutter',         False)
+				panel_setting('auto_complete',  False)
+				panel_setting('tab_completion', False)
+		else:
+			self.run_on_input(edit, self.view, panel_input)
+
+	def setup(self, edit, view, **kwargs):
+		pass
+
+	def run_on_input(self, edit, view, panel_input):
+		view = self.view
+		cmd_input = self.process_panel_input(panel_input) or ''
+		try:
+			self.erase = self.run_command(edit, view, cmd_input) is not False
+		except:
+			pass
 
 class WrapAsYouType(CommandsAsYouTypeBase):
 	default_input = 'div'
+	_prev_output = ''
 	input_message = "Enter Wrap Abbreviation: "
 
-	def setup(self):
-		view = active_view()
+	def setup(self, edit, view, **kwargs):
 		self._prev_output = ''
 		
 		if len(view.sel()) == 1:
@@ -565,9 +568,10 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 		self.remember_sels(view)
 
 	# override method to correctly wrap abbreviations
-	def _real_insert(self, abbr):
-		view = self.view
-		self.edit = get_edit(view, self.edit_token)
+	def run_on_input(self, edit, view, abbr):
+	# def _real_insert(self, abbr):
+		# view = self.view
+		# self.edit = get_edit(view, self.edit_token)
 
 		self.erase = True
 
@@ -583,18 +587,17 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 			except Exception:
 				"dont litter the console"
 
-			self.run_command(view, self._prev_output)
+			self.run_command(edit, view, self._prev_output)
 
-		run_action(ins, view, self.edit_token)
-		if self.edit:
-			view.end_edit(self.edit)
+		run_action(ins, view)
+		# if self.edit:
+		# 	view.end_edit(self.edit)
 
 class ExpandAsYouType(WrapAsYouType):
 	default_input = 'div'
 	input_message = "Enter Abbreviation: "
 
-	def setup(self):
-		view = active_view()
+	def setup(self, edit, view, **kwargs):
 		# adjust selection to non-space bounds
 		sels = []
 		for s in view.sel():
