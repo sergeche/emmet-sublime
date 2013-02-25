@@ -29,7 +29,7 @@ Emmet has a number of actions with keyboard shortcuts that may override ones you
 https://github.com/sergeche/emmet-sublime
 
 Documentation and examples:
-http://docs.emmet.io
+http://emmet.io
 
 ------------------------------
 Follow me on Twitter: @emmetio

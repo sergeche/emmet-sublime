@@ -1,0 +1,16 @@
+
+Emmet v1.0 is out!
+==================
+
+Check out features you might miss since beta release:
+
+http://emmet.io/blog/emmet-v1/
+
+
+If you like Emmet and wish to support further development,
+any donations are highly appreciated:
+http://emmet.io/donate/
+
+------------------------------
+Follow me on Twitter: @emmetio
+------------------------------ 
