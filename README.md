@@ -2,9 +2,15 @@
 
 Official [Emmet](http://emmet.io) plugin (previously called _Zen Coding_) for Sublime Text 2.
 
-*Warning:* this plugin may not work at all in some OSes since it written in JavaScript and uses [PyV8](http://code.google.com/p/pyv8/) and [Google V8](https://developers.google.com/v8/) binaries to run. If you experience problems or editor crashes please [fill an issue](https://github.com/sergeche/emmet-sublime/issues).
+* [How to install](#how-to-install)
+* [Available actions](#available-actions)
+* [Extensions support](#extensions-support)
+* [Overriding keyboard shortcuts](#overriding-keyboard-shortcuts)
+* [Tab key handler](#tab-key-handler)
 
 ## How to install
+
+*Warning:* this plugin may not work at all in some OSes since it written in JavaScript and uses [PyV8](http://code.google.com/p/pyv8/) and [Google V8](https://developers.google.com/v8/) binaries to run. If you experience problems or editor crashes please [fill an issue](https://github.com/sergeche/emmet-sublime/issues).
 
 1. Clone or [download](https://github.com/sergeche/emmet-sublime/archive/master.zip) git repo into your packages folder (in ST2, find Browse Packages... menu item to open this folder)
 2. Restart ST2 editor (if required)
