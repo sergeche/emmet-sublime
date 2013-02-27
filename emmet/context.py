@@ -37,6 +37,17 @@ def make_path(filename):
 def js_log(message):
 	print(message)
 
+def js_file_reader(file_path, use_unicode=True):
+	if use_unicode:
+		f = codecs.open(file_path, 'r', 'utf-8')
+	else:
+		f = open(file_path, 'r')
+
+	content = f.read()
+	f.close()
+
+	return content
+
 def import_pyv8():
 	# Importing non-existing modules is a bit tricky in Python:
 	# if we simply call `import PyV8` and module doesn't exists,
@@ -81,8 +92,9 @@ class Context():
 	@param contrib: Python objects to contribute to JS execution context
 	@param pyv8_path: Location of PyV8 binaries
 	"""
-	def __init__(self, files=[], ext_path=None, contrib=None, logger=None):
+	def __init__(self, files=[], ext_path=None, contrib=None, logger=None, reader=js_file_reader):
 		self.logger = logger
+		self.reader = reader
 
 		try:
 			import_pyv8()
@@ -132,7 +144,8 @@ class Context():
 			self.log('Loading Emmet extensions from %s' % self._ext_path)
 			for dirname, dirnames, filenames in os.walk(self._ext_path):
 				for filename in filenames:
-					ext_files.append(os.path.join(dirname, filename))
+					if filename[0] != '.':
+						ext_files.append(os.path.join(dirname, filename))
 
 			self.js().locals.pyLoadExtensions(ext_files)
 
@@ -190,21 +203,16 @@ class Context():
 		if self._ctx:
 			self._ctx.leave()
 			self._ctx = None
-			PyV8.JSEngine.collect()
-			gc.collect()
+			try:
+				PyV8.JSEngine.collect()
+				gc.collect()
+			except:
+				pass
 
 		self._should_load_extension = True
 
 	def read_js_file(self, file_path):
-		if self._use_unicode:
-			f = codecs.open(file_path, 'r', 'utf-8')
-		else:
-			f = open(file_path, 'r')
-
-		content = f.read()
-		f.close()
-
-		return content
+		return self.reader(file_path, self._use_unicode)
 
 	def eval(self, source):
 		self.js().eval(source)

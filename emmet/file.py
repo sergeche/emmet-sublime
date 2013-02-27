@@ -49,15 +49,16 @@ class File():
 
 		try:
 			content = self._read(path, size)
-		except Exception as e:
-			return callback(repr(e), None)
 
-		# return as array of character codes since PyV8 may corrupt
-		# binary data when python string is translated into JS string
-		if is_python3:
-			content = [ch for ch in content]
-		else:
-			content = [ord(ch) for ch in content]
+			# return as array of character codes since PyV8 may corrupt
+			# binary data when python string is translated into JS string
+			if is_python3:
+				content = [ch for ch in content]
+			else:
+				content = [ord(ch) for ch in content]
+
+		except Exception as e:
+			return callback(str(e), None)
 
 		callback(None, content)
 
@@ -71,11 +72,10 @@ class File():
 
 		try:
 			content = self._read(path, size, 'r')
+			if not is_python3:
+				content = content.decode('utf-8')
 		except Exception as e:
-			return callback(repr(e), None)
-
-		if not is_python3:
-			content = content.decode('utf-8')
+			return callback(str(e), None)
 		
 		callback(None, content)
 
