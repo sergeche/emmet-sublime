@@ -500,6 +500,8 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 				if view.substr(trailing).isspace():
 					view.erase(edit, trailing)
 
+		if not is_python3:
+			processed_input = processed_input.decode('utf-8')
 		view.run_command('insert_snippet', { 'contents': processed_input })
 
 	def on_panel_change(self, abbr):
