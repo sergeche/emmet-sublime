@@ -54,6 +54,8 @@ def js_file_reader(file_path, use_unicode=True):
 				break
 
 		rel_path = rel_path.replace('.sublime-package', '')
+		# for Windows we have to replace slashes
+		rel_path = rel_path.replace('\\', '/')
 		return sublime.load_resource(rel_path)
 
 	return _js_file_reader(file_path, use_unicode)
