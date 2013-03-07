@@ -21,7 +21,7 @@ def is_url(path):
 
 def read_http(url, size=-1, mode=None):
 	response = urllib2.urlopen(url, timeout=5)
-	return response.read(size)
+	return response.read(size), response.info().gettype()
 
 def read_file(path, size=-1, mode='rb'):
 	kwargs = {}
@@ -29,7 +29,7 @@ def read_file(path, size=-1, mode='rb'):
 		kwargs['encoding'] = 'utf-8'
 
 	with open(path, mode, **kwargs) as fp:
-		return fp.read(size)
+		return fp.read(size), None
 
 class File():
 	def __init__(self):
@@ -48,7 +48,7 @@ class File():
 		"""
 
 		try:
-			content = self._read(path, size)
+			content, ct = self._read(path, size)
 
 			# return as array of character codes since PyV8 may corrupt
 			# binary data when python string is translated into JS string
@@ -60,7 +60,7 @@ class File():
 		except Exception as e:
 			return callback(str(e), None)
 
-		callback(None, content)
+		callback(None, content, ct)
 
 	def read_text(self, path, size, callback=None):
 		"""

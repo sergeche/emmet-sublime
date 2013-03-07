@@ -9835,7 +9835,7 @@ emmet.exec(function(require, _) {
 		var editorFile = editor.getFilePath();
 		var defaultMimeType = 'application/octet-stream';
 			
-		if (editorFile === null) {
+		if (!/^https?:\/\//.test(imgPath) && editorFile === null) {
 			throw "You should save your file before using this action";
 		}
 		
@@ -9845,7 +9845,7 @@ emmet.exec(function(require, _) {
 			throw "Can't find " + imgPath + ' file';
 		}
 		
-		file.read(realImgPath, function(err, content) {
+		file.read(realImgPath, function(err, content, ct) {
 			if (err) {
 				throw 'Unable to read ' + realImgPath + ': ' + err;
 			}
@@ -9855,7 +9855,7 @@ emmet.exec(function(require, _) {
 				throw "Can't encode file content to base64";
 			}
 			
-			b64 = 'data:' + (actionUtils.mimeTypes[String(file.getExt(realImgPath))] || defaultMimeType) +
+			b64 = 'data:' + (ct || actionUtils.mimeTypes[String(file.getExt(realImgPath))] || defaultMimeType) +
 				';base64,' + b64;
 				
 			editor.replaceContent('$0' + b64, pos, pos + imgPath.length);
