@@ -736,7 +736,7 @@
 			"det": "details",
 			"cmd": "command",
 			"doc": "html>(head>meta[charset=UTF-8]+title{${1:Document}})+body",
-			"doc4": "html>(head>meta[http-equiv=\"Content-Type\" content=\"text/html;charset=${charset}\"]+title{${1:Document}})",
+			"doc4": "html>(head>meta[http-equiv=\"Content-Type\" content=\"text/html;charset=${charset}\"]+title{${1:Document}})+body",
 
 			"html:4t":  "!!!4t+doc4[lang=${lang}]",
 			"html:4s":  "!!!4s+doc4[lang=${lang}]",
