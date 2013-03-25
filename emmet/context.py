@@ -166,11 +166,15 @@ class Context():
 			if self._use_unicode is None:
 				self._use_unicode = should_use_unicode()
 			
+			glue = u'\n' if self._use_unicode else '\n'
+			core_src = [self.read_js_file(make_path(f)) for f in self._core_files]
+
 			self._ctx = PyV8.JSContext()
 			self._ctx.enter()
+			self._ctx.eval(glue.join(core_src))
 
-			for f in self._core_files:
-				self._ctx.eval(self.read_js_file(make_path(f)), name=f, line=0, col=0)
+			# for f in self._core_files:
+			# 	self._ctx.eval(self.read_js_file(make_path(f)), name=f, line=0, col=0)
 
 			# load default snippets
 			self._ctx.locals.pyLoadSystemSnippets(self.read_js_file(make_path('snippets.json')))
