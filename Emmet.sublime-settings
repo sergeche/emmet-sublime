@@ -50,7 +50,7 @@
 	// If entered abbreviation (like `php`) wasn’t found in Emmet snippets list
 	// or "known_html_tags" preference, Tab handler will not be triggered.
 	// Leave this setting blank to disable this feature
-	"disabled_single_snippet_for_scopes": "text.html",
+	"disabled_single_snippet_for_scopes": "text.html,text.xml",
 
 	// A space separated list of all known HTML tags,
 	// used together with "disabled_on_single_snippets" option
