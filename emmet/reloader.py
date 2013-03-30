@@ -1,4 +1,5 @@
 import sys
+import imp
 
 # Dependecy reloader for Emmet plugin
 # The original idea is borrowed from 
@@ -21,4 +22,4 @@ mods_load_order = [
 
 for mod in mods_load_order:
 	if mod in reload_mods:
-		reload(sys.modules[mod])
+		imp.reload(sys.modules[mod])

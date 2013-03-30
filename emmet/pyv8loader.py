@@ -52,7 +52,7 @@ def load(dest_path, delegate=None):
 		delegate.log('No need to update PyV8')
 		return False
 
-	def on_complete(result, thread):
+	def on_complete(result, *args, **kwargs):
 		if result is not None:
 			# Most recent version was downloaded
 			config['last_id'] = result				
@@ -62,16 +62,33 @@ def load(dest_path, delegate=None):
 
 		config['last_update'] = time.time()
 		save_loader_config(dest_path, config)
-		delegate.on_complete()
+		delegate.on_complete(*args, **kwargs)
 
 	# try to download most recent version of PyV8
-	thread = PyV8Loader(get_arch(), dest_path, config, delegate=delegate)
-	thread.start()
+	# As PyV8 for Sublime Text spreads the world, it's possible
+	# that multiple distinct PyV8Loader's may start doing the same
+	# job at the same time. In this case, we should check if there's
+	# already a thread that load PyV8 and hook on existing thread
+	# rather that creating a new one
+	thread = None
+	thread_exists = False
+	for t in threading.enumerate():
+		if hasattr(t, 'is_pyv8_thread'):
+			print('PyV8: Reusing thread')
+			thread = t
+			thread_exists = True
+			break
+
+	if not thread:
+		print('PyV8: Creating new thread')
+		thread = PyV8Loader(get_arch(), dest_path, config, delegate=delegate)
+		thread.start()
+
 	delegate.on_start()
 	
 	# watch on download progress
-	prog = ThreadProgress(thread, delegate)
-	prog.on('complete', on_complete)
+	prog = ThreadProgress(thread, delegate, thread_exists)
+	prog.on('complete', on_complete if not thread_exists else delegate.on_complete)
 	prog.on('error', delegate.on_error)
 
 def get_arch():
@@ -114,6 +131,14 @@ def save_loader_config(path, data):
 	fp.write(json.dumps(data))
 	fp.close()
 
+def clean_old_data():
+	for f in os.listdir('.'):
+		if f.lower() != 'config.json' and f.lower() != 'pack.zip':
+			try:
+				os.remove(f)
+			except Exception as e:
+				pass
+
 def unpack_pyv8(package_dir):
 	f = os.path.join(package_dir, 'pack.zip')
 	if not os.path.exists(f):
@@ -135,6 +160,8 @@ def unpack_pyv8(package_dir):
 
 	prev_dir = os.getcwd()
 	os.chdir(package_dir)
+
+	clean_old_data()
 
 	# Here we don't use .extractall() since it was having issues on OS X
 	skip_root_dir = len(root_level_paths) == 1 and \
@@ -228,20 +255,21 @@ class LoaderDelegate():
 		pass
 
 class ThreadProgress():
-	def __init__(self, thread, delegate):
+	def __init__(self, thread, delegate, is_background=False):
 		self.thread = thread
 		self.delegate = delegate
+		self.is_background = is_background
 		self._callbacks = {}
 		threading.Timer(0, self.run).start()
 
 	def run(self):
 		if not self.thread.is_alive():
 			if self.thread.exit_code != 0:
-				return self.trigger('error', exit_code=self.thread.exit_code, thread=self.thread)
+				return self.trigger('error', exit_code=self.thread.exit_code, progress=self)
 				
-			return self.trigger('complete', result=self.thread.result, thread=self.thread)
+			return self.trigger('complete', result=self.thread.result, progress=self)
 
-		self.trigger('progress', thread=self.thread)
+		self.trigger('progress', progress=self)
 		threading.Timer(0.1, self.run).start()
 
 	def on(self, event_name, callback):
@@ -475,6 +503,7 @@ class PyV8Loader(threading.Thread):
 		self.exit_code = 0
 		self.result = None
 		self.delegate = delegate or LoaderDelegate()
+		self.is_pyv8_thread = True
 
 		threading.Thread.__init__(self)
 		self.delegate.log('Creating thread')
