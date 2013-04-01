@@ -12812,7 +12812,9 @@ emmet.define('lorem', function(require, _) {
 		}
 
 		_.each(_.range(totalCommas), function(ix) {
-			words[ix] += ',';
+			if (ix < words.length - 1) {
+				words[ix] += ',';
+			}
 		});
 	}
 	
