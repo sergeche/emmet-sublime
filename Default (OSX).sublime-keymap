@@ -45,7 +45,7 @@
     }, 
     {
         "keys": [
-            "super+shift+forward_slash"
+            "alt+shift+forward_slash"
         ], 
         "args": {
             "action": "toggle_comment"
