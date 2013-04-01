@@ -625,7 +625,7 @@
 			"bdo:l": "<bdo dir=\"ltr\">",
 			"col": "<col/>",
 			"link": "<link rel=\"stylesheet\" href=\"\" />",
-			"link:css": "<link rel=\"stylesheet\" href=\"${1:style}.css\" media=\"all\" />",
+			"link:css": "<link rel=\"stylesheet\" href=\"${1:style}.css\" />",
 			"link:print": "<link rel=\"stylesheet\" href=\"${1:print}.css\" media=\"print\" />",
 			"link:favicon": "<link rel=\"shortcut icon\" type=\"image/x-icon\" href=\"${1:favicon.ico}\" />",
 			"link:touch": "<link rel=\"apple-touch-icon\" href=\"${1:favicon.png}\" />",
@@ -736,7 +736,7 @@
 			"det": "details",
 			"cmd": "command",
 			"doc": "html>(head>meta[charset=UTF-8]+title{${1:Document}})+body",
-			"doc4": "html>(head>meta[http-equiv=\"Content-Type\" content=\"text/html;charset=${charset}\"]+title{${1:Document}})",
+			"doc4": "html>(head>meta[http-equiv=\"Content-Type\" content=\"text/html;charset=${charset}\"]+title{${1:Document}})+body",
 
 			"html:4t":  "!!!4t+doc4[lang=${lang}]",
 			"html:4s":  "!!!4s+doc4[lang=${lang}]",
