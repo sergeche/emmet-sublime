@@ -275,7 +275,7 @@ def should_handle_tab_key(syntax=None):
 	if disabled_snippets and abbr in disabled_snippets:
 		return False
 
-	if not re.match(r'^[\w\:%]+$', abbr):
+	if not re.match(r'^[\w\-\:%]+$', abbr):
 		# it's a complex expression
 		return True
 
