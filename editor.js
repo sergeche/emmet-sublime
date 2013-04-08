@@ -307,9 +307,11 @@ function pyGetSyntax() {
 
 	var syntax = 'html';
 
-	// detect CSS-like syntaxes independently, 
-	// since it may cause collisions with some highlighters
-	if (/\b(less|scss|sass|css|stylus)\b/.test(scope)) {
+	if (!/\bstring\b/.test(scope) && /\bsource\.([\w\-]+)/.test(scope) && require('resources').hasSyntax(RegExp.$1)) {
+		syntax = RegExp.$1;
+	} else if (/\b(less|scss|sass|css|stylus)\b/.test(scope)) {
+		// detect CSS-like syntaxes independently, 
+		// since it may cause collisions with some highlighters
 		syntax = RegExp.$1;
 	} else if (/\b(html|xml|haml)\b/.test(scope)) {
 		syntax = RegExp.$1;
