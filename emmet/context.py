@@ -174,10 +174,7 @@ class Context():
 			self._ctx = PyV8.JSContext(Global())
 			self._ctx.enter()
 
-			print('Created Emmet context: %d' % self._ctx.locals.isEmmet)
-
 			for f in self._core_files:
-				print('Evaling %s' % f)
 				self.eval_js_file(f)
 
 			# load default snippets
