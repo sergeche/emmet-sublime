@@ -2643,19 +2643,30 @@ var walker, tokens = [], isOp, isNameChar, isDigit;
             conf = getConf();    
      
         cnext = w.nextChar();
-        
-        if (cnext !== '*') {
+
+        if (cnext === '/') {
+            // inline comment in SCSS and such
+            token += cnext;
+            var pk = w.peek();
+            while (pk && pk !== '\n') {
+                token += cnext;
+                cnext = w.nextChar();
+                pk = w.peek();
+            }
+        } else if (cnext === '*') {
+            // multiline CSS commment
+            while (!(c === "*" && cnext === "/")) {
+                token += cnext;
+                c = cnext;
+                cnext = w.nextChar();        
+            }            
+        } else {
             // oops, not a comment, just a /
             conf.charend = conf['char'];
             conf.lineend = conf.line;
             return tokener(token, token, conf);
         }
-    
-        while (!(c === "*" && cnext === "/")) {
-            token += cnext;
-            c = cnext;
-            cnext = w.nextChar();        
-        }
+        
         token += cnext;
         w.nextChar();
         tokener(token, 'comment', conf);
