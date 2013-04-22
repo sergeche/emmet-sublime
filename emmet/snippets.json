@@ -844,5 +844,9 @@
 	
 	"stylus": {
 		"extends": "css"
+	},
+
+	"styl": {
+		"extends": "stylus"
 	}
 }
