@@ -5326,7 +5326,7 @@ emmet.define('editorUtils', function(require, _) {
 			return  {
 				/** @memberOf outputInfo */
 				syntax: String(syntax || editor.getSyntax()),
-				profile: profile ? String(profile) : null,
+				profile: profile || null,
 				content: String(editor.getContent())
 			};
 		},
