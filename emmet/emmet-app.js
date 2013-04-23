@@ -5508,21 +5508,20 @@ emmet.define('actionUtils', function(require, _) {
 				var tag = require('htmlMatcher').find(content, editor.getCaretPos());
 				
 				if (tag && tag.type == 'tag') {
-					var reAttr = /([\w\-:]+)(?:\s*=\s*(?:(?:"((?:\\.|[^"])*)")|(?:'((?:\\.|[^'])*)')|([^>\s]+)))?/g;
 					var startTag = tag.open;
-					var tagAttrs = startTag.range.substring(content).replace(/^<[\w\-\:]+/, '');
-//					var tagAttrs = startTag.full_tag.replace(/^<[\w\-\:]+/, '');
 					var contextNode = {
 						name: startTag.name,
 						attributes: []
 					};
 					
 					// parse attributes
-					var m;
-					while (m = reAttr.exec(tagAttrs)) {
-						contextNode.attributes.push({
-							name: m[1],
-							value: m[2]
+					var tagTree = require('xmlEditTree').parse(startTag.range.substring(content));
+					if (tagTree) {
+						contextNode.attributes = _.map(tagTree.getAll(), function(item) {
+							return {
+								name: item.name(),
+								value: item.value()
+							};
 						});
 					}
 					
