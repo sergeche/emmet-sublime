@@ -1,5 +1,7 @@
 # Emmet for Sublime Text
 
+[![Get Support](http://codersclan.net/graphics/getSupport_github4.png)](http://codersclan.net/support/step1.php?repo_id=4)
+
 Official [Emmet](http://emmet.io) plugin (previously called _Zen Coding_) for Sublime Text.
 
 * [How to install](#how-to-install)
