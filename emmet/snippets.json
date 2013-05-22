@@ -6,7 +6,7 @@
 		"indentation": "\t",
 		"newline": "\n"
 	},
-	
+
 	"css": {
 		"filters": "html",
 		"snippets": {
@@ -23,24 +23,24 @@
 			"anim": "animation:|;",
 			"anim-": "animation:${1:name} ${2:duration} ${3:timing-function} ${4:delay} ${5:iteration-count} ${6:direction} ${7:fill-mode};",
 			"animdel": "animation-delay:${1:time};",
-			
+
 			"animdir": "animation-direction:${1:normal};",
 			"animdir:n": "animation-direction:normal;",
 			"animdir:r": "animation-direction:reverse;",
 			"animdir:a": "animation-direction:alternate;",
 			"animdir:ar": "animation-direction:alternate-reverse;",
-			
+
 			"animdur": "animation-duration:${1:0}s;",
-			
+
 			"animfm": "animation-fill-mode:${1:both};",
 			"animfm:f": "animation-fill-mode:forwards;",
 			"animfm:b": "animation-fill-mode:backwards;",
 			"animfm:bt": "animation-fill-mode:both;",
 			"animfm:bh": "animation-fill-mode:both;",
-			
+
 			"animic": "animation-iteration-count:${1:1};",
 			"animic:i": "animation-iteration-count:infinite;",
-			
+
 			"animn": "animation-name:${1:none};",
 
 			"animps": "animation-play-state:${1:running};",
@@ -54,7 +54,7 @@
 			"animtf:eio": "animation-timing-function:ease-in-out;",
 			"animtf:l": "animation-timing-function:linear;",
 			"animtf:cb": "animation-timing-function:cubic-bezier(${1:0.1}, ${2:0.7}, ${3:1.0}, ${3:0.1});",
-			
+
 			"ap": "appearance:${none};",
 
 			"!": "!important",
@@ -614,7 +614,7 @@
 			"wfsm:n": "-webkit-font-smoothing:none;"
 		}
 	},
-	
+
 	"html": {
 		"filters": "html",
 		"profile": "html",
@@ -631,7 +631,7 @@
 			"cc:ie": "<!--[if IE]>\n\t${child}|\n<![endif]-->",
 			"cc:noie": "<!--[if !IE]><!-->\n\t${child}|\n<!--<![endif]-->"
 		},
-		
+
 		"abbreviations": {
 			"!": "html:5",
 			"a": "<a href=\"\">",
@@ -725,7 +725,7 @@
 			"html:xml": "<html xmlns=\"http://www.w3.org/1999/xhtml\">",
 			"keygen": "<keygen/>",
 			"command": "<command/>",
-			
+
 			"bq": "blockquote",
 			"acr": "acronym",
 			"fig": "figure",
@@ -769,7 +769,7 @@
 			"html:xs":  "!!!xs+doc4[xmlns=http://www.w3.org/1999/xhtml xml:lang=${lang}]",
 			"html:xxs": "!!!xxs+doc4[xmlns=http://www.w3.org/1999/xhtml xml:lang=${lang}]",
 			"html:5":   "!!!+doc[lang=${lang}]",
-			
+
 			"ol+": "ol>li",
 			"ul+": "ul>li",
 			"dl+": "dl>dt+dd",
@@ -783,13 +783,16 @@
 			"optg+": "optgroup>option"
 		}
 	},
-	
+
 	"xml": {
 		"extends": "html",
 		"profile": "xml",
-		"filters": "html"
+		"filters": "html",
+        "snippets": {
+            "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        }
 	},
-	
+
 	"xsl": {
 		"extends": "html",
 		"profile": "xml",
@@ -840,31 +843,28 @@
 			"sort": "<xsl:sort select=\"\" order=\"\"/>",
 
 			"choose+": "xsl:choose>xsl:when+xsl:otherwise",
-			"xsl": "!!!+xsl:stylesheet[version=1.0 xmlns:xsl=http://www.w3.org/1999/XSL/Transform]>{\n|}"
-		}, 
-		"snippets": {
-			"!!!": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+			"xsl": "xml+xsl:stylesheet[version=1.0 xmlns:xsl=http://www.w3.org/1999/XSL/Transform]>{\n|}"
 		}
 	},
-	
+
 	"haml": {
 		"filters": "haml",
 		"extends": "html",
 		"profile": "xml"
 	},
-	
+
 	"scss": {
 		"extends": "css"
 	},
-	
+
 	"sass": {
 		"extends": "css"
 	},
-	
+
 	"less": {
 		"extends": "css"
 	},
-	
+
 	"stylus": {
 		"extends": "css"
 	},
