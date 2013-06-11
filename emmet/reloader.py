@@ -22,4 +22,7 @@ mods_load_order = [
 
 for mod in mods_load_order:
 	if mod in reload_mods:
+		m = sys.modules[mod]
+		if 'on_module_reload' in m.__dict__:
+			m.on_module_reload()
 		imp.reload(sys.modules[mod])
