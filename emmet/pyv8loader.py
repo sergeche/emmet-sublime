@@ -98,8 +98,11 @@ def get_arch():
 	is_64bit = sys.maxsize > 2**32
 	system_name = platform.system()
 	if system_name == 'Darwin':
-		if semver.match(platform.mac_ver()[0], '<10.7.0'):
-			return p('mac106')
+		try:
+			if semver.match(platform.mac_ver()[0], '<10.7.0'):
+				return p('mac106')
+		except:
+			pass
 
 		return p('osx')
 	if system_name == 'Windows':
