@@ -279,7 +279,7 @@ def should_handle_tab_key(syntax=None):
 		# it's a complex expression
 		return True
 
-	if re.match(r'^(lorem|lipsum)([a-z]{2})?\d*$', abbr):
+	if re.match(r'^(lorem|lipsum)([a-z]{2})?\d*$', abbr, re.I):
 		# hardcoded Lorem Ipsum generator
 		return True
 
