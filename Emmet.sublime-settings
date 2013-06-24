@@ -74,7 +74,7 @@
 	// With this option enabled, your custom profile for HTML documents may not work.
 	"autodetect_xhtml": true,
 
-	// Use old Tab handler to exand abbreviations.
+	// Use old Tab handler to expand abbreviations.
 	// With this option enabled, editor may better handle Tab key
 	// (especially with other plugins that overrides Tab key),
 	// but will spit "slow plugin" message
