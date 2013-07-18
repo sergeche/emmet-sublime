@@ -11,7 +11,7 @@ import traceback
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 PACKAGES_PATH = sublime.packages_path() or os.path.dirname(BASE_PATH)
 # EMMET_GRAMMAR = os.path.join(BASE_PATH, 'Emmet.tmLanguage')
-EMMET_GRAMMAR = 'Packages/%s/Emmet.tmLanguage' % os.path.basename(BASE_PATH)
+EMMET_GRAMMAR = 'Packages/%s/Emmet.tmLanguage' % os.path.basename(BASE_PATH).replace('.sublime-package', '')
 sys.path += [BASE_PATH] + [os.path.join(BASE_PATH, f) for f in ['emmet_completions', 'emmet']]
 
 
