@@ -4,7 +4,7 @@ import re
 
 _REGEX = re.compile('^(?P<major>[0-9]+)'
                     '\.(?P<minor>[0-9]+)'
-                    '\.(?P<patch>[0-9]+)'
+                    '(\.(?P<patch>[0-9]+))?'
                     '(\-(?P<prerelease>[0-9A-Za-z]+(\.[0-9A-Za-z]+)*))?'
                     '(\+(?P<build>[0-9A-Za-z]+(\.[0-9A-Za-z]+)*))?$')
 
@@ -23,7 +23,7 @@ def parse(version):
 
     verinfo['major'] = int(verinfo['major'])
     verinfo['minor'] = int(verinfo['minor'])
-    verinfo['patch'] = int(verinfo['patch'])
+    verinfo['patch'] = int(verinfo['patch'] or '0')
 
     return verinfo
 
