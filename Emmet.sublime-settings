@@ -18,7 +18,7 @@
 	"show_css_completions": true,
 
 	// List of scopes where Emmet CSS completions should be available
-	"css_completions_scope": "source.css - meta.selector.css - meta.property-value.css, source.scss - meta.selector.scss - meta.property-value.scss",
+	"css_completions_scope": "source.css - meta.selector.css - meta.property-value.css, source.scss - meta.selector.scss - meta.property-value.scss, source.less - meta.selector.css - meta.property-value.css",
 
 	// Remove default HTML tag completions on plugin start
 	// You should restart editor after changing this option
