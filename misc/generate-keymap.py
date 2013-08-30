@@ -63,11 +63,11 @@ addon = [
 			{
 				"key": "selector",
 				"match_all": True,
-				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html, text.haml, text.scala.html, source string",
+				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source, text.haml, text.scala.html, source string",
 				"operator": "equal"
 			}, {
 				"key": "selector",
-				"operand": "text.html source.php, text.html source.js, storage.type.templatetag.django",
+				"operand": "storage.type.templatetag.django",
 				"operator": "not_equal",
 				"match_all": True
 			}, {
@@ -103,11 +103,11 @@ addon = [
 			{
 				"key": "selector",
 				"match_all": True,
-				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html, text.haml, text.scala.html, source string",
+				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source, text.haml, text.scala.html, source string",
 				"operator": "equal"
 			}, {
 				"key": "selector",
-				"operand": "text.html source.php, text.html source.js, storage.type.templatetag.django",
+				"operand": "storage.type.templatetag.django",
 				"operator": "not_equal",
 				"match_all": True
 			}, {
