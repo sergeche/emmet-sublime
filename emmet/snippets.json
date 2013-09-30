@@ -697,6 +697,7 @@
 			"input:month": "inp[type=month]",
 			"input:week": "inp[type=week]",
 			"input:time": "inp[type=time]",
+			"input:tel":"inp[type=tel]",
 			"input:number": "inp[type=number]",
 			"input:color": "inp[type=color]",
 			"input:checkbox": "inp[type=checkbox]",
