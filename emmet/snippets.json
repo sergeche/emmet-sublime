@@ -761,6 +761,7 @@
 			"leg": "legend",
 			"sect": "section",
 			"art": "article",
+			"mn": "main",
 			"hdr": "header",
 			"ftr": "footer",
 			"adr": "address",
