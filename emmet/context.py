@@ -237,6 +237,7 @@ class Context():
 			with self._ctx as ctx:
 				# load default snippets
 				ctx.locals.pyLoadSystemSnippets(self.read_js_file(make_path('snippets.json')))
+				ctx.locals.pyLoadCIU(self.read_js_file(make_path('caniuse.json')))
 
 				# expose some methods
 				ctx.locals.log = js_log

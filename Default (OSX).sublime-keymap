@@ -3,20 +3,6 @@
 [
     {
         "keys": [
-            "shift+super+y"
-        ], 
-        "args": {
-            "action": "evaluate_math_expression"
-        }, 
-        "command": "run_emmet_action", 
-        "context": [
-            {
-                "key": "emmet_action_enabled.evaluate_math_expression"
-            }
-        ]
-    }, 
-    {
-        "keys": [
             "super+'"
         ], 
         "args": {
@@ -126,15 +112,43 @@
     }, 
     {
         "keys": [
-            "ctrl+j"
+            "shift+super+y"
         ], 
         "args": {
-            "action": "match_pair_inward"
+            "action": "evaluate_math_expression"
         }, 
         "command": "run_emmet_action", 
         "context": [
             {
-                "key": "emmet_action_enabled.match_pair_inward"
+                "key": "emmet_action_enabled.evaluate_math_expression"
+            }
+        ]
+    }, 
+    {
+        "keys": [
+            "ctrl+j"
+        ], 
+        "args": {
+            "action": "balance_inward"
+        }, 
+        "command": "run_emmet_action", 
+        "context": [
+            {
+                "key": "emmet_action_enabled.balance_inward"
+            }
+        ]
+    }, 
+    {
+        "keys": [
+            "ctrl+d"
+        ], 
+        "args": {
+            "action": "balance_outward"
+        }, 
+        "command": "run_emmet_action", 
+        "context": [
+            {
+                "key": "emmet_action_enabled.balance_outward"
             }
         ]
     }, 
@@ -191,20 +205,6 @@
         "context": [
             {
                 "key": "emmet_action_enabled.select_previous_item"
-            }
-        ]
-    }, 
-    {
-        "keys": [
-            "ctrl+d"
-        ], 
-        "args": {
-            "action": "match_pair_outward"
-        }, 
-        "command": "run_emmet_action", 
-        "context": [
-            {
-                "key": "emmet_action_enabled.match_pair_outward"
             }
         ]
     }, 

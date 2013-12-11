@@ -4,8 +4,8 @@ import copy
 
 keymap = {
 	"expand_abbreviation": "ctrl+e",
-	"match_pair_outward": {"mac": "ctrl+d", "pc": "ctrl+,"},
-	"match_pair_inward": {"mac": "ctrl+j", "pc": "ctrl+shift+0"},
+	"balance_outward": {"mac": "ctrl+d", "pc": "ctrl+,"},
+	"balance_inward": {"mac": "ctrl+j", "pc": "ctrl+shift+0"},
 	"matching_pair": {"mac": "ctrl+shift+t", "pc": "ctrl+alt+j"},
 	"next_edit_point": "ctrl+alt+right",
 	"prev_edit_point": "ctrl+alt+left",
