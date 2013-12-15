@@ -14818,7 +14818,7 @@ define('utils/action',['require','exports','module','lodash','./common','../pars
 		 * @return {Boolean}
 		 */
 		isSupportedCSS: function(syntax) {
-			return syntax == 'css' || syntax == 'less';	
+			return syntax == 'css' || syntax == 'less' || syntax == 'scss';
 		},
 		
 		/**
@@ -15514,8 +15514,11 @@ define('parser/css',['require','exports','module'],function(require, exports, mo
 			accidentally appear in CSS tokens
 			*/
 			(cc >= 1024 && cc <= 1279) || 
-			c === '&' /* for LESS syntax */ || 
+			c === '&' || /* selector placeholder (LESS, SCSS) */
 			c === '_' || 
+			c === '<' || /* comparisons (LESS, SCSS) */
+			c === '>' || 
+			c === '=' || 
 			c === '-'
 		);
 	}
@@ -15913,6 +15916,28 @@ define('utils/cssSections',['require','exports','module','lodash','./common','..
 	}
 
 	/**
+	 * Replaces contents of given ranges inside `content`
+	 * with passed character
+	 * @param  {String} content
+	 * @param  {Array} ranges
+	 * @return {String}
+	 */
+	function replaceWith(content, ranges, ch) {
+		if (ranges.length) {
+			var offset = 0, fragments = [];
+			_.each(ranges, function(r) {
+				var spaces = utils.repeatString(ch, r[1] - r[0]);
+				fragments.push(content.substring(offset, r[0]), spaces);
+				offset = r[1];
+			});
+
+			content = fragments.join('') + content.substring(offset);
+		}
+
+		return content;
+	}
+
+	/**
 	 * @param {Range} range Full selector range with additional
 	 * properties for matching name and content (@see findAllRules())
 	 * @param {String} source CSS source
@@ -16053,7 +16078,7 @@ define('utils/cssSections',['require','exports','module','lodash','./common','..
 		 * @return {Array} Array of ranges
 		 */
 		findAllRules: function(content) {
-			content = this.stripComments(content);
+			content = this.sanitize(content);
 			var stream = stringStream(content);
 			var ranges = [], matchedRanges;
 
@@ -16137,18 +16162,7 @@ define('utils/cssSections',['require','exports','module','lodash','./common','..
 				}
 			}
 
-			if (replaceRanges.length) {
-				var offset = 0, fragments = [];
-				_.each(replaceRanges, function(r) {
-					var spaces = utils.repeatString(' ', r[1] - r[0]);
-					fragments.push(content.substring(offset, r[0]), spaces);
-					offset = r[1];
-				});
-
-				content = fragments.join('') + content.substring(offset);
-			}
-
-			return content;
+			return replaceWith(content, replaceRanges, ' ');
 		},
 
 		/**
@@ -16157,9 +16171,9 @@ define('utils/cssSections',['require','exports','module','lodash','./common','..
 		 * @param  {Number} pos     Search start position
 		 * @return {Range}
 		 */
-		matchBracesRanges: function(content, pos, stripComments) {
-			if (stripComments) {
-				content = this.stripComments(content);
+		matchBracesRanges: function(content, pos, sanitize) {
+			if (sanitize) {
+				content = this.sanitize(content);
 			}
 
 			var stream = stringStream(content);
@@ -16194,14 +16208,14 @@ define('utils/cssSections',['require','exports','module','lodash','./common','..
 		 * must point to the end of selector 
 		 * @param  {String}  content CSS source
 		 * @param  {Number}  pos     Search position
-		 * @param  {Boolean} stripComments Strip comments from CSS source.
+		 * @param  {Boolean} sanitize Sanitize CSS source before processing.
 		 * Off by default and assumes that CSS must be comment-free already
 		 * (for performance)
 		 * @return {Range}
 		 */
-		extractSelector: function(content, pos, stripComments) {
-			if (stripComments) {
-				content = this.stripComments(content);
+		extractSelector: function(content, pos, sanitize) {
+			if (sanitize) {
+				content = this.sanitize(content);
 			}
 
 			var skipString = function() {
@@ -16318,6 +16332,46 @@ define('utils/cssSections',['require','exports','module','lodash','./common','..
 		},
 
 		/**
+		 * Sanitizes given CSS content: replaces content that may 
+		 * interfere with parsing (comments, interpolations, etc.)
+		 * with spaces. Sanitized content MUST NOT be used for
+		 * editing or outputting, it just simplifies searching
+		 * @param  {String} content CSS content
+		 * @return {String}
+		 */
+		sanitize: function(content) {
+			content = this.stripComments(content);
+
+			// remove preprocessor string interpolations like #{var}
+			var stream = stringStream(content);
+			var replaceRanges = [];
+			var ch, ch2;
+
+			while ((ch = stream.next())) {
+				if (isQuote(ch)) {
+					// skip string
+					stream.skipString(ch)
+					continue;
+				} else if (ch === '#' || ch === '@') {
+					ch2 = stream.peek();
+					if (ch2 === '{') { // string interpolation
+						stream.start = stream.pos - 1;
+
+						if (stream.skipTo('}')) {
+							stream.pos += 1;
+						} else {
+							throw 'Invalid string interpolation at ' + stream.start;
+						}
+
+						replaceRanges.push([stream.start, stream.pos]);
+					}
+				}
+			}
+
+			return replaceWith(content, replaceRanges, 'a');
+		},
+
+		/**
 		 * Parses and returns all sections in given CSS
 		 * as tree-like structure, e.g. provides nesting
 		 * info
@@ -16410,6 +16464,10 @@ define('assets/tokenIterator',['require','exports','module'],function(require, e
 		
 		current: function() {
 			return this.tokens[this._i];
+		},
+
+		peek: function() {
+			return this.tokens[this._i + i];
 		},
 		
 		position: function() {
