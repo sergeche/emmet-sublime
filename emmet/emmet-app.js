@@ -7147,7 +7147,7 @@ define('assets/range',['require','exports','module','lodash'],function(require, 
 	 * @param {Number} len
 	 */
 	function Range(start, len) {
-		if (_.isObject(start) && 'start' in start) {
+		if (typeof start === 'object' && 'start' in start) {
 			// create range from object stub
 			this.start = Math.min(start.start, start.end);
 			this.end = Math.max(start.start, start.end);
@@ -7155,7 +7155,7 @@ define('assets/range',['require','exports','module','lodash'],function(require, 
 			this.start = start[0];
 			this.end = start[1];
 		} else {
-			len = _.isString(len) ? len.length : +len;
+			len = typeof len === 'string' ? len.length : +len;
 			this.start = start;
 			this.end = start + len;
 		}
@@ -7316,18 +7316,18 @@ define('assets/range',['require','exports','module','lodash'],function(require, 
 	 * @returns {Range}
 	 */
 	module.exports = function(start, len) {
-		if (_.isUndefined(start) || start === null)
-				return null;
+		if (typeof start == 'undefined' || start === null)
+			return null;
 			
-			if (start instanceof Range)
-				return start;
+		if (start instanceof Range)
+			return start;
+		
+		if (typeof start == 'object' && 'start' in start && 'end' in start) {
+			len = start.end - start.start;
+			start = start.start;
+		}
 			
-			if (_.isObject(start) && 'start' in start && 'end' in start) {
-				len = start.end - start.start;
-				start = start.start;
-			}
-				
-			return new Range(start, len);
+		return new Range(start, len);
 	};
 
 	module = module || {};
@@ -8422,13 +8422,13 @@ define('assets/stringStream',['require','exports','module'],function(require, ex
 		}
 	};
 
-	var out = function(string) {
+	module.exports = function(string) {
 		return new StringStream(string);
 	};
 
 	/** @deprecated */
-	out.create = out;
-	return out;
+	module.exports.create = module.exports;
+	return module.exports;
 });
 /**
  * Utility module that provides ordered storage of function handlers. 
@@ -13282,15 +13282,13 @@ define('assets/htmlMatcher',['require','exports','module','./range'],function(re
 				var key = 'p' + i;
 				
 				if (!(key in memo)) {
+					memo[key] = false;
 					if (text.charAt(i) == '<') {
 						var substr = text.slice(i);
 						if ((m = substr.match(reOpenTag))) {
 							memo[key] = openTag(i, m);
 						} else if ((m = substr.match(reCloseTag))) {
 							memo[key] = closeTag(i, m);
-						} else {
-							// remember that given position contains no valid tag
-							memo[key] = false;
 						}
 					}
 				}
@@ -13304,6 +13302,10 @@ define('assets/htmlMatcher',['require','exports','module','./range'],function(re
 			 */
 			text: function() {
 				return text;
+			},
+
+			clean: function() {
+				memo = text = m = null;
 			}
 		};
 	}
@@ -13357,8 +13359,9 @@ define('assets/htmlMatcher',['require','exports','module','./range'],function(re
 						}
 					}
 				}
+
+				pos = tag.range.end - 1;
 			}
-			
 		}
 	}
 	
@@ -13427,6 +13430,8 @@ define('assets/htmlMatcher',['require','exports','module','./range'],function(re
 				}
 			}
 			
+			matcher.clean();
+
 			if (open) {
 				var outerRange = null;
 				var innerRange = null;
