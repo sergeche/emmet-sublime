@@ -4,6 +4,10 @@ function require(name) {
 
 var _completions = {};
 
+// some caching data used during action sessions
+// make sure to call pyResetCache() before each new function call
+var __cache = {};
+
 var _ = require('lodash');
 var editorUtils = require('utils/editor');
 var actionUtils = require('utils/action');
@@ -179,29 +183,30 @@ function pyPreprocessText(value) {
 	return value;
 }
 
-function pyExpandAbbreviationAsYouType(abbr) {
-	var info = editorUtils.outputInfo(editorProxy);
-	try {
-		var result = emmet.expandAbbreviation(abbr, info.syntax, info.profile, 
-					actionUtils.captureContext(editorProxy));
-		return pyPreprocessText(result);
-	} catch (e) {
-		return '';
-	}
-	
-}
-
-function pyWrapAsYouType(abbr, content) {
-	var info = editorUtils.outputInfo(editorProxy);
+function pyExpandAsYouType(abbr, content) {
 	content = utils.escapeText(content);
-	var ctx = actionUtils.captureContext(editorProxy);
+
+	if (!('expandCtx' in __cache)) {
+		__cache.expandCtx = actionUtils.captureContext(editorProxy);
+	}
+
+	var params = {
+		syntax: editorProxy.getSyntax(), 
+		profile: editorProxy.getProfileName() || null,
+		contextNode: __cache.expandCtx
+	};
+
+	if (content) {
+		if (!('content' in __cache)) {
+			__cache.content = utils.escapeText(content);
+		}
+
+		params.pastedContent = __cache.content;
+	}
+
 	try {
-		var result = abbreviationParser.expand(abbr, {
-			pastedContent: content,
-			syntax: info.syntax, 
-			profile: info.profile,
-			contextNode: actionUtils.captureContext(editorProxy)
-		});
+		var result = abbreviationParser.expand(abbr, params);
+		return result;
 		return pyPreprocessText(result);
 	} catch(e) {
 		return '';
@@ -333,4 +338,8 @@ function pyGetSyntax() {
 
 function pyDetectProfile(syntax) {
 	return actionUtils.detectProfile(editorProxy, syntax);
+}
+
+function pyResetCache() {
+	__cache = {};
 }

@@ -5,6 +5,7 @@ import re
 import imp
 import json
 import sys
+import time
 import os.path
 import traceback
 
@@ -28,8 +29,8 @@ from emmet.context import Context
 from emmet.context import js_file_reader as _js_file_reader
 from emmet.pyv8loader import LoaderDelegate
 
-__version__      = '1.1'
-__core_version__ = '1.0'
+__version__      = '1.2'
+__core_version__ = '1.1'
 __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
 					'"Nicholas Dudfield" <ndudfield@gmail.com>']
 
@@ -601,11 +602,12 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 
 	def setup(self, edit, view, **kwargs):
 		self._prev_output = ''
-		
-		if len(view.sel()) == 1:
-			# capture wrapping context (parent HTML element) 
-			# if there is only one selection
-			with ctx.js() as c: 
+
+		with ctx.js() as c: 
+			r = c.locals.pyResetCache()
+			if len(view.sel()) == 1:
+				# capture wrapping context (parent HTML element) 
+				# if there is only one selection
 				r = c.locals.pyCaptureWrappingRange()
 				if r:
 					view.sel().clear()
@@ -628,13 +630,16 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 			view.sel().add(sel)
 
 		def ins(i, sel):
+			start = time.time()
 			try:
 				with ctx.js() as c:
-					self._prev_output = c.locals.pyWrapAsYouType(abbr, self._sel_items[i])
+					self._prev_output = c.locals.pyExpandAsYouType(abbr, self._sel_items[i])
 				# self.run_command(view, output)
-			except Exception:
+			except Exception as e:
 				"dont litter the console"
 
+			end = time.time()
+			print('Performed in %f' % (end - start,))
 			self.run_command(edit, view, self._prev_output)
 
 		run_action(ins, view)
@@ -660,6 +665,9 @@ class ExpandAsYouType(WrapAsYouType):
 			view.sel().add(s)
 			
 		self.remember_sels(active_view())
+
+		with ctx.js() as c: 
+			r = c.locals.pyResetCache()
 
 
 class EnterKeyHandler(sublime_plugin.EventListener):
