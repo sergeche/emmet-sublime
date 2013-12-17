@@ -838,6 +838,18 @@
 		"extends": "html",
 		"profile": "xml"
 	},
+
+	"jade": {
+		"filters": "jade",
+		"extends": "html",
+		"profile": "xml"
+	},
+
+	"slim": {
+		"filters": "slim",
+		"extends": "html",
+		"profile": "xml"
+	},
 	
 	"scss": {
 		"extends": "css"

@@ -2,6 +2,8 @@ import os.path
 import json
 import copy
 
+TAB_HANDLER_SCOPES = "source.css, source.sass, source.less, source.scss, source.stylus, source.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string"
+
 keymap = {
 	"expand_abbreviation": "ctrl+e",
 	"balance_outward": {"mac": "ctrl+d", "pc": "ctrl+,"},
@@ -63,7 +65,7 @@ addon = [
 			{
 				"key": "selector",
 				"match_all": True,
-				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source, text.haml, text.scala.html, source string",
+				"operand": TAB_HANDLER_SCOPES,
 				"operator": "equal"
 			}, {
 				"key": "selector",
@@ -103,7 +105,7 @@ addon = [
 			{
 				"key": "selector",
 				"match_all": True,
-				"operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source, text.haml, text.scala.html, source string",
+				"operand": TAB_HANDLER_SCOPES,
 				"operator": "equal"
 			}, {
 				"key": "selector",

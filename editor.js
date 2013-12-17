@@ -324,7 +324,7 @@ function pyGetSyntax() {
 		// detect CSS-like syntaxes independently, 
 		// since it may cause collisions with some highlighters
 		syntax = RegExp.$1;
-	} else if (/\b(html|xml|haml)\b/.test(scope)) {
+	} else if (/\b(html|xml|haml|slim)\b/.test(scope)) {
 		syntax = RegExp.$1;
 	}
 
