@@ -17753,6 +17753,16 @@ define('resolver/css',['require','exports','module','lodash','../assets/preferen
 			+ '(e.g. <code>-bxsh</code>). With this option enabled, you don’t ' 
 			+ 'need dashes before abbreviations: Emmet will produce ' 
 			+ 'vendor-prefixed properties for you.');
+
+	prefs.define('css.propertySeparator', '\n',
+			'Defines a symbol that should be placed between CSS properties ' 
+			+ 'when expanding CSS abbreviations with multiple elements.');
+	prefs.define('less.propertySeparator', '\n',
+			'Defines a symbol that should be placed between CSS properties ' 
+			+ 'when expanding CSS abbreviations with multiple elements in LESS dialect.');
+	prefs.define('scss.propertySeparator', '\n',
+			'Defines a symbol that should be placed between CSS properties ' 
+			+ 'when expanding CSS abbreviations with multiple elements in SCSS dialect.');
 	
 	var descTemplate = _.template('A comma-separated list of CSS properties that may have ' 
 		+ '<code><%= vendor %></code> vendor prefix. This list is used to generate '
@@ -17772,7 +17782,7 @@ define('resolver/css',['require','exports','module','lodash','../assets/preferen
 	var props = {
 		'webkit': 'animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-clip, background-composite, background-origin, background-size, border-fit, border-horizontal-spacing, border-image, border-vertical-spacing, box-align, box-direction, box-flex, box-flex-group, box-lines, box-ordinal-group, box-orient, box-pack, box-reflect, box-shadow, color-correction, column-break-after, column-break-before, column-break-inside, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-span, column-width, dashboard-region, font-smoothing, highlight, hyphenate-character, hyphenate-limit-after, hyphenate-limit-before, hyphens, line-box-contain, line-break, line-clamp, locale, margin-before-collapse, margin-after-collapse, marquee-direction, marquee-increment, marquee-repetition, marquee-style, mask-attachment, mask-box-image, mask-box-image-outset, mask-box-image-repeat, mask-box-image-slice, mask-box-image-source, mask-box-image-width, mask-clip, mask-composite, mask-image, mask-origin, mask-position, mask-repeat, mask-size, nbsp-mode, perspective, perspective-origin, rtl-ordering, text-combine, text-decorations-in-effect, text-emphasis-color, text-emphasis-position, text-emphasis-style, text-fill-color, text-orientation, text-security, text-stroke-color, text-stroke-width, transform, transition, transform-origin, transform-style, transition-delay, transition-duration, transition-property, transition-timing-function, user-drag, user-modify, user-select, writing-mode, svg-shadow, box-sizing, border-radius',
 		'moz': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-inline-policy, binding, border-bottom-colors, border-image, border-left-colors, border-right-colors, border-top-colors, box-align, box-direction, box-flex, box-ordinal-group, box-orient, box-pack, box-shadow, box-sizing, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-width, float-edge, font-feature-settings, font-language-override, force-broken-image-icon, hyphens, image-region, orient, outline-radius-bottomleft, outline-radius-bottomright, outline-radius-topleft, outline-radius-topright, perspective, perspective-origin, stack-sizing, tab-size, text-blink, text-decoration-color, text-decoration-line, text-decoration-style, text-size-adjust, transform, transform-origin, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-focus, user-input, user-modify, user-select, window-shadow, background-clip, border-radius',
-		'ms': 'accelerator, backface-visibility, background-position-x, background-position-y, behavior, block-progression, box-align, box-direction, box-flex, box-line-progression, box-lines, box-ordinal-group, box-orient, box-pack, content-zoom-boundary, content-zoom-boundary-max, content-zoom-boundary-min, content-zoom-chaining, content-zoom-snap, content-zoom-snap-points, content-zoom-snap-type, content-zooming, filter, flow-from, flow-into, font-feature-settings, grid-column, grid-column-align, grid-column-span, grid-columns, grid-layer, grid-row, grid-row-align, grid-row-span, grid-rows, high-contrast-adjust, hyphenate-limit-chars, hyphenate-limit-lines, hyphenate-limit-zone, hyphens, ime-mode, interpolation-mode, layout-flow, layout-grid, layout-grid-char, layout-grid-line, layout-grid-mode, layout-grid-type, line-break, overflow-style, perspective, perspective-origin, perspective-origin-x, perspective-origin-y, scroll-boundary, scroll-boundary-bottom, scroll-boundary-left, scroll-boundary-right, scroll-boundary-top, scroll-chaining, scroll-rails, scroll-snap-points-x, scroll-snap-points-y, scroll-snap-type, scroll-snap-x, scroll-snap-y, scrollbar-arrow-color, scrollbar-base-color, scrollbar-darkshadow-color, scrollbar-face-color, scrollbar-highlight-color, scrollbar-shadow-color, scrollbar-track-color, text-align-last, text-autospace, text-justify, text-kashida-space, text-overflow, text-size-adjust, text-underline-position, touch-action, transform, transform-origin, transform-origin-x, transform-origin-y, transform-origin-z, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-select, word-break, word-wrap, wrap-flow, wrap-margin, wrap-through, writing-mode',
+		'ms': 'accelerator, backface-visibility, background-position-x, background-position-y, behavior, block-progression, box-align, box-direction, box-flex, box-line-progression, box-lines, box-ordinal-group, box-orient, box-pack, content-zoom-boundary, content-zoom-boundary-max, content-zoom-boundary-min, content-zoom-chaining, content-zoom-snap, content-zoom-snap-points, content-zoom-snap-type, content-zooming, filter, flow-from, flow-into, font-feature-settings, grid-column, grid-column-align, grid-column-span, grid-columns, grid-layer, grid-row, grid-row-align, grid-row-span, grid-rows, high-contrast-adjust, hyphenate-limit-chars, hyphenate-limit-lines, hyphenate-limit-zone, hyphens, ime-mode, interpolation-mode, layout-flow, layout-grid, layout-grid-char, layout-grid-line, layout-grid-mode, layout-grid-type, line-break, overflow-style, perspective, perspective-origin, perspective-origin-x, perspective-origin-y, scroll-boundary, scroll-boundary-bottom, scroll-boundary-left, scroll-boundary-right, scroll-boundary-top, scroll-chaining, scroll-rails, scroll-snap-points-x, scroll-snap-points-y, scroll-snap-type, scroll-snap-x, scroll-snap-y, scrollbar-arrow-color, scrollbar-base-color, scrollbar-darkshadow-color, scrollbar-face-color, scrollbar-highlight-color, scrollbar-shadow-color, scrollbar-track-color, text-align-last, text-autospace, text-justify, text-kashida-space, text-overflow, text-size-adjust, text-underline-position, touch-action, transform, transform-origin, transform-origin-x, transform-origin-y, transform-origin-z, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-select, word-break, wrap-flow, wrap-margin, wrap-through, writing-mode',
 		'o': 'dashboard-region, animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, border-image, link, link-source, object-fit, object-position, tab-size, table-baseline, transform, transform-origin, transition, transition-delay, transition-duration, transition-property, transition-timing-function, accesskey, input-format, input-required, marquee-dir, marquee-loop, marquee-speed, marquee-style'
 	};
 	
@@ -18493,8 +18503,14 @@ define('resolver/css',['require','exports','module','lodash','../assets/preferen
 		 */
 		expandToSnippet: function(abbr, syntax) {
 			var snippet = this.expand(abbr, null, syntax);
+			var sep = '\n';
+			var prop = prefs.get(syntax + '.propertySeparator');
+			if (!_.isUndefined(prop)) {
+				sep = prop;
+			}
+
 			if (_.isArray(snippet)) {
-				return snippet.join('\n');
+				return snippet.join(sep);
 			}
 			
 			if (!_.isString(snippet)) {
@@ -18569,6 +18585,8 @@ define('resolver/gradient/linear',['require','exports','module','lodash','../../
 		'to top left': 315
 	};
 
+	var defaultDirections = ['top', 'to bottom', '0deg'];
+
 
 	var reLinearGradient = /^\s*(\-[a-z]+\-)?(lg|linear\-gradient)\s*\(/i;
 	var reDeg = /(\d+)deg/i;
@@ -18576,7 +18594,7 @@ define('resolver/gradient/linear',['require','exports','module','lodash','../../
 
 	function LinearGradient(dfn) {
 		this.colorStops = [];
-		this.direction = 0;
+		this.direction = 180;
 
 		// extract tokens
 		var stream = stringStream.create(utils.trim(dfn));
@@ -18679,11 +18697,12 @@ define('resolver/gradient/linear',['require','exports','module','lodash','../../
 				var pos = cs.position ? ' ' + cs.position + (cs.unit || '') : '';
 				return cs.color + pos;
 			});
-			
-			if (this.direction && !options.omitDefaultDirection) {
-				parts.unshift(stringifyDirection(this.direction, !!options.prefix));
+
+			var dir = stringifyDirection(this.direction, !!options.prefix);
+			if (!options.omitDefaultDirection || !_.include(defaultDirections, dir)) {
+				parts.unshift(dir);
 			}
-			
+
 			return fn + '(' + parts.join(', ') + ')';
 		},
 
@@ -18778,12 +18797,12 @@ define('resolver/gradient/linear',['require','exports','module','lodash','../../
 		}
 
 		var prefix = /^to\s/.test(dir) ? 'to ' : '';
-		var left =   ~dir.indexOf('left')   && 'left';
-		var right =  ~dir.indexOf('right')  && 'right';
-		var top =    ~dir.indexOf('top')    && 'top';
+		var left   = ~dir.indexOf('left')   && 'left';
+		var right  = ~dir.indexOf('right')  && 'right';
+		var top    = ~dir.indexOf('top')    && 'top';
 		var bottom = ~dir.indexOf('bottom') && 'bottom';
 
-		var key = normalizeSpace(prefix + (top || bottom) + ' ' + (left || right));
+		var key = normalizeSpace(prefix + (top || bottom || '') + ' ' + (left || right || ''));
 		return directions[key] || 0;
 	}
 
@@ -18829,7 +18848,7 @@ define('resolver/gradient/linear',['require','exports','module','lodash','../../
 			return ~dir.indexOf(pos) ? '100%' : '0';
 		};
 		
-		return v('right') + ' ' + v('bottom') + ', ' + v('left') + ' ' + v('top');
+		return v('left') + ' ' + v('top') + ', ' + v('right') + ' ' + v('bottom');
 	}
 
 	return {
@@ -18967,6 +18986,7 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 	function getPropertiesForGradient(gradients, property) {
 		var props = [];
 		var propertyName = property.name();
+		var omitDir = prefs.get('css.gradient.omitDefaultDirection');
 		
 		if (prefs.get('css.gradient.fallback') && ~propertyName.toLowerCase().indexOf('background')) {
 			props.push({
@@ -18984,7 +19004,8 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 						name: name,
 						value: insertGradientsIntoCSSValue(gradients, value, {
 							prefix: prefix, 
-							oldWebkit: true
+							oldWebkit: true,
+							omitDefaultDirection: omitDir
 						})
 					});
 				} catch(e) {}
@@ -18992,7 +19013,10 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 			
 			props.push({
 				name: name,
-				value: insertGradientsIntoCSSValue(gradients, value, {prefix: prefix})
+				value: insertGradientsIntoCSSValue(gradients, value, {
+					prefix: prefix,
+					omitDefaultDirection: omitDir
+				})
 			});
 		});
 		
@@ -19049,6 +19073,7 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 	function pasteGradient(property, gradients) {
 		var rule = property.parent;
 		var alignVendor = prefs.get('css.alignVendor');
+		var omitDir = prefs.get('css.gradient.omitDefaultDirection');
 		
 		// we may have aligned gradient definitions: find the smallest value
 		// separator
@@ -19117,7 +19142,10 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 		});
 
 		// put vanilla-clean gradient definition into current rule
-		property.value(insertGradientsIntoCSSValue(gradients, value, {placeholder: '${2}'}));
+		property.value(insertGradientsIntoCSSValue(gradients, value, {
+			placeholder: '${2}',
+			omitDefaultDirection: omitDir
+		}));
 	}
 	
 	module = module || {};
@@ -19233,6 +19261,7 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 		 */
 		expandGradientOutsideValue: function(editor, syntax) {
 			var propertyName = prefs.get('css.gradient.defaultProperty');
+			var omitDir = prefs.get('css.gradient.omitDefaultDirection');
 			
 			if (!propertyName) {
 				return false;
@@ -19262,7 +19291,10 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 				var props = getPropertiesForGradient(gradients.gradients, gradients.property);
 				props.push({
 					name: gradients.property.name(),
-					value: insertGradientsIntoCSSValue(gradients.gradients, gradients.property.value(), {placeholder: '${2}'})
+					value: insertGradientsIntoCSSValue(gradients.gradients, gradients.property.value(), {
+						placeholder: '${2}',
+						omitDefaultDirection: omitDir
+					})
 				});
 				
 				var sep = cssResolver.getSyntaxPreference('valueSeparator', syntax);
@@ -19293,6 +19325,7 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 		 * @param  {String} property
 		 */
 		reflectValueHandler: function(property) {
+			var omitDir = prefs.get('css.gradient.omitDefaultDirection');
 			var gradients = this.findGradients(property);
 			if (!gradients) {
 				return false;
@@ -19319,7 +19352,10 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 						prefix = RegExp.$1;
 					}
 
-					prop.value(insertGradientsIntoCSSValue(gradients, value, {prefix: prefix}));
+					prop.value(insertGradientsIntoCSSValue(gradients, value, {
+						prefix: prefix,
+						omitDefaultDirection: omitDir
+					}));
 				}
 			});
 			
