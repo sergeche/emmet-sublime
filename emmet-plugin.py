@@ -554,7 +554,8 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 			self._sel_items.append(unindent_text(s, get_line_padding(line)))
 
 	def on_panel_done(self, abbr):
-		pass
+		if abbr:
+			self.default_input = abbr
 
 	def run(self, edit, panel_input=None, **kwargs):
 
@@ -566,7 +567,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 				self.input_message,
 				self.default_input,
 				self.on_panel_done,              # on_done
-				self.on_panel_change,           # on_change
+				self.on_panel_change,            # on_change
 				self.undo)                       # on_cancel
 
 			panel.sel().clear()
