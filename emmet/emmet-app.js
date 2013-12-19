@@ -19872,10 +19872,16 @@ define('action/balance',['require','exports','module','lodash','../assets/htmlMa
 		} else {
 			lastMatch = htmlMatcher.find(content, sel.start);
 		}
-		
-		if (lastMatch && !lastMatch.range.equal(sel)) {
-			editor.createSelection(lastMatch.range.start, lastMatch.range.end);
-			return true;
+
+		if (lastMatch) {
+			if (lastMatch.innerRange.equal(sel)) {
+				lastMatch.range = lastMatch.outerRange;
+			}
+
+			if (!lastMatch.range.equal(sel)) {
+				editor.createSelection(lastMatch.range.start, lastMatch.range.end);
+				return true;
+			}
 		}
 		
 		lastMatch = null;
