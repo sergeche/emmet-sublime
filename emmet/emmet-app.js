@@ -9998,6 +9998,8 @@ define('assets/profile',['require','exports','module','lodash','../utils/common'
 		createProfile('xml', {self_closing_tag: true, tag_nl: true});
 		createProfile('plain', {tag_nl: false, indent: false, place_cursor: false});
 		createProfile('line', {tag_nl: false, indent: false, extraFilters: 's'});
+		createProfile('css', {tag_nl: true});
+		createProfile('css_line', {tag_nl: false});
 	}
 	
 	createDefaultProfiles();
@@ -11201,6 +11203,39 @@ define('filter/xsl',['require','exports','module','lodash','../utils/abbreviatio
 	};
 });
 /**
+ * Filter for outputting CSS and alike
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('filter/css',['require','exports','module','lodash'],function(require, exports, module) {
+	var _ = require('lodash');
+
+	/**
+	 * Test if passed item is very first child in parsed tree
+	 * @param {AbbreviationNode} item
+	 */
+	function isVeryFirstChild(item) {
+		return item.parent && !item.parent.parent && !item.index();
+	}
+
+	return function process(tree, profile, level) {
+		level = level || 0;
+		
+		_.each(tree.children, function(item) {
+			if (!isVeryFirstChild(item) && profile.tag_nl !== false) {
+				item.start = '\n' + item.start;
+			}
+			process(item, profile, level + 1);
+		});
+		
+		return tree;
+	};
+});
+/**
  * Filter for aiding of writing elements with complex class names as described
  * in Yandex's BEM (Block, Element, Modifier) methodology. This filter will
  * automatically inherit block and element names from parent elements and insert
@@ -11694,7 +11729,7 @@ if (typeof module === 'object' && typeof define !== 'function') {
 	};
 }
 
-define('filter/main',['require','exports','module','lodash','../utils/common','../assets/profile','../assets/resources','./html','./haml','./jade','./slim','./xsl','./bem','./comment','./escape','./singleLine','./trim'],function(require, exports, module) {
+define('filter/main',['require','exports','module','lodash','../utils/common','../assets/profile','../assets/resources','./html','./haml','./jade','./slim','./xsl','./css','./bem','./comment','./escape','./singleLine','./trim'],function(require, exports, module) {
 	var _ = require('lodash');
 	var utils = require('../utils/common');
 	var profile = require('../assets/profile');
@@ -11707,6 +11742,7 @@ define('filter/main',['require','exports','module','lodash','../utils/common','.
 		jade: require('./jade'),
 		slim: require('./slim'),
 		xsl: require('./xsl'),
+		css: require('./css'),
 		bem: require('./bem'),
 		c: require('./comment'),
 		e: require('./escape'),
@@ -15179,9 +15215,9 @@ define('utils/action',['require','exports','module','lodash','./common','../pars
 		 */
 		captureContext: function(editor) {
 			var allowedSyntaxes = {'html': 1, 'xml': 1, 'xsl': 1};
-			var syntax = String(editor.getSyntax());
+			var syntax = editor.getSyntax();
 			if (syntax in allowedSyntaxes) {
-				var content = String(editor.getContent());
+				var content = editor.getContent();
 				var tag = htmlMatcher.find(content, editor.getCaretPos());
 				
 				if (tag && tag.type == 'tag') {
@@ -17753,16 +17789,6 @@ define('resolver/css',['require','exports','module','lodash','../assets/preferen
 			+ '(e.g. <code>-bxsh</code>). With this option enabled, you don’t ' 
 			+ 'need dashes before abbreviations: Emmet will produce ' 
 			+ 'vendor-prefixed properties for you.');
-
-	prefs.define('css.propertySeparator', '\n',
-			'Defines a symbol that should be placed between CSS properties ' 
-			+ 'when expanding CSS abbreviations with multiple elements.');
-	prefs.define('less.propertySeparator', '\n',
-			'Defines a symbol that should be placed between CSS properties ' 
-			+ 'when expanding CSS abbreviations with multiple elements in LESS dialect.');
-	prefs.define('scss.propertySeparator', '\n',
-			'Defines a symbol that should be placed between CSS properties ' 
-			+ 'when expanding CSS abbreviations with multiple elements in SCSS dialect.');
 	
 	var descTemplate = _.template('A comma-separated list of CSS properties that may have ' 
 		+ '<code><%= vendor %></code> vendor prefix. This list is used to generate '
@@ -18504,10 +18530,6 @@ define('resolver/css',['require','exports','module','lodash','../assets/preferen
 		expandToSnippet: function(abbr, syntax) {
 			var snippet = this.expand(abbr, null, syntax);
 			var sep = '\n';
-			var prop = prefs.get(syntax + '.propertySeparator');
-			if (!_.isUndefined(prop)) {
-				sep = prop;
-			}
 
 			if (_.isArray(snippet)) {
 				return snippet.join(sep);
