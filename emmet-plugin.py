@@ -5,7 +5,6 @@ import re
 import imp
 import json
 import sys
-import time
 import os.path
 import traceback
 
@@ -618,10 +617,6 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 
 	# override method to correctly wrap abbreviations
 	def run_on_input(self, edit, view, abbr):
-	# def _real_insert(self, abbr):
-		# view = self.view
-		# self.edit = get_edit(view, self.edit_token)
-
 		self.erase = True
 
 		# restore selections
@@ -630,7 +625,6 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 			view.sel().add(sel)
 
 		def ins(i, sel):
-			start = time.time()
 			try:
 				with ctx.js() as c:
 					self._prev_output = c.locals.pyExpandAsYouType(abbr, self._sel_items[i])
@@ -638,13 +632,9 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 			except Exception as e:
 				"dont litter the console"
 
-			end = time.time()
-			print('Performed in %f' % (end - start,))
 			self.run_command(edit, view, self._prev_output)
 
 		run_action(ins, view)
-		# if self.edit:
-		# 	view.end_edit(self.edit)
 
 class ExpandAsYouType(WrapAsYouType):
 	default_input = 'div'

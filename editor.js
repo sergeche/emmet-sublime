@@ -184,29 +184,20 @@ function pyPreprocessText(value) {
 }
 
 function pyExpandAsYouType(abbr, content) {
-	content = utils.escapeText(content);
+	if (!('expandParams' in __cache)) {
+		__cache.expandParams = {
+			syntax: editorProxy.getSyntax(), 
+			profile: editorProxy.getProfileName() || null,
+			contextNode: actionUtils.captureContext(editorProxy)
+		};
 
-	if (!('expandCtx' in __cache)) {
-		__cache.expandCtx = actionUtils.captureContext(editorProxy);
-	}
-
-	var params = {
-		syntax: editorProxy.getSyntax(), 
-		profile: editorProxy.getProfileName() || null,
-		contextNode: __cache.expandCtx
-	};
-
-	if (content) {
-		if (!('content' in __cache)) {
-			__cache.content = utils.escapeText(content);
+		if (content) {
+			__cache.expandParams.pastedContent = utils.escapeText(content);
 		}
-
-		params.pastedContent = __cache.content;
 	}
 
 	try {
-		var result = abbreviationParser.expand(abbr, params);
-		return result;
+		var result = abbreviationParser.expand(abbr, __cache.expandParams);
 		return pyPreprocessText(result);
 	} catch(e) {
 		return '';
