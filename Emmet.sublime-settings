@@ -80,6 +80,11 @@
 	// but will spit "slow plugin" message
 	"use_old_tab_handler": false,
 
+	// Disables PyV8 auto-update. Useful for users who installed PyV8
+	// manually from https://github.com/emmetio/pyv8-binaries because
+	// of local proxy restrictions
+	"disable_pyv8_update": false,
+
 	///////////////////////////////
 	// Emmet customization
 	// Each section has the same meaning as the same-named JSON file 

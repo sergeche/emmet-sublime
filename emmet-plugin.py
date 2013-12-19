@@ -107,7 +107,10 @@ def init():
 
 	update_settings()
 
-	pyv8loader.load(pyv8_paths[1], delegate) 
+	if not settings.get('disable_pyv8_update', False):
+		pyv8loader.load(pyv8_paths[1], delegate) 
+	else:
+		print('PyV8 auto-update is disabled')
 
 	if settings.get('remove_html_completions', False):
 		sublime.set_timeout(cmpl.remove_html_completions, 2000)
