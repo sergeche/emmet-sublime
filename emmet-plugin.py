@@ -88,11 +88,18 @@ def init():
 		'sublimeGetOption': settings.get
 	}
 
+	# detect extensions path
+	ext_path = settings.get('extensions_path', None)
+	if ext_path:
+		ext_path = os.path.expanduser(ext_path)
+		if not os.path.isabs(ext_path):
+			ext_path = os.path.normpath(os.path.join(sublime.packages_path(), ext_path))
+
 	# create JS environment
 	delegate = SublimeLoaderDelegate()
 	globals()['ctx'] = Context(
 		files=['../editor.js'], 
-		ext_path=settings.get('extensions_path', None), 
+		ext_path=ext_path, 
 		contrib=contrib, 
 		logger=delegate.log,
 		reader=js_file_reader
