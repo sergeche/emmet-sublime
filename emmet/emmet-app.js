@@ -12012,6 +12012,10 @@ define('generator/lorem',['require','exports','module','lodash','../assets/prefe
 		}
 
 		_.each(_.range(totalCommas), function(ix) {
+			if (words.length < 2) {
+				return;
+			}
+
 			var pos = randint(0, words.length - 2);
 			var word = words[pos];
 			if (word.charAt(word.length - 1) !== ',') {
@@ -12885,7 +12889,7 @@ define('parser/abbreviation',['require','exports','module','lodash','../assets/t
 			
 			// validate name
 			if (this._name && !reValidName.test(this._name)) {
-				throw 'Invalid abbreviation';
+				throw new Error('Invalid abbreviation');
 			}
 		},
 		
@@ -13113,28 +13117,55 @@ define('parser/abbreviation',['require','exports','module','lodash','../assets/t
 	}
 
 	/**
-	 * If next character in stream is a quote, consumes and returns
-	 * quoted string, returns `null` otherwise. If it fails to correctly
-	 * consume quoted value (e.g. quoted value exists, but incorrectly
-	 * written), returns `false`
-	 * @param  {StringStream} stream
-	 * @return {String} 
+	 * Splits attribute set into a list of attributes string
+	 * @param  {String} attrSet 
+	 * @return {Array}
 	 */
-	function eatQuotedString(stream) {
-		var quote = stream.peek();
-		if (quote == '"' || quote == "'") {
-			stream.next();
-			if (consumeQuotedValue(stream, quote)) {
-				var out = stream.current();
-				return out.substring(1, out.length - 1);
-			} else {
-				return false;
+	function splitAttributes(attrSet) {
+		attrSet = utils.trim(attrSet);
+		var parts = [];
+
+		// split attribute set by spaces
+		var stream = stringStream(attrSet), ch;
+		while ((ch = stream.next())) {
+			if (ch == ' ') {
+				parts.push(utils.trim(stream.current()));
+				// skip spaces
+				while (stream.peek() == ' ') {
+					stream.next();
+				}
+
+				stream.start = stream.pos;
+			} else if (ch == '"' || ch == "'") {
+				// skip values in strings
+				if (!stream.skipString(ch)) {
+					throw new Error('Invalid attribute set');
+				}
 			}
 		}
 
-		return null;
+		parts.push(utils.trim(stream.current()));
+		return parts;
 	}
-	
+
+	/**
+	 * Removes opening and closing quotes from given string
+	 * @param  {String} str
+	 * @return {String}
+	 */
+	function unquote(str) {
+		var ch = str.charAt(0);
+		if (ch == '"' || ch == "'") {
+			str = str.substr(1);
+			var last = str.charAt(str.length - 1);
+			if (last === ch) {
+				str = str.substr(0, str.length - 1);
+			}
+		}
+
+		return str;
+	}
+
 	/**
 	 * Extract attributes and their values from attribute set: 
 	 * <code>[attr col=3 title="Quoted string"]</code> (without square braces)
@@ -13142,80 +13173,37 @@ define('parser/abbreviation',['require','exports','module','lodash','../assets/t
 	 * @returns {Array}
 	 */
 	function extractAttributes(attrSet) {
-		attrSet = utils.trim(attrSet);
-		var result = [];
-		var reSpace = /\s/;
-		var attrName, attrValue, quote, nextChar, isBool;
-
-		var stream = stringStream.create(attrSet);
-		stream.eatSpace();
-		
-		while (!stream.eol()) {
-			stream.start = stream.pos;
-
-			// look-up for quoted value, which is a value for default attribute
-			attrValue = eatQuotedString(stream);
-			if (attrValue) {
-				result.push({
-					name: DEFAULT_ATTR_NAME, 
-					value: attrValue
-				});
-				stream.eatSpace();
-				continue;
-			}
-			
-			if (stream.eatWhile(reWord)) {
-				attrName = stream.current();
-				attrValue = '';
-				isBool = false;
-				nextChar = stream.peek();
-				if (nextChar == '.') {
-					// boolean attribute or part of url?
-					stream.next();
-					if (stream.eol() || reSpace.test(stream.peek())) {
-						isBool = true
-					} else {
-						stream.backUp(1);
-					}
+		var reAttrName = /^[\w\-:\$@]+\.?$/;
+		return _.map(splitAttributes(attrSet), function(attr) {
+			// attribute name: [attr]
+			if (reAttrName.test(attr)) {
+				var value = '';
+				if (attr.charAt(attr.length - 1) == '.') {
+					// a boolean attribute
+					attr = attr.substr(0, attr.length - 1);
+					value = attr;
 				}
-
-				if (isBool) {
-					attrValue = attrName;
-				} else if (nextChar == '=') {
-					stream.next();
-					stream.start = stream.pos;
-
-					attrValue = eatQuotedString(stream);
-					if (attrValue === false) {
-						throw 'Invalid attribute value';
-					} else if (attrValue === null) {
-						if (stream.eatWhile(/[^\s\]]/)) {
-							attrValue = stream.current();
-						} else {
-							throw 'Invalid attribute value';
-						}
-					}
-				} else if (nextChar && !reSpace.test(nextChar)) {
-					// special case: unquoted default attribute value, 
-					// e.g. a[http://google.com]
-					// parse until end or next space character and consume
-					// curret state as default value
-					stream.eatWhile(/\S/);
-					attrName = DEFAULT_ATTR_NAME;
-					attrValue = stream.current();
-				}
-				
-				result.push({
-					name: attrName, 
-					value: attrValue
-				});
-				stream.eatSpace();
-			} else {
-				break;
+				return {
+					name: attr,
+					value: value
+				};
 			}
-		}
-		
-		return result;
+
+			// attribute with value: [name=val], [name="val"]
+			if (~attr.indexOf('=')) {
+				var parts = attr.split('=');
+				return {
+					name: parts.shift(),
+					value: unquote(parts.join('='))
+				};
+			}
+
+			// looks like it’s implied attribute
+			return {
+				name: DEFAULT_ATTR_NAME,
+				value: unquote(attr)
+			};
+		});
 	}
 	
 	/**
