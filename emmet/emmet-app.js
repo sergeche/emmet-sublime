@@ -12001,9 +12001,15 @@ define('generator/lorem',['require','exports','module','lodash','../assets/prefe
 			totalCommas = randint(1, 4);
 		}
 
+		if (!totalCommas) {
+			return;
+		}
+
 		_.each(_.range(totalCommas), function(ix) {
-			if (ix < words.length - 1) {
-				words[ix] += ',';
+			var pos = randint(0, words.length - 2);
+			var word = words[pos];
+			if (word.charAt(word.length - 1) !== ',') {
+				words[pos] += ',';
 			}
 		});
 	}
@@ -12037,7 +12043,7 @@ define('generator/lorem',['require','exports','module','lodash','../assets/prefe
 		}
 		
 		while (totalWords < wordCount) {
-			words = sample(data.words, Math.min(randint(3, 12) * randint(1, 5), wordCount - totalWords));
+			words = sample(data.words, Math.min(randint(2, 30), wordCount - totalWords));
 			totalWords += words.length;
 			insertCommas(words);
 			result.push(sentence(words));
