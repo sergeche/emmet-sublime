@@ -10836,12 +10836,13 @@ if (typeof module === 'object' && typeof define !== 'function') {
 	};
 }
 
-define('filter/jade',['require','exports','module','lodash','../utils/common','../utils/abbreviation','./format','../assets/tabStops'],function(require, exports, module) {
+define('filter/jade',['require','exports','module','lodash','../utils/common','../utils/abbreviation','./format','../assets/tabStops','../assets/profile'],function(require, exports, module) {
 	var _ = require('lodash');
 	var utils = require('../utils/common');
 	var abbrUtils = require('../utils/abbreviation');
 	var formatFilter = require('./format');
 	var tabStops = require('../assets/tabStops');
+	var profile = require('../assets/profile');
 
 	var reNl = /[\n\r]/;
 	var reIndentedText = /^\s*\|/;
@@ -10957,19 +10958,21 @@ define('filter/jade',['require','exports','module','lodash','../utils/common','.
 		return item;
 	}
 
-	return function process(tree, profile, level) {
+	return function process(tree, curProfile, level) {
 		level = level || 0;
 		
 		if (!level) {
-			tree = formatFilter(tree, profile);
+			// always format with `xml` profile since
+			// Jade requires all tags to be on separate lines
+			tree = formatFilter(tree, profile.get('xml'));
 		}
 		
 		_.each(tree.children, function(item) {
 			if (!abbrUtils.isSnippet(item)) {
-				processTag(item, profile, level);
+				processTag(item, curProfile, level);
 			}
 			
-			process(item, profile, level + 1);
+			process(item, curProfile, level + 1);
 		});
 		
 		return tree;
@@ -10984,13 +10987,14 @@ if (typeof module === 'object' && typeof define !== 'function') {
 	};
 }
 
-define('filter/slim',['require','exports','module','lodash','../utils/common','../utils/abbreviation','./format','../assets/tabStops','../assets/preferences'],function(require, exports, module) {
+define('filter/slim',['require','exports','module','lodash','../utils/common','../utils/abbreviation','./format','../assets/tabStops','../assets/preferences','../assets/profile'],function(require, exports, module) {
 	var _ = require('lodash');
 	var utils = require('../utils/common');
 	var abbrUtils = require('../utils/abbreviation');
 	var formatFilter = require('./format');
 	var tabStops = require('../assets/tabStops');
 	var prefs = require('../assets/preferences');
+	var profile = require('../assets/profile');
 
 	var reNl = /[\n\r]/;
 	var reIndentedText = /^\s*\|/;
@@ -11145,19 +11149,21 @@ define('filter/slim',['require','exports','module','lodash','../utils/common','.
 		return item;
 	}
 
-	return function process(tree, profile, level) {
+	return function process(tree, curProfile, level) {
 		level = level || 0;
 		
 		if (!level) {
-			tree = formatFilter(tree, profile);
+			// always format with `xml` profile since
+			// Slim requires all tags to be on separate lines
+			tree = formatFilter(tree, profile.get('xml'));
 		}
 		
 		_.each(tree.children, function(item) {
 			if (!abbrUtils.isSnippet(item)) {
-				processTag(item, profile, level);
+				processTag(item, curProfile, level);
 			}
 			
-			process(item, profile, level + 1);
+			process(item, curProfile, level + 1);
 		});
 		
 		return tree;
