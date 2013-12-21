@@ -8,7 +8,8 @@
 	},
 	
 	"css": {
-		"filters": "html",
+		"filters": "css",
+		"profile": "css",
 		"snippets": {
 			"@i": "@import url(|);",
 			"@import": "@import url(|);",
@@ -693,6 +694,7 @@
 			"input:month": "inp[type=month]",
 			"input:week": "inp[type=week]",
 			"input:time": "inp[type=time]",
+			"input:tel": "inp[type=tel]",
 			"input:number": "inp[type=number]",
 			"input:color": "inp[type=color]",
 			"input:c|input:checkbox": "inp[type=checkbox]",
@@ -743,6 +745,8 @@
 			"dlg": "dialog",
 			"str": "strong",
 			"prog": "progress",
+			"mn": "main",
+			"tem": "template",
 			"fset": "fieldset",
 			"datag": "datagrid",
 			"datal": "datalist",

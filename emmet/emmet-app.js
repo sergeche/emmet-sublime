@@ -11932,7 +11932,12 @@ define('generator/lorem',['require','exports','module','lodash','../assets/prefe
 	};
 
 	
-	prefs.define('lorem.defaultLang', 'en');
+	prefs.define('lorem.defaultLang', 'en', 
+		'Default language of generated dummy text. Currently, <code>en</code>\
+		and <code>ru</code> are supported, but users can add their own syntaxes\
+		see <a href="http://docs.emmet.io/abbreviations/lorem-ipsum/">docs</a>.');
+	prefs.define('lorem.omitCommonPart', false,
+		'Omit commonly used part (e.g. “Lorem ipsum dolor sit amet“) from generated text.');
 	
 	/**
 	 * Returns random integer between <code>from</code> and <code>to</code> values
@@ -12060,6 +12065,7 @@ define('generator/lorem',['require','exports','module','lodash','../assets/prefe
 		},
 		preprocessor: function(tree) {
 			var re = /^(?:lorem|lipsum)([a-z]{2})?(\d*)$/i, match;
+			var allowCommon = !prefs.get('lorem.omitCommonPart');
 			
 			/** @param {AbbreviationNode} node */
 			tree.findAll(function(node) {
@@ -12074,7 +12080,7 @@ define('generator/lorem',['require','exports','module','lodash','../assets/prefe
 					node.data('forceNameResolving', node.isRepeating() || node.attributeList().length);
 					node.data('pasteOverwrites', true);
 					node.data('paste', function(i) {
-						return paragraph(lang, wordCound, !i);
+						return paragraph(lang, wordCound, !i && allowCommon);
 					});
 				}
 			});
@@ -18446,7 +18452,7 @@ define('resolver/css',['require','exports','module','lodash','../assets/preferen
 			if (isImportant) {
 				abbr = RegExp.$1;
 			}
-			
+
 			// check if we have abbreviated resource
 			var snippet = resources.findSnippet(syntax, abbr);
 			if (snippet && !autoInsertPrefixes) {
@@ -18457,7 +18463,7 @@ define('resolver/css',['require','exports','module','lodash','../assets/preferen
 			var prefixData = this.extractPrefixes(abbr);
 			var valuesData = this.extractValues(prefixData.property);
 			var abbrData = _.extend(prefixData, valuesData);
-			
+
 			if (!snippet) {
 				snippet = resources.findSnippet(syntax, abbrData.property);
 			} else {
@@ -18470,6 +18476,9 @@ define('resolver/css',['require','exports','module','lodash','../assets/preferen
 			}
 			
 			if (!snippet) {
+				if (!abbrData.property) {
+					return null;
+				}
 				snippet = abbrData.property + ':' + defaultValue;
 			} else if (!_.isString(snippet)) {
 				snippet = snippet.data;
@@ -18529,17 +18538,19 @@ define('resolver/css',['require','exports','module','lodash','../assets/preferen
 		 */
 		expandToSnippet: function(abbr, syntax) {
 			var snippet = this.expand(abbr, null, syntax);
-			var sep = '\n';
+			if (snippet === null) {
+				return null;
+			}
 
 			if (_.isArray(snippet)) {
-				return snippet.join(sep);
+				return snippet.join('\n');
 			}
 			
 			if (!_.isString(snippet)) {
 				return snippet.data;
 			}
 			
-			return String(snippet);
+			return snippet + '';
 		},
 		
 		/**
@@ -19169,6 +19180,39 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 			omitDefaultDirection: omitDir
 		}));
 	}
+
+	/**
+	 * Validates caret position relatively to located gradients
+	 * in CSS rule. In other words, it checks if it’s safe to 
+	 * expand gradients for current caret position or not.
+	 * 
+	 * See issue https://github.com/sergeche/emmet-sublime/issues/411
+	 * 
+	 * @param  {Array} gradients List of parsed gradients
+	 * @param  {Number} caretPos  Current caret position
+	 * @param  {String} syntax    Current document syntax
+	 * @return {Boolean}
+	 */
+	function isValidCaretPosition(gradients, caretPos, syntax) {
+		syntax = syntax || 'css';
+		if (syntax == 'css' || syntax == 'less' || syntax == 'scss') {
+			return true;
+		}
+
+		var offset = gradients.property.valueRange(true).start;
+		var parts = gradients.gradients;
+
+		// in case of preprocessors where properties are separated with
+		// newlines, make sure there’s no gradient definition past
+		// current caret position. 
+		for (var i = parts.length - 1; i >= 0; i--) {
+			if (parts[i].matchedPart.start + offset >= caretPos) {
+				return false;
+			}
+		}
+
+		return true;
+	}
 	
 	module = module || {};
 	return module.exports = {
@@ -19236,6 +19280,10 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 			var content = info.content;
 			var gradients = this.gradientsFromCSSProperty(content, caret);
 			if (gradients) {
+				if (!isValidCaretPosition(gradients, caret, info.syntax)) {
+					return false;
+				}
+
 				var cssProperty = gradients.property;
 				var cssRule = cssProperty.parent;
 				var ruleStart = cssRule.options.offset || 0;
@@ -19248,7 +19296,7 @@ define('resolver/cssGradient',['require','exports','module','lodash','../assets/
 				// definition and re-parse rule again
 				if (/[\n\r]/.test(cssProperty.value())) {
 					// insert semicolon at the end of gradient definition
-					var insertPos = cssProperty.valueRange(true).start + _.last(gradients.gradients).valueRange.end;
+					var insertPos = cssProperty.valueRange(true).start + _.last(gradients.gradients).matchedPart.end;
 					content = utils.replaceSubstring(content, ';', insertPos);
 					
 					var _gradients = this.gradientsFromCSSProperty(content, caret);

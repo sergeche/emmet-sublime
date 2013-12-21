@@ -264,7 +264,7 @@
 		<key>html_elements</key>
 		<dict>
 			<key>match</key>
-			<string>\b(comment|bgsound|code|h2|h3|h1|h6|ilayer|h4|blink|header|table|font|u|select|noframes|noscript|style|span|img|area|mark|tt|var|tr|param|legend|source|dfn|tfoot|th|time|strike|input|td|xmp|cite|thead|dl|blockquote|fieldset|option|form|hr|big|dd|nobr|link|abbr|optgroup|li|dt|h5|ruby|noembed|pre|b|wbr|colgroup|button|isindex|keygen|p|applet|del|iframe|section|small|output|div|dir|em|frameset|layer|figure|datalist|frame|head|hgroup|meta|video|meter|summary|!DOCTYPE|rt|kbd|canvas|rp|sub|ul|tbody|bdo|aside|label|basefont|html|nav|details|sup|progress|samp|math|body|map|object|ins|acronym|marquee|figcaption|xml|base|br|address|article|strong|embed|a|ol|center|textarea|footer|i|svg|script|q|caption|s|command|menu|title|audio|col)\b</string>
+			<string>\b(comment|bgsound|code|h2|h3|h1|h6|ilayer|h4|blink|header|table|font|u|select|noframes|noscript|style|span|img|area|mark|tt|var|tr|param|legend|source|dfn|tfoot|th|time|strike|input|td|xmp|cite|thead|dl|blockquote|fieldset|option|form|hr|big|dd|nobr|link|abbr|optgroup|li|dt|h5|ruby|noembed|pre|b|wbr|colgroup|button|isindex|keygen|p|applet|del|iframe|section|small|output|div|dir|em|frameset|layer|figure|datalist|frame|head|hgroup|meta|video|meter|summary|!DOCTYPE|rt|kbd|canvas|rp|sub|ul|tbody|bdo|aside|label|basefont|html|nav|details|sup|progress|samp|math|body|map|object|ins|acronym|marquee|figcaption|xml|base|br|address|article|strong|embed|a|ol|center|textarea|footer|i|svg|script|q|caption|s|command|menu|title|audio|col|main|template)\b</string>
 			<key>name</key>
 			<string>entity.name.tag support.zen.html.element.#30d556d8518a11e195e7b482fe507f0e</string>
 		</dict>
