@@ -94,15 +94,18 @@ var editorProxy = {
 		var view = activeView();
 		var pos = this.getCaretPos();
 
-		if (view.match_selector(pos, 'text.html') 
-			&& sublimeGetOption('autodetect_xhtml', false)
-			&& actionUtils.isXHTML(this)) {
+		var m = function(sel) {
+			return view.match_selector(pos, sel);
+		}
+
+		if (m('text.html') && sublimeGetOption('autodetect_xhtml', false) && actionUtils.isXHTML(this)) {
 			return 'xhtml';
 		}
 
-		if (view.match_selector(pos, 'string.quoted.double.block.python')
-			|| view.match_selector(pos, 'source.coffee string')
-			|| view.match_selector(pos, 'string.unquoted.heredoc')) {
+		if (m('string.quoted.double.block.python')
+			|| m('source.coffee string')
+			|| (m('source.php string') && !sublimeGetOption('php_single_line'))
+			|| m('string.unquoted.heredoc')) {
 			// use html's default profile for:
 			// * Python's multiline block
 			// * CoffeeScript string
@@ -110,7 +113,7 @@ var editorProxy = {
 			return pyDetectProfile();
 		}
 
-		if (view.score_selector(pos, 'source string')) {
+		if (m('source string')) {
 			return 'line';
 		}
 

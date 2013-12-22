@@ -85,6 +85,10 @@
 	// of local proxy restrictions
 	"disable_pyv8_update": false,
 
+	// Expand abbreviations inside PHP strings on single line
+	// (e.g. without formatting)
+	"php_single_line": false,
+
 	///////////////////////////////
 	// Emmet customization
 	// Each section has the same meaning as the same-named JSON file 
