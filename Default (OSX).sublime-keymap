@@ -224,20 +224,6 @@
     }, 
     {
         "keys": [
-            "ctrl+shift+u"
-        ], 
-        "args": {
-            "action": "update_tag"
-        }, 
-        "command": "run_emmet_action", 
-        "context": [
-            {
-                "key": "emmet_action_enabled.update_tag"
-            }
-        ]
-    }, 
-    {
-        "keys": [
             "ctrl+alt+right"
         ], 
         "args": {
@@ -318,6 +304,24 @@
         "context": [
             {
                 "key": "emmet_action_enabled.increment_number_by_01"
+            }
+        ]
+    }, 
+    {
+        "keys": [
+            "ctrl+shift+u"
+        ], 
+        "command": "update_as_you_type", 
+        "context": [
+            {
+                "operand": false, 
+                "operator": "equal", 
+                "match_all": true, 
+                "key": "setting.is_widget"
+            }, 
+            {
+                "match_all": true, 
+                "key": "emmet_action_enabled.update_as_you_type"
             }
         ]
     }, 
