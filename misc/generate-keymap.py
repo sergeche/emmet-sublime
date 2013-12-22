@@ -35,6 +35,7 @@ keymap = {
 	"rename_tag": {"mac": "super+shift+k", "pc": "shift+ctrl+'"},
 	"encode_decode_data_url": {"mac": "shift+ctrl+d", "pc": "ctrl+'"},
 	"update_image_size": {"mac": "shift+ctrl+i", "pc": "ctrl+u"},
+	"update_tag": "ctrl+shift+u",
 
 	"expand_as_you_type": {
 		"keys": ["ctrl+alt+enter"],

@@ -19,6 +19,7 @@ var resources = require('assets/resources');
 var cssResolver = require('resolver/css');
 var abbreviationParser = require('parser/abbreviation');
 var expandAbbreviationAction = require('action/expandAbbreviation');
+var updateTagAction = require('action/updateTag');
 
 function activeView() {
 	return sublime.active_window().active_view();
@@ -186,25 +187,84 @@ function pyPreprocessText(value) {
 	return value;
 }
 
-function pyExpandAsYouType(abbr, content) {
-	if (!('expandParams' in __cache)) {
-		__cache.expandParams = {
+function pyExpandAsYouType(abbr, options) {
+	options = options || {};
+	var ix = (options.index || 0);
+	var cacheKey = 'expandParams' + ix;
+	if (!(cacheKey in __cache)) {
+		var capturePos = options.selectedRange 
+			? options.selectedRange.begin() 
+			: editorProxy.getCaretPos();
+
+		__cache[cacheKey] = {
 			syntax: editorProxy.getSyntax(), 
 			profile: editorProxy.getProfileName() || null,
-			contextNode: actionUtils.captureContext(editorProxy)
+			counter: ix + 1,
+			contextNode: actionUtils.captureContext(editorProxy, capturePos)
 		};
 
-		if (content) {
-			__cache.expandParams.pastedContent = utils.escapeText(content);
+		if (options.selectedContent) {
+			__cache[cacheKey].pastedContent = utils.escapeText(options.selectedContent);
 		}
 	}
 
 	try {
-		var result = abbreviationParser.expand(abbr, __cache.expandParams);
+		var result = abbreviationParser.expand(abbr, __cache[cacheKey]);
 		return pyPreprocessText(result);
 	} catch(e) {
 		return '';
 	}
+}
+
+function pyUpdateAsYouType(abbr, options) {
+	options = options || {};
+	var ix = (options.index || 0);
+	var cacheKey = 'updateParams' + ix;
+	if (!(cacheKey in __cache)) {
+		var capturePos = options.selectedRange 
+			? options.selectedRange.begin() 
+			: editorProxy.getCaretPos();
+
+		__cache[cacheKey] = {
+			counter: ix + 1,
+			content: editorProxy.getContent(),
+			ctx: actionUtils.captureContext(editorProxy, capturePos)
+		};
+	}
+
+	// try {
+		var cache = __cache[cacheKey];
+		if (!cache.ctx) {
+			return null;
+		}
+
+		var tag = updateTagAction.getUpdatedTag(abbr, cache.ctx, cache.content, {
+			counter: cache.counter
+		});
+
+		if (!tag) {
+			return null;
+		}
+
+		var out = [{
+			start: cache.ctx.match.open.range.start, 
+			end: cache.ctx.match.open.range.end,
+			content: tag.source
+		}];
+
+		if (tag.name() != cache.ctx.name && cache.ctx.match.close) {
+			out.unshift({
+				start: cache.ctx.match.close.range.start, 
+				end: cache.ctx.match.close.range.end,
+				content: '</' + tag.name() + '>'
+			});
+		}
+
+		return out;
+	// } catch(e) {
+	// 	console.log(e);
+	// 	return null;
+	// }
 }
 
 function pyCaptureWrappingRange() {

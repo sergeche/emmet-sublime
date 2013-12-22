@@ -12293,6 +12293,7 @@ define('parser/processor/tagName',['require','exports','module','lodash','../../
 		_.each(tree.children, function(node) {
 			if (node.hasImplicitName() || node.data('forceNameResolving')) {
 				node._name = tagName.resolve(node.parent.name());
+				node.data('nameResolved', true);
 			}
 			resolveNodeNames(node);
 		});
@@ -13457,11 +13458,14 @@ define('parser/abbreviation',['require','exports','module','lodash','../assets/t
 				});
 			}
 			
-			
 			// apply preprocessors
 			_.each(preprocessors, function(fn) {
 				fn(tree, options, that);
 			});
+
+			if ('counter' in options) {
+				tree.updateProperty('counter', options.counter);
+			}
 			
 			tree = squash(unroll(tree));
 			
@@ -13484,7 +13488,7 @@ define('parser/abbreviation',['require','exports','module','lodash','../assets/t
 		expand: function(abbr, options) {
 			if (!abbr) return '';
 			if (typeof options == 'string') {
-				throw 'Deprecated use of `expand` method: `options` must be object';
+				throw new Error('Deprecated use of `expand` method: `options` must be object');
 			}
 
 			options = options || {};
@@ -15219,13 +15223,16 @@ define('utils/action',['require','exports','module','lodash','./common','../pars
 		 * @param {IEmmetEditor} editor
 		 * @returns {Object}
 		 */
-		captureContext: function(editor) {
+		captureContext: function(editor, pos) {
 			var allowedSyntaxes = {'html': 1, 'xml': 1, 'xsl': 1};
 			var syntax = editor.getSyntax();
 			if (syntax in allowedSyntaxes) {
 				var content = editor.getContent();
-				var tag = htmlMatcher.find(content, editor.getCaretPos());
-				
+				if (_.isUndefined(pos)) {
+					pos = editor.getCaretPos();
+				}
+
+				var tag = htmlMatcher.find(content, pos);
 				if (tag && tag.type == 'tag') {
 					var startTag = tag.open;
 					var contextNode = {
@@ -21410,11 +21417,12 @@ if (typeof module === 'object' && typeof define !== 'function') {
 	};
 }
 
-define('action/updateTag',['require','exports','module','lodash','../editTree/xml','../utils/editor','../utils/action','../parser/abbreviation'],function(require, exports, module) {
+define('action/updateTag',['require','exports','module','lodash','../editTree/xml','../utils/editor','../utils/action','../utils/common','../parser/abbreviation'],function(require, exports, module) {
 	var _ = require('lodash');
 	var xmlEditTree = require('../editTree/xml');
 	var editorUtils = require('../utils/editor');
 	var actionUtils = require('../utils/action');
+	var utils = require('../utils/common');
 	var parser = require('../parser/abbreviation');
 
 	function updateAttributes(tag, abbrNode, ix) {
@@ -21423,12 +21431,17 @@ define('action/updateTag',['require','exports','module','lodash','../editTree/xm
 			classNames.push('+' + abbrNode.name());
 		}
 
+		var r = function(str) {
+			return utils.replaceCounter(str, abbrNode.counter);
+		};
+
 		// update class
 		_.each(classNames, function(className) {
 			if (!className) {
 				return;
 			}
 
+			className = r(className);
 			var ch = className.charAt(0);
 			if (ch == '+') {
 				tag.addClass(className.substr(1));
@@ -21450,14 +21463,14 @@ define('action/updateTag',['require','exports','module','lodash','../editTree/xm
 				var attrName = attr.name.substr(1);
 				var tagAttr = tag.get(attrName);
 				if (tagAttr) {
-					tagAttr.value(tagAttr.value() + atr.value);
+					tagAttr.value(tagAttr.value() + r(attr.value));
 				} else {
-					tag.value(attrName, attr.value);
+					tag.value(attrName, r(attr.value));
 				}
 			} else if (ch == '-') {
 				tag.remove(attr.name.substr(1));
 			} else {
-				tag.value(attr.name, attr.value);
+				tag.value(attr.name, r(attr.value));
 			}
 		});
 	}
@@ -21468,26 +21481,48 @@ define('action/updateTag',['require','exports','module','lodash','../editTree/xm
 		 * according to given abbreviation
 		 * @param {IEmmetEditor} Editor instance
 		 * @param {String} abbr Abbreviation to update with
-		 * @param {String} syntax Syntax type (html, css, etc.)
-		 * @param {String} profile Output profile name (html, xml, xhtml)
 		 */
-		updateTagAction: function(editor, abbr, syntax, profile) {
-			var info = editorUtils.outputInfo(editor, syntax, profile);
+		updateTagAction: function(editor, abbr) {
 			abbr = abbr || editor.prompt("Enter abbreviation");
-			
+
 			if (!abbr) {
 				return false;
 			}
-			
-			abbr = String(abbr);
-			var ctx = actionUtils.captureContext(editor);
 
-			if (!ctx) {
+			var content = editor.getContent();
+			var ctx = actionUtils.captureContext(editor);
+			var tag = this.getUpdatedTag(abbr, ctx, content);
+
+			if (!tag) {
 				// nothing to update
 				return false;
 			}
 
-			var tree = parser.parse(abbr);
+			// check if tag name was updated
+			if (tag.name() != ctx.name && ctx.match.close) {
+				editor.replaceContent('</' + tag.name() + '>', ctx.match.close.range.start, ctx.match.close.range.end, true);
+			}
+
+			editor.replaceContent(tag.source, ctx.match.open.range.start, ctx.match.open.range.end, true);
+			return true;
+		},
+
+		/**
+		 * Returns XMLEditContainer node with updated tag structure
+		 * of existing tag context.
+		 * This data can be used to modify existing tag
+		 * @param  {String} abbr    Abbreviation
+		 * @param  {Object} ctx     Tag to be updated (captured with `htmlMatcher`)
+		 * @param  {String} content Original editor content
+		 * @return {XMLEditContainer}
+		 */
+		getUpdatedTag: function(abbr, ctx, content, options) {
+			if (!ctx) {
+				// nothing to update
+				return null;
+			}
+
+			var tree = parser.parse(abbr, options || {});
 
 			// for this action some characters in abbreviation has special
 			// meaning. For example, `.-c2` means “remove `c2` class from
@@ -21496,7 +21531,7 @@ define('action/updateTag',['require','exports','module','lodash','../editTree/xm
 			// But `.+c3` abbreviation will actually produce two elements:
 			// <div class=""> and <c3>. Thus, we have to walk on each element
 			// of parsed tree and use their definitions to update current element
-			var tag = xmlEditTree.parse(ctx.match.open.range.substring(info.content), {
+			var tag = xmlEditTree.parse(ctx.match.open.range.substring(content), {
 				offset: ctx.match.outerRange.start
 			});
 
@@ -21504,15 +21539,15 @@ define('action/updateTag',['require','exports','module','lodash','../editTree/xm
 				updateAttributes(tag, node, i);
 			});
 
-			// check if tag name was updated
-			var newName = tree.children[0].name();
-			if (tag.name() != newName && ctx.match.close) {
-				editor.replaceContent('</' + newName + '>', ctx.match.close.range.start, ctx.match.close.range.end, true);
-				tag.name(newName);
+			// if tag name was resolved by implicit tag name resolver,
+			// then user omitted it in abbreviation and wants to keep
+			// original tag name
+			var el = tree.children[0];
+			if (!el.data('nameResolved')) {
+				tag.name(el.name());
 			}
 
-			editor.replaceContent(tag.source, ctx.match.open.range.start, ctx.match.open.range.end, true);
-			return true;
+			return tag;
 		}
 	};
 });

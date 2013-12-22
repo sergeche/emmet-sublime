@@ -608,7 +608,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 class WrapAsYouType(CommandsAsYouTypeBase):
 	default_input = 'div'
 	_prev_output = ''
-	input_message = "Enter Wrap Abbreviation: "
+	input_message = 'Enter Wrap Abbreviation: '
 
 	def setup(self, edit, view, **kwargs):
 		self._prev_output = ''
@@ -638,7 +638,12 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 		def ins(i, sel):
 			try:
 				with ctx.js() as c:
-					self._prev_output = c.locals.pyExpandAsYouType(abbr, self._sel_items[i])
+					opt = {
+						'selectedContent': self._sel_items[i],
+						'index': i,
+						'selectedRange': sel
+					}
+					self._prev_output = c.locals.pyExpandAsYouType(abbr, opt)
 				# self.run_command(view, output)
 			except Exception as e:
 				"dont litter the console"
@@ -649,7 +654,7 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 
 class ExpandAsYouType(WrapAsYouType):
 	default_input = 'div'
-	input_message = "Enter Abbreviation: "
+	input_message = 'Enter Abbreviation: '
 
 	def setup(self, edit, view, **kwargs):
 		# adjust selection to non-space bounds
@@ -670,6 +675,64 @@ class ExpandAsYouType(WrapAsYouType):
 		with ctx.js() as c: 
 			r = c.locals.pyResetCache()
 
+class UpdateAsYouType(WrapAsYouType):
+	default_input = ''
+	input_message = 'Enter Abbreviation: '
+	_prev_ranges = None
+	_first_run = False
+
+	def setup(self, edit, view, **kwargs):
+		self._first_run = not self.default_input
+		self._prev_ranges = None
+
+		with ctx.js() as c: 
+			r = c.locals.pyResetCache()
+
+		self.remember_sels(view)
+
+	def run_on_input(self, edit, view, abbr):
+		self.erase = not self._first_run
+		self._first_run = False
+
+		# restore selections
+		view.sel().clear()
+		for sel in self._sels:
+			view.sel().add(sel)
+
+		def ins(i, sel):
+			try:
+				with ctx.js() as c:
+					opt = {
+						'index': i,
+						'selectedRange': sel
+					}
+					ranges = c.locals.pyUpdateAsYouType(abbr, opt)
+					if ranges:
+						out = []
+						for r in ranges:
+							# transform JS object to native one
+							out.append({
+								'start': r['start'],
+								'end': r['end'],
+								'content': r['content']
+							})
+						self._prev_ranges = out
+				# self.run_command(view, output)
+			except Exception as e:
+				"dont litter the console"
+
+			self.run_command(edit, view, self._prev_ranges)
+
+		run_action(ins, view)
+
+	def run_command(self, edit, view, ranges):
+		if not ranges:
+			return
+
+		for r in ranges:
+			content = r['content']
+			region = sublime.Region(r['start'], r['end'])
+			view.replace(edit, region, content)
 
 class EnterKeyHandler(sublime_plugin.EventListener):
 	def on_query_context(self, view, key, op, operand, match_all):

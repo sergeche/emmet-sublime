@@ -224,6 +224,20 @@
     }, 
     {
         "keys": [
+            "ctrl+shift+u"
+        ], 
+        "args": {
+            "action": "update_tag"
+        }, 
+        "command": "run_emmet_action", 
+        "context": [
+            {
+                "key": "emmet_action_enabled.update_tag"
+            }
+        ]
+    }, 
+    {
+        "keys": [
             "ctrl+alt+right"
         ], 
         "args": {
