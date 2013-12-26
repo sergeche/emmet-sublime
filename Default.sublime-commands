@@ -13,18 +13,18 @@
 	},
 
 	{
-		"caption": "Emmet: Match Pair (outward)",
+		"caption": "Emmet: Balance (outward)",
 		"command": "run_emmet_action",
 		"args": {
-			"action": "match_pair_outward"
+			"action": "balance_outward"
 		}
 	},
 
 	{
-		"caption": "Emmet: Match Pair (inward)",
+		"caption": "Emmet: Balance (inward)",
 		"command": "run_emmet_action",
 		"args": {
-			"action": "match_pair_inward"
+			"action": "balance_inward"
 		}
 	},
 
