@@ -52,15 +52,15 @@ emmet.define('file', function(require, _) {
 			var params = this._parseParams(arguments);
 
 			try {
-				pyFile.read(params.path, params.size, function(err, content) {
+			    pyFile.read(params.path, params.size, function(err, content, ct) {
 					if (err) {
-						return params.callback(err, content);
+					    return params.callback(err, content, ct);
 					}
 
 					content = _.map(content || [], function(b) {
 						return String.fromCharCode(b);
 					}).join('');
-					params.callback(null, content);
+					params.callback(null, content, ct);
 				});
 			} catch(e) {
 				params.callback(e);
