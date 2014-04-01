@@ -62,7 +62,7 @@
 
 	// A space separated list of all known HTML tags,
 	// used together with "disabled_on_single_snippets" option
-	"known_html_tags": "html head title base link meta style script noscript body section nav article aside h1 h2 h3 h4 h5 h6 hgroup header footer address p hr pre blockquote ol ul li dl dt dd figure figcaption div a em strong small s cite q dfn abbr data time code var samp kbd sub sup i b u mark ruby rt rp bdi bdo span br wbr ins del img iframe embed object param video audio source track canvas map area svg math table caption colgroup col tbody thead tfoot tr td th form fieldset legend label input button select datalist optgroup option textarea keygen output progress meter details summary command menu",
+	"known_html_tags": "html head title base link meta style script noscript body section nav article aside h1 h2 h3 h4 h5 h6 hgroup header footer address p hr pre blockquote ol ul li dl dt dd figure figcaption div a em strong small s cite q dfn abbr data time code var samp kbd sub sup i b u mark ruby rt rp bdi bdo span br wbr ins del img iframe embed object param video audio source track canvas map area svg math table caption colgroup col tbody thead tfoot tr td th form fieldset legend label input button select datalist optgroup option textarea keygen output progress meter details summary command menu main template",
 
 	"empty_elements": "area base basefont br col frame hr img input isindex link meta param embed",
 
@@ -79,6 +79,15 @@
 	// (especially with other plugins that overrides Tab key),
 	// but will spit "slow plugin" message
 	"use_old_tab_handler": false,
+
+	// Disables PyV8 auto-update. Useful for users who installed PyV8
+	// manually from https://github.com/emmetio/pyv8-binaries because
+	// of local proxy restrictions
+	"disable_pyv8_update": false,
+
+	// Expand abbreviations inside PHP strings on single line
+	// (e.g. without formatting)
+	"php_single_line": false,
 
 	///////////////////////////////
 	// Emmet customization
@@ -110,5 +119,8 @@
 	"syntaxProfiles": {
 		// Enable XHTML dialect for HTML syntax
 		// "html": "xhtml"
+		// 
+		// Write chained CSS abbreviations on single line:
+		// "css": "css_line"
 	}
 }

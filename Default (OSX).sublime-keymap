@@ -3,20 +3,6 @@
 [
     {
         "keys": [
-            "shift+super+y"
-        ], 
-        "args": {
-            "action": "evaluate_math_expression"
-        }, 
-        "command": "run_emmet_action", 
-        "context": [
-            {
-                "key": "emmet_action_enabled.evaluate_math_expression"
-            }
-        ]
-    }, 
-    {
-        "keys": [
             "super+'"
         ], 
         "args": {
@@ -53,7 +39,7 @@
         "command": "run_emmet_action", 
         "context": [
             {
-                "operand": "source.css - source.css.less, text.xml, text.html - source", 
+                "operand": "source.css, source.less, source.scss, text.xml, text.html - source", 
                 "operator": "equal", 
                 "match_all": true, 
                 "key": "selector"
@@ -126,15 +112,43 @@
     }, 
     {
         "keys": [
-            "ctrl+j"
+            "shift+super+y"
         ], 
         "args": {
-            "action": "match_pair_inward"
+            "action": "evaluate_math_expression"
         }, 
         "command": "run_emmet_action", 
         "context": [
             {
-                "key": "emmet_action_enabled.match_pair_inward"
+                "key": "emmet_action_enabled.evaluate_math_expression"
+            }
+        ]
+    }, 
+    {
+        "keys": [
+            "ctrl+j"
+        ], 
+        "args": {
+            "action": "balance_inward"
+        }, 
+        "command": "run_emmet_action", 
+        "context": [
+            {
+                "key": "emmet_action_enabled.balance_inward"
+            }
+        ]
+    }, 
+    {
+        "keys": [
+            "ctrl+d"
+        ], 
+        "args": {
+            "action": "balance_outward"
+        }, 
+        "command": "run_emmet_action", 
+        "context": [
+            {
+                "key": "emmet_action_enabled.balance_outward"
             }
         ]
     }, 
@@ -191,20 +205,6 @@
         "context": [
             {
                 "key": "emmet_action_enabled.select_previous_item"
-            }
-        ]
-    }, 
-    {
-        "keys": [
-            "ctrl+d"
-        ], 
-        "args": {
-            "action": "match_pair_outward"
-        }, 
-        "command": "run_emmet_action", 
-        "context": [
-            {
-                "key": "emmet_action_enabled.match_pair_outward"
             }
         ]
     }, 
@@ -309,6 +309,24 @@
     }, 
     {
         "keys": [
+            "ctrl+shift+u"
+        ], 
+        "command": "update_as_you_type", 
+        "context": [
+            {
+                "operand": false, 
+                "operator": "equal", 
+                "match_all": true, 
+                "key": "setting.is_widget"
+            }, 
+            {
+                "match_all": true, 
+                "key": "emmet_action_enabled.update_as_you_type"
+            }
+        ]
+    }, 
+    {
+        "keys": [
             "ctrl+shift+t"
         ], 
         "args": {
@@ -356,7 +374,7 @@
         "command": "expand_abbreviation_by_tab", 
         "context": [
             {
-                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source, text.haml, text.scala.html, source string", 
+                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, source.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string", 
                 "operator": "equal", 
                 "match_all": true, 
                 "key": "selector"
@@ -402,7 +420,7 @@
         "command": "expand_abbreviation_by_tab", 
         "context": [
             {
-                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, text.xml, text.html - source, text.haml, text.scala.html, source string", 
+                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, source.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string", 
                 "operator": "equal", 
                 "match_all": true, 
                 "key": "selector"

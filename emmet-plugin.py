@@ -28,8 +28,8 @@ from emmet.context import Context
 from emmet.context import js_file_reader as _js_file_reader
 from emmet.pyv8loader import LoaderDelegate
 
-__version__      = '1.1'
-__core_version__ = '1.0'
+__version__      = '1.2'
+__core_version__ = '1.1'
 __authors__      = ['"Sergey Chikuyonok" <serge.che@gmail.com>'
 					'"Nicholas Dudfield" <ndudfield@gmail.com>']
 
@@ -88,11 +88,18 @@ def init():
 		'sublimeGetOption': settings.get
 	}
 
+	# detect extensions path
+	ext_path = settings.get('extensions_path', None)
+	if ext_path:
+		ext_path = os.path.expanduser(ext_path)
+		if not os.path.isabs(ext_path):
+			ext_path = os.path.normpath(os.path.join(sublime.packages_path(), ext_path))
+
 	# create JS environment
 	delegate = SublimeLoaderDelegate()
 	globals()['ctx'] = Context(
 		files=['../editor.js'], 
-		ext_path=settings.get('extensions_path', None), 
+		ext_path=ext_path, 
 		contrib=contrib, 
 		logger=delegate.log,
 		reader=js_file_reader
@@ -100,7 +107,10 @@ def init():
 
 	update_settings()
 
-	pyv8loader.load(pyv8_paths[1], delegate) 
+	if not settings.get('disable_pyv8_update', False):
+		pyv8loader.load(pyv8_paths[1], delegate) 
+	else:
+		print('PyV8 auto-update is disabled')
 
 	if settings.get('remove_html_completions', False):
 		sublime.set_timeout(cmpl.remove_html_completions, 2000)
@@ -554,7 +564,8 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 			self._sel_items.append(unindent_text(s, get_line_padding(line)))
 
 	def on_panel_done(self, abbr):
-		pass
+		if abbr:
+			self.default_input = abbr
 
 	def run(self, edit, panel_input=None, **kwargs):
 
@@ -566,7 +577,7 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 				self.input_message,
 				self.default_input,
 				self.on_panel_done,              # on_done
-				self.on_panel_change,           # on_change
+				self.on_panel_change,            # on_change
 				self.undo)                       # on_cancel
 
 			panel.sel().clear()
@@ -597,15 +608,16 @@ class CommandsAsYouTypeBase(sublime_plugin.TextCommand):
 class WrapAsYouType(CommandsAsYouTypeBase):
 	default_input = 'div'
 	_prev_output = ''
-	input_message = "Enter Wrap Abbreviation: "
+	input_message = 'Enter Wrap Abbreviation: '
 
 	def setup(self, edit, view, **kwargs):
 		self._prev_output = ''
-		
-		if len(view.sel()) == 1:
-			# capture wrapping context (parent HTML element) 
-			# if there is only one selection
-			with ctx.js() as c: 
+
+		with ctx.js() as c: 
+			r = c.locals.pyResetCache()
+			if len(view.sel()) == 1:
+				# capture wrapping context (parent HTML element) 
+				# if there is only one selection
 				r = c.locals.pyCaptureWrappingRange()
 				if r:
 					view.sel().clear()
@@ -616,10 +628,6 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 
 	# override method to correctly wrap abbreviations
 	def run_on_input(self, edit, view, abbr):
-	# def _real_insert(self, abbr):
-		# view = self.view
-		# self.edit = get_edit(view, self.edit_token)
-
 		self.erase = True
 
 		# restore selections
@@ -630,20 +638,23 @@ class WrapAsYouType(CommandsAsYouTypeBase):
 		def ins(i, sel):
 			try:
 				with ctx.js() as c:
-					self._prev_output = c.locals.pyWrapAsYouType(abbr, self._sel_items[i])
+					opt = {
+						'selectedContent': self._sel_items[i],
+						'index': i,
+						'selectedRange': sel
+					}
+					self._prev_output = c.locals.pyExpandAsYouType(abbr, opt)
 				# self.run_command(view, output)
-			except Exception:
+			except Exception as e:
 				"dont litter the console"
 
 			self.run_command(edit, view, self._prev_output)
 
 		run_action(ins, view)
-		# if self.edit:
-		# 	view.end_edit(self.edit)
 
 class ExpandAsYouType(WrapAsYouType):
 	default_input = 'div'
-	input_message = "Enter Abbreviation: "
+	input_message = 'Enter Abbreviation: '
 
 	def setup(self, edit, view, **kwargs):
 		# adjust selection to non-space bounds
@@ -661,6 +672,67 @@ class ExpandAsYouType(WrapAsYouType):
 			
 		self.remember_sels(active_view())
 
+		with ctx.js() as c: 
+			r = c.locals.pyResetCache()
+
+class UpdateAsYouType(WrapAsYouType):
+	default_input = ''
+	input_message = 'Enter Abbreviation: '
+	_prev_ranges = None
+	_first_run = False
+
+	def setup(self, edit, view, **kwargs):
+		self._first_run = not self.default_input
+		self._prev_ranges = None
+
+		with ctx.js() as c: 
+			r = c.locals.pyResetCache()
+
+		self.remember_sels(view)
+
+	def run_on_input(self, edit, view, abbr):
+		self.erase = not self._first_run
+		self._first_run = False
+
+		# restore selections
+		view.sel().clear()
+		for sel in self._sels:
+			view.sel().add(sel)
+
+		def ins(i, sel):
+			try:
+				with ctx.js() as c:
+					opt = {
+						'index': i,
+						'selectedRange': sel
+					}
+					ranges = c.locals.pyUpdateAsYouType(abbr, opt)
+					if ranges:
+						out = []
+						for r in ranges:
+							# transform JS object to native one
+							out.append({
+								'start': r['start'],
+								'end': r['end'],
+								'content': r['content']
+							})
+						self._prev_ranges = out
+				# self.run_command(view, output)
+			except Exception as e:
+				"dont litter the console"
+
+			self.run_command(edit, view, self._prev_ranges)
+
+		run_action(ins, view)
+
+	def run_command(self, edit, view, ranges):
+		if not ranges:
+			return
+
+		for r in ranges:
+			content = r['content']
+			region = sublime.Region(r['start'], r['end'])
+			view.replace(edit, region, content)
 
 class EnterKeyHandler(sublime_plugin.EventListener):
 	def on_query_context(self, view, key, op, operand, match_all):

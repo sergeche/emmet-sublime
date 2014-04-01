@@ -160,13 +160,8 @@ class Context():
 		return self._ext_path
 
 	def set_ext_path(self, val):
-		try:
-			if val and val[:1] == '~':
-				val = os.path.expanduser(val)
-
-			val = os.path.abspath(val)
-		except Exception as e:
-			return
+		val = os.path.expanduser(val)
+		val = os.path.abspath(val)
 
 		if val == self._ext_path:
 			return
@@ -237,6 +232,7 @@ class Context():
 			with self._ctx as ctx:
 				# load default snippets
 				ctx.locals.pyLoadSystemSnippets(self.read_js_file(make_path('snippets.json')))
+				ctx.locals.pyLoadCIU(self.read_js_file(make_path('caniuse.json')))
 
 				# expose some methods
 				ctx.locals.log = js_log
