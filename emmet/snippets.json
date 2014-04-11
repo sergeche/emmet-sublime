@@ -802,7 +802,10 @@
 	"xml": {
 		"extends": "html",
 		"profile": "xml",
-		"filters": "html"
+		"filters": "html",
+		"abbreviations": {
+			"label": "<label>"
+		}
 	},
 	
 	"xsl": {
