@@ -414,8 +414,8 @@ define("vendor/almond", function(){});
 
 /**
  * @license
- * Lo-Dash 2.1.0 (Custom Build) <http://lodash.com/>
- * Build: `lodash -o ./dist/lodash.compat.js`
+ * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
+ * Build: `lodash modern minus="template"`
  * Copyright 2012-2013 The Dojo Foundation <http://dojofoundation.org/>
  * Based on Underscore.js 1.5.2 <http://underscorejs.org/LICENSE>
  * Copyright 2009-2013 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -432,9 +432,6 @@ define("vendor/almond", function(){});
 
   /** Used to generate unique IDs */
   var idCounter = 0;
-
-  /** Used internally to indicate various things */
-  var indicatorObject = {};
 
   /** Used to prefix keys to avoid issues with `__proto__` and properties on `Object.prototype` */
   var keyPrefix = +new Date + '';
@@ -457,60 +454,30 @@ define("vendor/almond", function(){});
     '\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000'
   );
 
-  /** Used to match empty string literals in compiled template source */
-  var reEmptyStringLeading = /\b__p \+= '';/g,
-      reEmptyStringMiddle = /\b(__p \+=) '' \+/g,
-      reEmptyStringTrailing = /(__e\(.*?\)|\b__t\)) \+\n'';/g;
-
-  /**
-   * Used to match ES6 template delimiters
-   * http://people.mozilla.org/~jorendorff/es6-draft.html#sec-7.8.6
-   */
-  var reEsTemplate = /\$\{([^\\}]*(?:\\.[^\\}]*)*)\}/g;
-
   /** Used to match regexp flags from their coerced string values */
   var reFlags = /\w*$/;
 
   /** Used to detected named functions */
-  var reFuncName = /^function[ \n\r\t]+\w/;
-
-  /** Used to match "interpolate" template delimiters */
-  var reInterpolate = /<%=([\s\S]+?)%>/g;
+  var reFuncName = /^\s*function[ \n\r\t]+\w/;
 
   /** Used to match leading whitespace and zeros to be removed */
   var reLeadingSpacesAndZeros = RegExp('^[' + whitespace + ']*0+(?=.$)');
 
-  /** Used to ensure capturing order of template delimiters */
-  var reNoMatch = /($^)/;
-
   /** Used to detect functions containing a `this` reference */
   var reThis = /\bthis\b/;
 
-  /** Used to match unescaped characters in compiled string literals */
-  var reUnescapedString = /['\n\r\t\u2028\u2029\\]/g;
-
   /** Used to assign default `context` object properties */
   var contextProps = [
-    'Array', 'Boolean', 'Date', 'Error', 'Function', 'Math', 'Number', 'Object',
+    'Array', 'Boolean', 'Date', 'Function', 'Math', 'Number', 'Object',
     'RegExp', 'String', '_', 'attachEvent', 'clearTimeout', 'isFinite', 'isNaN',
-    'parseInt', 'setImmediate', 'setTimeout'
+    'parseInt', 'setTimeout'
   ];
-
-  /** Used to fix the JScript [[DontEnum]] bug */
-  var shadowedProps = [
-    'constructor', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable',
-    'toLocaleString', 'toString', 'valueOf'
-  ];
-
-  /** Used to make template sourceURLs easier to identify */
-  var templateCounter = 0;
 
   /** `Object#toString` result shortcuts */
   var argsClass = '[object Arguments]',
       arrayClass = '[object Array]',
       boolClass = '[object Boolean]',
       dateClass = '[object Date]',
-      errorClass = '[object Error]',
       funcClass = '[object Function]',
       numberClass = '[object Number]',
       objectClass = '[object Object]',
@@ -525,6 +492,21 @@ define("vendor/almond", function(){});
   cloneableClasses[numberClass] = cloneableClasses[objectClass] =
   cloneableClasses[regexpClass] = cloneableClasses[stringClass] = true;
 
+  /** Used as an internal `_.debounce` options object */
+  var debounceOptions = {
+    'leading': false,
+    'maxWait': 0,
+    'trailing': false
+  };
+
+  /** Used as the property descriptor for `__bindData__` */
+  var descriptor = {
+    'configurable': false,
+    'enumerable': false,
+    'value': null,
+    'writable': false
+  };
+
   /** Used to determine if values are of the language type Object */
   var objectTypes = {
     'boolean': false,
@@ -533,17 +515,6 @@ define("vendor/almond", function(){});
     'number': false,
     'string': false,
     'undefined': false
-  };
-
-  /** Used to escape characters for inclusion in compiled string literals */
-  var stringEscapes = {
-    '\\': '\\',
-    "'": "'",
-    '\n': 'n',
-    '\r': 'r',
-    '\t': 't',
-    '\u2028': 'u2028',
-    '\u2029': 'u2029'
   };
 
   /** Used as a reference to the global object */
@@ -665,22 +636,29 @@ define("vendor/almond", function(){});
    */
   function compareAscending(a, b) {
     var ac = a.criteria,
-        bc = b.criteria;
+        bc = b.criteria,
+        index = -1,
+        length = ac.length;
 
-    // ensure a stable sort in V8 and other engines
-    // http://code.google.com/p/v8/issues/detail?id=90
-    if (ac !== bc) {
-      if (ac > bc || typeof ac == 'undefined') {
-        return 1;
-      }
-      if (ac < bc || typeof bc == 'undefined') {
-        return -1;
+    while (++index < length) {
+      var value = ac[index],
+          other = bc[index];
+
+      if (value !== other) {
+        if (value > other || typeof value == 'undefined') {
+          return 1;
+        }
+        if (value < other || typeof other == 'undefined') {
+          return -1;
+        }
       }
     }
-    // The JS engine embedded in Adobe applications like InDesign has a buggy
-    // `Array#sort` implementation that causes it, under certain circumstances,
-    // to return the same value for `a` and `b`.
-    // See https://github.com/jashkenas/underscore/pull/1247
+    // Fixes an `Array#sort` bug in the JS engine embedded in Adobe applications
+    // that causes it, under certain circumstances, to return the same value for
+    // `a` and `b`. See https://github.com/jashkenas/underscore/pull/1247
+    //
+    // This also ensures a stable sort in V8 and other engines.
+    // See http://code.google.com/p/v8/issues/detail?id=90
     return a.index - b.index;
   }
 
@@ -717,18 +695,6 @@ define("vendor/almond", function(){});
   }
 
   /**
-   * Used by `template` to escape characters for inclusion in compiled
-   * string literals.
-   *
-   * @private
-   * @param {string} match The matched character to escape.
-   * @returns {string} Returns the escaped character.
-   */
-  function escapeStringChar(match) {
-    return '\\' + stringEscapes[match];
-  }
-
-  /**
    * Gets an array from the array pool or creates a new one if the pool is empty.
    *
    * @private
@@ -746,57 +712,20 @@ define("vendor/almond", function(){});
    */
   function getObject() {
     return objectPool.pop() || {
-      'args': '',
       'array': null,
-      'bottom': '',
       'cache': null,
-      'configurable': false,
       'criteria': null,
-      'enumerable': false,
       'false': false,
-      'firstArg': '',
       'index': 0,
-      'init': '',
-      'keys': null,
-      'leading': false,
-      'loop': '',
-      'maxWait': 0,
       'null': false,
       'number': null,
       'object': null,
       'push': null,
-      'shadowedProps': null,
       'string': null,
-      'top': '',
-      'trailing': false,
       'true': false,
       'undefined': false,
-      'useHas': false,
-      'value': null,
-      'writable': false
+      'value': null
     };
-  }
-
-  /**
-   * Checks if `value` is a DOM node in IE < 9.
-   *
-   * @private
-   * @param {*} value The value to check.
-   * @returns {boolean} Returns `true` if the `value` is a DOM node, else `false`.
-   */
-  function isNode(value) {
-    // IE < 9 presents DOM nodes as `Object` objects except they have `toString`
-    // methods that are `typeof` "string" and still can coerce nodes to strings
-    return typeof value.toString != 'function' && typeof (value + '') == 'string';
-  }
-
-  /**
-   * A no-operation function.
-   *
-   * @private
-   */
-  function noop() {
-    // no operation performed
   }
 
   /**
@@ -879,7 +808,6 @@ define("vendor/almond", function(){});
     var Array = context.Array,
         Boolean = context.Boolean,
         Date = context.Date,
-        Error = context.Error,
         Function = context.Function,
         Math = context.Math,
         Number = context.Number,
@@ -897,18 +825,19 @@ define("vendor/almond", function(){});
     var arrayRef = [];
 
     /** Used for native method references */
-    var errorProto = Error.prototype,
-        objectProto = Object.prototype,
-        stringProto = String.prototype;
+    var objectProto = Object.prototype;
 
     /** Used to restore the original `_` reference in `noConflict` */
     var oldDash = context._;
 
+    /** Used to resolve the internal [[Class]] of values */
+    var toString = objectProto.toString;
+
     /** Used to detect if a method is native */
     var reNative = RegExp('^' +
-      String(objectProto.valueOf)
+      String(toString)
         .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        .replace(/valueOf|for [^\]]+/g, '.+?') + '$'
+        .replace(/toString| for [^\]]+/g, '.*?') + '$'
     );
 
     /** Native method shortcuts */
@@ -916,41 +845,34 @@ define("vendor/almond", function(){});
         clearTimeout = context.clearTimeout,
         floor = Math.floor,
         fnToString = Function.prototype.toString,
-        getPrototypeOf = reNative.test(getPrototypeOf = Object.getPrototypeOf) && getPrototypeOf,
+        getPrototypeOf = isNative(getPrototypeOf = Object.getPrototypeOf) && getPrototypeOf,
         hasOwnProperty = objectProto.hasOwnProperty,
         push = arrayRef.push,
-        propertyIsEnumerable = objectProto.propertyIsEnumerable,
-        setImmediate = context.setImmediate,
         setTimeout = context.setTimeout,
         splice = arrayRef.splice,
-        toString = objectProto.toString,
         unshift = arrayRef.unshift;
 
+    /** Used to set meta data on functions */
     var defineProperty = (function() {
+      // IE 8 only accepts DOM elements
       try {
         var o = {},
-            func = reNative.test(func = Object.defineProperty) && func,
+            func = isNative(func = Object.defineProperty) && func,
             result = func(o, o, o) && func;
       } catch(e) { }
       return result;
     }());
 
     /* Native method shortcuts for methods with the same name as other `lodash` methods */
-    var nativeBind = reNative.test(nativeBind = toString.bind) && nativeBind,
-        nativeCreate = reNative.test(nativeCreate = Object.create) && nativeCreate,
-        nativeIsArray = reNative.test(nativeIsArray = Array.isArray) && nativeIsArray,
+    var nativeCreate = isNative(nativeCreate = Object.create) && nativeCreate,
+        nativeIsArray = isNative(nativeIsArray = Array.isArray) && nativeIsArray,
         nativeIsFinite = context.isFinite,
         nativeIsNaN = context.isNaN,
-        nativeKeys = reNative.test(nativeKeys = Object.keys) && nativeKeys,
+        nativeKeys = isNative(nativeKeys = Object.keys) && nativeKeys,
         nativeMax = Math.max,
         nativeMin = Math.min,
         nativeParseInt = context.parseInt,
-        nativeRandom = Math.random,
-        nativeSlice = arrayRef.slice;
-
-    /** Detect various environments */
-    var isIeOpera = reNative.test(context.attachEvent),
-        isV8 = nativeBind && !/\n|true/.test(nativeBind + isIeOpera);
+        nativeRandom = Math.random;
 
     /** Used to lookup a built-in constructor by [[Class]] */
     var ctorByClass = {};
@@ -963,30 +885,11 @@ define("vendor/almond", function(){});
     ctorByClass[regexpClass] = RegExp;
     ctorByClass[stringClass] = String;
 
-    /** Used to avoid iterating non-enumerable properties in IE < 9 */
-    var nonEnumProps = {};
-    nonEnumProps[arrayClass] = nonEnumProps[dateClass] = nonEnumProps[numberClass] = { 'constructor': true, 'toLocaleString': true, 'toString': true, 'valueOf': true };
-    nonEnumProps[boolClass] = nonEnumProps[stringClass] = { 'constructor': true, 'toString': true, 'valueOf': true };
-    nonEnumProps[errorClass] = nonEnumProps[funcClass] = nonEnumProps[regexpClass] = { 'constructor': true, 'toString': true };
-    nonEnumProps[objectClass] = { 'constructor': true };
-
-    (function() {
-      var length = shadowedProps.length;
-      while (length--) {
-        var prop = shadowedProps[length];
-        for (var className in nonEnumProps) {
-          if (hasOwnProperty.call(nonEnumProps, className) && !hasOwnProperty.call(nonEnumProps[className], prop)) {
-            nonEnumProps[className][prop] = false;
-          }
-        }
-      }
-    }());
-
     /*--------------------------------------------------------------------------*/
 
     /**
-     * Creates a `lodash` object which wraps the given value to enable method
-     * chaining.
+     * Creates a `lodash` object which wraps the given value to enable intuitive
+     * method chaining.
      *
      * In addition to Lo-Dash methods, wrappers also have the following `Array` methods:
      * `concat`, `join`, `pop`, `push`, `reverse`, `shift`, `slice`, `sort`, `splice`,
@@ -997,15 +900,16 @@ define("vendor/almond", function(){});
      *
      * The chainable wrapper functions are:
      * `after`, `assign`, `bind`, `bindAll`, `bindKey`, `chain`, `compact`,
-     * `compose`, `concat`, `countBy`, `createCallback`, `curry`, `debounce`,
-     * `defaults`, `defer`, `delay`, `difference`, `filter`, `flatten`, `forEach`,
-     * `forEachRight`, `forIn`, `forInRight`, `forOwn`, `forOwnRight`, `functions`,
-     * `groupBy`, `indexBy`, `initial`, `intersection`, `invert`, `invoke`, `keys`,
-     * `map`, `max`, `memoize`, `merge`, `min`, `object`, `omit`, `once`, `pairs`,
-     * `partial`, `partialRight`, `pick`, `pluck`, `pull`, `push`, `range`, `reject`,
-     * `remove`, `rest`, `reverse`, `shuffle`, `slice`, `sort`, `sortBy`, `splice`,
-     * `tap`, `throttle`, `times`, `toArray`, `transform`, `union`, `uniq`, `unshift`,
-     * `unzip`, `values`, `where`, `without`, `wrap`, and `zip`
+     * `compose`, `concat`, `countBy`, `create`, `createCallback`, `curry`,
+     * `debounce`, `defaults`, `defer`, `delay`, `difference`, `filter`, `flatten`,
+     * `forEach`, `forEachRight`, `forIn`, `forInRight`, `forOwn`, `forOwnRight`,
+     * `functions`, `groupBy`, `indexBy`, `initial`, `intersection`, `invert`,
+     * `invoke`, `keys`, `map`, `max`, `memoize`, `merge`, `min`, `object`, `omit`,
+     * `once`, `pairs`, `partial`, `partialRight`, `pick`, `pluck`, `pull`, `push`,
+     * `range`, `reject`, `remove`, `rest`, `reverse`, `shuffle`, `slice`, `sort`,
+     * `sortBy`, `splice`, `tap`, `throttle`, `times`, `toArray`, `transform`,
+     * `union`, `uniq`, `unshift`, `unzip`, `values`, `where`, `without`, `wrap`,
+     * and `zip`
      *
      * The non-chainable wrapper functions are:
      * `clone`, `cloneDeep`, `contains`, `escape`, `every`, `find`, `findIndex`,
@@ -1019,6 +923,8 @@ define("vendor/almond", function(){});
      *
      * The wrapper functions `first` and `last` return wrapped values when `n` is
      * provided, otherwise they return unwrapped values.
+     *
+     * Explicit chaining can be enabled by using the `_.chain` method.
      *
      * @name _
      * @constructor
@@ -1077,308 +983,61 @@ define("vendor/almond", function(){});
      */
     var support = lodash.support = {};
 
-    (function() {
-      var ctor = function() { this.x = 1; },
-          object = { '0': 1, 'length': 1 },
-          props = [];
-
-      ctor.prototype = { 'valueOf': 1, 'y': 1 };
-      for (var prop in new ctor) { props.push(prop); }
-      for (prop in arguments) { }
-
-      /**
-       * Detect if an `arguments` object's [[Class]] is resolvable (all but Firefox < 4, IE < 9).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.argsClass = toString.call(arguments) == argsClass;
-
-      /**
-       * Detect if `arguments` objects are `Object` objects (all but Narwhal and Opera < 10.5).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.argsObject = arguments.constructor == Object && !(arguments instanceof Array);
-
-      /**
-       * Detect if `name` or `message` properties of `Error.prototype` are
-       * enumerable by default. (IE < 9, Safari < 5.1)
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.enumErrorProps = propertyIsEnumerable.call(errorProto, 'message') || propertyIsEnumerable.call(errorProto, 'name');
-
-      /**
-       * Detect if `prototype` properties are enumerable by default.
-       *
-       * Firefox < 3.6, Opera > 9.50 - Opera < 11.60, and Safari < 5.1
-       * (if the prototype or a property on the prototype has been set)
-       * incorrectly sets a function's `prototype` property [[Enumerable]]
-       * value to `true`.
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.enumPrototypes = propertyIsEnumerable.call(ctor, 'prototype');
-
-      /**
-       * Detect if `Function#bind` exists and is inferred to be fast (all but V8).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.fastBind = nativeBind && !isV8;
-
-      /**
-       * Detect if functions can be decompiled by `Function#toString`
-       * (all but PS3 and older Opera mobile browsers & avoided in Windows 8 apps).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.funcDecomp = !reNative.test(context.WinRTError) && reThis.test(runInContext);
-
-      /**
-       * Detect if `Function#name` is supported (all but IE).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.funcNames = typeof Function.name == 'string';
-
-      /**
-       * Detect if `arguments` object indexes are non-enumerable
-       * (Firefox < 4, IE < 9, PhantomJS, Safari < 5.1).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.nonEnumArgs = prop != 0;
-
-      /**
-       * Detect if properties shadowing those on `Object.prototype` are non-enumerable.
-       *
-       * In IE < 9 an objects own properties, shadowing non-enumerable ones, are
-       * made non-enumerable as well (a.k.a the JScript [[DontEnum]] bug).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.nonEnumShadows = !/valueOf/.test(props);
-
-      /**
-       * Detect if own properties are iterated after inherited properties (all but IE < 9).
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.ownLast = props[0] != 'x';
-
-      /**
-       * Detect if `Array#shift` and `Array#splice` augment array-like objects correctly.
-       *
-       * Firefox < 10, IE compatibility mode, and IE < 9 have buggy Array `shift()`
-       * and `splice()` functions that fail to remove the last element, `value[0]`,
-       * of array-like objects even though the `length` property is set to `0`.
-       * The `shift()` method is buggy in IE 8 compatibility mode, while `splice()`
-       * is buggy regardless of mode in IE < 9 and buggy in compatibility mode in IE 9.
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.spliceObjects = (arrayRef.splice.call(object, 0, 1), !object[0]);
-
-      /**
-       * Detect lack of support for accessing string characters by index.
-       *
-       * IE < 8 can't access characters by index and IE 8 can only access
-       * characters by index on string literals.
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      support.unindexedChars = ('x'[0] + Object('x')[0]) != 'xx';
-
-      /**
-       * Detect if a DOM node's [[Class]] is resolvable (all but IE < 9)
-       * and that the JS engine errors when attempting to coerce an object to
-       * a string without a `toString` function.
-       *
-       * @memberOf _.support
-       * @type boolean
-       */
-      try {
-        support.nodeClass = !(toString.call(document) == objectClass && !({ 'toString': 0 } + ''));
-      } catch(e) {
-        support.nodeClass = true;
-      }
-    }(1));
+    /**
+     * Detect if functions can be decompiled by `Function#toString`
+     * (all but PS3 and older Opera mobile browsers & avoided in Windows 8 apps).
+     *
+     * @memberOf _.support
+     * @type boolean
+     */
+    support.funcDecomp = !isNative(context.WinRTError) && reThis.test(runInContext);
 
     /**
-     * By default, the template delimiters used by Lo-Dash are similar to those in
-     * embedded Ruby (ERB). Change the following template settings to use alternative
-     * delimiters.
+     * Detect if `Function#name` is supported (all but IE).
      *
-     * @static
-     * @memberOf _
-     * @type Object
+     * @memberOf _.support
+     * @type boolean
      */
-    lodash.templateSettings = {
-
-      /**
-       * Used to detect `data` property values to be HTML-escaped.
-       *
-       * @memberOf _.templateSettings
-       * @type RegExp
-       */
-      'escape': /<%-([\s\S]+?)%>/g,
-
-      /**
-       * Used to detect code to be evaluated.
-       *
-       * @memberOf _.templateSettings
-       * @type RegExp
-       */
-      'evaluate': /<%([\s\S]+?)%>/g,
-
-      /**
-       * Used to detect `data` property values to inject.
-       *
-       * @memberOf _.templateSettings
-       * @type RegExp
-       */
-      'interpolate': reInterpolate,
-
-      /**
-       * Used to reference the data object in the template text.
-       *
-       * @memberOf _.templateSettings
-       * @type string
-       */
-      'variable': '',
-
-      /**
-       * Used to import variables into the compiled template.
-       *
-       * @memberOf _.templateSettings
-       * @type Object
-       */
-      'imports': {
-
-        /**
-         * A reference to the `lodash` function.
-         *
-         * @memberOf _.templateSettings.imports
-         * @type Function
-         */
-        '_': lodash
-      }
-    };
+    support.funcNames = typeof Function.name == 'string';
 
     /*--------------------------------------------------------------------------*/
 
     /**
-     * The template used to create iterator functions.
+     * The base implementation of `_.bind` that creates the bound function and
+     * sets its meta data.
      *
      * @private
-     * @param {Object} data The data object used to populate the text.
-     * @returns {string} Returns the interpolated text.
+     * @param {Array} bindData The bind data array.
+     * @returns {Function} Returns the new bound function.
      */
-    var iteratorTemplate = function(obj) {
+    function baseBind(bindData) {
+      var func = bindData[0],
+          partialArgs = bindData[2],
+          thisArg = bindData[4];
 
-      var __p = 'var index, iterable = ' +
-      (obj.firstArg) +
-      ', result = ' +
-      (obj.init) +
-      ';\nif (!iterable) return result;\n' +
-      (obj.top) +
-      ';';
-       if (obj.array) {
-      __p += '\nvar length = iterable.length; index = -1;\nif (' +
-      (obj.array) +
-      ') {  ';
-       if (support.unindexedChars) {
-      __p += '\n  if (isString(iterable)) {\n    iterable = iterable.split(\'\')\n  }  ';
-       }
-      __p += '\n  while (++index < length) {\n    ' +
-      (obj.loop) +
-      ';\n  }\n}\nelse {  ';
-       } else if (support.nonEnumArgs) {
-      __p += '\n  var length = iterable.length; index = -1;\n  if (length && isArguments(iterable)) {\n    while (++index < length) {\n      index += \'\';\n      ' +
-      (obj.loop) +
-      ';\n    }\n  } else {  ';
-       }
-
-       if (support.enumPrototypes) {
-      __p += '\n  var skipProto = typeof iterable == \'function\';\n  ';
-       }
-
-       if (support.enumErrorProps) {
-      __p += '\n  var skipErrorProps = iterable === errorProto || iterable instanceof Error;\n  ';
-       }
-
-          var conditions = [];    if (support.enumPrototypes) { conditions.push('!(skipProto && index == "prototype")'); }    if (support.enumErrorProps)  { conditions.push('!(skipErrorProps && (index == "message" || index == "name"))'); }
-
-       if (obj.useHas && obj.keys) {
-      __p += '\n  var ownIndex = -1,\n      ownProps = objectTypes[typeof iterable] && keys(iterable),\n      length = ownProps ? ownProps.length : 0;\n\n  while (++ownIndex < length) {\n    index = ownProps[ownIndex];\n';
-          if (conditions.length) {
-      __p += '    if (' +
-      (conditions.join(' && ')) +
-      ') {\n  ';
-       }
-      __p +=
-      (obj.loop) +
-      ';    ';
-       if (conditions.length) {
-      __p += '\n    }';
-       }
-      __p += '\n  }  ';
-       } else {
-      __p += '\n  for (index in iterable) {\n';
-          if (obj.useHas) { conditions.push("hasOwnProperty.call(iterable, index)"); }    if (conditions.length) {
-      __p += '    if (' +
-      (conditions.join(' && ')) +
-      ') {\n  ';
-       }
-      __p +=
-      (obj.loop) +
-      ';    ';
-       if (conditions.length) {
-      __p += '\n    }';
-       }
-      __p += '\n  }    ';
-       if (support.nonEnumShadows) {
-      __p += '\n\n  if (iterable !== objectProto) {\n    var ctor = iterable.constructor,\n        isProto = iterable === (ctor && ctor.prototype),\n        className = iterable === stringProto ? stringClass : iterable === errorProto ? errorClass : toString.call(iterable),\n        nonEnum = nonEnumProps[className];\n      ';
-       for (k = 0; k < 7; k++) {
-      __p += '\n    index = \'' +
-      (obj.shadowedProps[k]) +
-      '\';\n    if ((!(isProto && nonEnum[index]) && hasOwnProperty.call(iterable, index))';
-              if (!obj.useHas) {
-      __p += ' || (!nonEnum[index] && iterable[index] !== objectProto[index])';
-       }
-      __p += ') {\n      ' +
-      (obj.loop) +
-      ';\n    }      ';
-       }
-      __p += '\n  }    ';
-       }
-
-       }
-
-       if (obj.array || support.nonEnumArgs) {
-      __p += '\n}';
-       }
-      __p +=
-      (obj.bottom) +
-      ';\nreturn result';
-
-      return __p
-    };
-
-    /*--------------------------------------------------------------------------*/
+      function bound() {
+        // `Function#bind` spec
+        // http://es5.github.io/#x15.3.4.5
+        if (partialArgs) {
+          // avoid `arguments` object deoptimizations by using `slice` instead
+          // of `Array.prototype.slice.call` and not assigning `arguments` to a
+          // variable as a ternary expression
+          var args = slice(partialArgs);
+          push.apply(args, arguments);
+        }
+        // mimic the constructor's `return` behavior
+        // http://es5.github.io/#x13.2.2
+        if (this instanceof bound) {
+          // ensure `new bound` is an instance of `func`
+          var thisBinding = baseCreate(func.prototype),
+              result = func.apply(thisBinding, args || arguments);
+          return isObject(result) ? result : thisBinding;
+        }
+        return func.apply(thisArg, args || arguments);
+      }
+      setBindData(bound, bindData);
+      return bound;
+    }
 
     /**
      * The base implementation of `_.clone` without argument juggling or support
@@ -1386,64 +1045,62 @@ define("vendor/almond", function(){});
      *
      * @private
      * @param {*} value The value to clone.
-     * @param {boolean} [deep=false] Specify a deep clone.
+     * @param {boolean} [isDeep=false] Specify a deep clone.
      * @param {Function} [callback] The function to customize cloning values.
      * @param {Array} [stackA=[]] Tracks traversed source objects.
      * @param {Array} [stackB=[]] Associates clones with source counterparts.
-     * @returns {*} Returns the cloned `value`.
+     * @returns {*} Returns the cloned value.
      */
-    function baseClone(value, deep, callback, stackA, stackB) {
-      var result = value;
-
+    function baseClone(value, isDeep, callback, stackA, stackB) {
       if (callback) {
-        result = callback(result);
+        var result = callback(value);
         if (typeof result != 'undefined') {
           return result;
         }
-        result = value;
       }
       // inspect [[Class]]
-      var isObj = isObject(result);
+      var isObj = isObject(value);
       if (isObj) {
-        var className = toString.call(result);
-        if (!cloneableClasses[className] || (!support.nodeClass && isNode(result))) {
-          return result;
+        var className = toString.call(value);
+        if (!cloneableClasses[className]) {
+          return value;
         }
-        var isArr = isArray(result);
-      }
-      // shallow clone
-      if (!isObj || !deep) {
-        return isObj
-          ? (isArr ? slice(result) : assign({}, result))
-          : result;
-      }
-      var ctor = ctorByClass[className];
-      switch (className) {
-        case boolClass:
-        case dateClass:
-          return new ctor(+result);
+        var ctor = ctorByClass[className];
+        switch (className) {
+          case boolClass:
+          case dateClass:
+            return new ctor(+value);
 
-        case numberClass:
-        case stringClass:
-          return new ctor(result);
+          case numberClass:
+          case stringClass:
+            return new ctor(value);
 
-        case regexpClass:
-          return ctor(result.source, reFlags.exec(result));
-      }
-      // check for circular references and return corresponding clone
-      var initedStack = !stackA;
-      stackA || (stackA = getArray());
-      stackB || (stackB = getArray());
-
-      var length = stackA.length;
-      while (length--) {
-        if (stackA[length] == value) {
-          return stackB[length];
+          case regexpClass:
+            result = ctor(value.source, reFlags.exec(value));
+            result.lastIndex = value.lastIndex;
+            return result;
         }
+      } else {
+        return value;
       }
-      // init cloned object
-      result = isArr ? ctor(result.length) : {};
+      var isArr = isArray(value);
+      if (isDeep) {
+        // check for circular references and return corresponding clone
+        var initedStack = !stackA;
+        stackA || (stackA = getArray());
+        stackB || (stackB = getArray());
 
+        var length = stackA.length;
+        while (length--) {
+          if (stackA[length] == value) {
+            return stackB[length];
+          }
+        }
+        result = isArr ? ctor(value.length) : {};
+      }
+      else {
+        result = isArr ? slice(value) : assign({}, value);
+      }
       // add array properties assigned by `RegExp#exec`
       if (isArr) {
         if (hasOwnProperty.call(value, 'index')) {
@@ -1453,14 +1110,18 @@ define("vendor/almond", function(){});
           result.input = value.input;
         }
       }
+      // exit for shallow clone
+      if (!isDeep) {
+        return result;
+      }
       // add the source value to the stack of traversed objects
       // and associate it with its clone
       stackA.push(value);
       stackB.push(result);
 
       // recursively populate clone (susceptible to call stack limits)
-      (isArr ? baseEach : forOwn)(value, function(objValue, key) {
-        result[key] = baseClone(objValue, deep, callback, stackA, stackB);
+      (isArr ? forEach : forOwn)(value, function(objValue, key) {
+        result[key] = baseClone(objValue, isDeep, callback, stackA, stackB);
       });
 
       if (initedStack) {
@@ -1468,6 +1129,32 @@ define("vendor/almond", function(){});
         releaseArray(stackB);
       }
       return result;
+    }
+
+    /**
+     * The base implementation of `_.create` without support for assigning
+     * properties to the created object.
+     *
+     * @private
+     * @param {Object} prototype The object to inherit from.
+     * @returns {Object} Returns the new object.
+     */
+    function baseCreate(prototype, properties) {
+      return isObject(prototype) ? nativeCreate(prototype) : {};
+    }
+    // fallback for browsers without `Object.create`
+    if (!nativeCreate) {
+      baseCreate = (function() {
+        function Object() {}
+        return function(prototype) {
+          if (isObject(prototype)) {
+            Object.prototype = prototype;
+            var result = new Object;
+            Object.prototype = null;
+          }
+          return result || context.Object();
+        };
+      }());
     }
 
     /**
@@ -1484,24 +1171,30 @@ define("vendor/almond", function(){});
       if (typeof func != 'function') {
         return identity;
       }
-      // exit early if there is no `thisArg`
-      if (typeof thisArg == 'undefined') {
+      // exit early for no `thisArg` or already bound by `Function#bind`
+      if (typeof thisArg == 'undefined' || !('prototype' in func)) {
         return func;
       }
-      var bindData = func.__bindData__ || (support.funcNames && !func.name);
+      var bindData = func.__bindData__;
       if (typeof bindData == 'undefined') {
-        var source = reThis && fnToString.call(func);
-        if (!support.funcNames && source && !reFuncName.test(source)) {
-          bindData = true;
+        if (support.funcNames) {
+          bindData = !func.name;
         }
-        if (support.funcNames || !bindData) {
-          // checks if `func` references the `this` keyword and stores the result
-          bindData = !support.funcDecomp || reThis.test(source);
-          setBindData(func, bindData);
+        bindData = bindData || !support.funcDecomp;
+        if (!bindData) {
+          var source = fnToString.call(func);
+          if (!support.funcNames) {
+            bindData = !reFuncName.test(source);
+          }
+          if (!bindData) {
+            // checks if `func` references the `this` keyword and stores the result
+            bindData = reThis.test(source);
+            setBindData(func, bindData);
+          }
         }
       }
       // exit early if there are no `this` references or `func` is bound
-      if (bindData !== true && (bindData && bindData[1] & 1)) {
+      if (bindData === false || (bindData !== true && bindData[1] & 1)) {
         return func;
       }
       switch (argCount) {
@@ -1522,17 +1215,107 @@ define("vendor/almond", function(){});
     }
 
     /**
+     * The base implementation of `createWrapper` that creates the wrapper and
+     * sets its meta data.
+     *
+     * @private
+     * @param {Array} bindData The bind data array.
+     * @returns {Function} Returns the new function.
+     */
+    function baseCreateWrapper(bindData) {
+      var func = bindData[0],
+          bitmask = bindData[1],
+          partialArgs = bindData[2],
+          partialRightArgs = bindData[3],
+          thisArg = bindData[4],
+          arity = bindData[5];
+
+      var isBind = bitmask & 1,
+          isBindKey = bitmask & 2,
+          isCurry = bitmask & 4,
+          isCurryBound = bitmask & 8,
+          key = func;
+
+      function bound() {
+        var thisBinding = isBind ? thisArg : this;
+        if (partialArgs) {
+          var args = slice(partialArgs);
+          push.apply(args, arguments);
+        }
+        if (partialRightArgs || isCurry) {
+          args || (args = slice(arguments));
+          if (partialRightArgs) {
+            push.apply(args, partialRightArgs);
+          }
+          if (isCurry && args.length < arity) {
+            bitmask |= 16 & ~32;
+            return baseCreateWrapper([func, (isCurryBound ? bitmask : bitmask & ~3), args, null, thisArg, arity]);
+          }
+        }
+        args || (args = arguments);
+        if (isBindKey) {
+          func = thisBinding[key];
+        }
+        if (this instanceof bound) {
+          thisBinding = baseCreate(func.prototype);
+          var result = func.apply(thisBinding, args);
+          return isObject(result) ? result : thisBinding;
+        }
+        return func.apply(thisBinding, args);
+      }
+      setBindData(bound, bindData);
+      return bound;
+    }
+
+    /**
+     * The base implementation of `_.difference` that accepts a single array
+     * of values to exclude.
+     *
+     * @private
+     * @param {Array} array The array to process.
+     * @param {Array} [values] The array of values to exclude.
+     * @returns {Array} Returns a new array of filtered values.
+     */
+    function baseDifference(array, values) {
+      var index = -1,
+          indexOf = getIndexOf(),
+          length = array ? array.length : 0,
+          isLarge = length >= largeArraySize && indexOf === baseIndexOf,
+          result = [];
+
+      if (isLarge) {
+        var cache = createCache(values);
+        if (cache) {
+          indexOf = cacheIndexOf;
+          values = cache;
+        } else {
+          isLarge = false;
+        }
+      }
+      while (++index < length) {
+        var value = array[index];
+        if (indexOf(values, value) < 0) {
+          result.push(value);
+        }
+      }
+      if (isLarge) {
+        releaseObject(values);
+      }
+      return result;
+    }
+
+    /**
      * The base implementation of `_.flatten` without support for callback
      * shorthands or `thisArg` binding.
      *
      * @private
      * @param {Array} array The array to flatten.
      * @param {boolean} [isShallow=false] A flag to restrict flattening to a single level.
-     * @param {boolean} [isArgArrays=false] A flag to restrict flattening to arrays and `arguments` objects.
+     * @param {boolean} [isStrict=false] A flag to restrict flattening to arrays and `arguments` objects.
      * @param {number} [fromIndex=0] The index to start from.
      * @returns {Array} Returns a new flattened array.
      */
-    function baseFlatten(array, isShallow, isArgArrays, fromIndex) {
+    function baseFlatten(array, isShallow, isStrict, fromIndex) {
       var index = (fromIndex || 0) - 1,
           length = array ? array.length : 0,
           result = [];
@@ -1544,7 +1327,7 @@ define("vendor/almond", function(){});
             && (isArray(value) || isArguments(value))) {
           // recursively flatten arrays (susceptible to call stack limits)
           if (!isShallow) {
-            value = baseFlatten(value, isShallow, isArgArrays);
+            value = baseFlatten(value, isShallow, isStrict);
           }
           var valIndex = -1,
               valLength = value.length,
@@ -1554,7 +1337,7 @@ define("vendor/almond", function(){});
           while (++valIndex < valLength) {
             result[resIndex++] = value[valIndex];
           }
-        } else if (!isArgArrays) {
+        } else if (!isStrict) {
           result.push(value);
         }
       }
@@ -1637,22 +1420,25 @@ define("vendor/almond", function(){});
       var isArr = className == arrayClass;
       if (!isArr) {
         // unwrap any `lodash` wrapped values
-        if (hasOwnProperty.call(a, '__wrapped__ ') || hasOwnProperty.call(b, '__wrapped__')) {
-          return baseIsEqual(a.__wrapped__ || a, b.__wrapped__ || b, callback, isWhere, stackA, stackB);
+        var aWrapped = hasOwnProperty.call(a, '__wrapped__'),
+            bWrapped = hasOwnProperty.call(b, '__wrapped__');
+
+        if (aWrapped || bWrapped) {
+          return baseIsEqual(aWrapped ? a.__wrapped__ : a, bWrapped ? b.__wrapped__ : b, callback, isWhere, stackA, stackB);
         }
         // exit for functions and DOM nodes
-        if (className != objectClass || (!support.nodeClass && (isNode(a) || isNode(b)))) {
+        if (className != objectClass) {
           return false;
         }
         // in older versions of Opera, `arguments` objects have `Array` constructors
-        var ctorA = !support.argsObject && isArguments(a) ? Object : a.constructor,
-            ctorB = !support.argsObject && isArguments(b) ? Object : b.constructor;
+        var ctorA = a.constructor,
+            ctorB = b.constructor;
 
         // non `Object` object instances with different constructors are not equal
-        if (ctorA != ctorB && !(
-              isFunction(ctorA) && ctorA instanceof ctorA &&
-              isFunction(ctorB) && ctorB instanceof ctorB
-            )) {
+        if (ctorA != ctorB &&
+              !(isFunction(ctorA) && ctorA instanceof ctorA && isFunction(ctorB) && ctorB instanceof ctorB) &&
+              ('constructor' in a && 'constructor' in b)
+            ) {
           return false;
         }
       }
@@ -1678,51 +1464,54 @@ define("vendor/almond", function(){});
 
       // recursively compare objects and arrays (susceptible to call stack limits)
       if (isArr) {
+        // compare lengths to determine if a deep comparison is necessary
         length = a.length;
         size = b.length;
+        result = size == length;
 
-        // compare lengths to determine if a deep comparison is necessary
-        result = size == a.length;
-        if (!result && !isWhere) {
-          return result;
-        }
-        // deep compare the contents, ignoring non-numeric properties
-        while (size--) {
-          var index = length,
-              value = b[size];
+        if (result || isWhere) {
+          // deep compare the contents, ignoring non-numeric properties
+          while (size--) {
+            var index = length,
+                value = b[size];
 
-          if (isWhere) {
-            while (index--) {
-              if ((result = baseIsEqual(a[index], value, callback, isWhere, stackA, stackB))) {
-                break;
+            if (isWhere) {
+              while (index--) {
+                if ((result = baseIsEqual(a[index], value, callback, isWhere, stackA, stackB))) {
+                  break;
+                }
               }
+            } else if (!(result = baseIsEqual(a[size], value, callback, isWhere, stackA, stackB))) {
+              break;
             }
-          } else if (!(result = baseIsEqual(a[size], value, callback, isWhere, stackA, stackB))) {
-            break;
           }
         }
-        return result;
       }
-      // deep compare objects using `forIn`, instead of `forOwn`, to avoid `Object.keys`
-      // which, in this case, is more costly
-      forIn(b, function(value, key, b) {
-        if (hasOwnProperty.call(b, key)) {
-          // count the number of properties.
-          size++;
-          // deep compare each property value.
-          return (result = hasOwnProperty.call(a, key) && baseIsEqual(a[key], value, callback, isWhere, stackA, stackB));
-        }
-      });
-
-      if (result && !isWhere) {
-        // ensure both objects have the same number of properties
-        forIn(a, function(value, key, a) {
-          if (hasOwnProperty.call(a, key)) {
-            // `size` will be `-1` if `a` has more properties than `b`
-            return (result = --size > -1);
+      else {
+        // deep compare objects using `forIn`, instead of `forOwn`, to avoid `Object.keys`
+        // which, in this case, is more costly
+        forIn(b, function(value, key, b) {
+          if (hasOwnProperty.call(b, key)) {
+            // count the number of properties.
+            size++;
+            // deep compare each property value.
+            return (result = hasOwnProperty.call(a, key) && baseIsEqual(a[key], value, callback, isWhere, stackA, stackB));
           }
         });
+
+        if (result && !isWhere) {
+          // ensure both objects have the same number of properties
+          forIn(a, function(value, key, a) {
+            if (hasOwnProperty.call(a, key)) {
+              // `size` will be `-1` if `a` has more properties than `b`
+              return (result = --size > -1);
+            }
+          });
+        }
       }
+      stackA.pop();
+      stackB.pop();
+
       if (initedStack) {
         releaseArray(stackA);
         releaseArray(stackB);
@@ -1796,6 +1585,19 @@ define("vendor/almond", function(){});
     }
 
     /**
+     * The base implementation of `_.random` without argument juggling or support
+     * for returning floating-point numbers.
+     *
+     * @private
+     * @param {number} min The minimum possible value.
+     * @param {number} max The maximum possible value.
+     * @returns {number} Returns a random number.
+     */
+    function baseRandom(min, max) {
+      return min + floor(nativeRandom() * (max - min + 1));
+    }
+
+    /**
      * The base implementation of `_.uniq` without support for callback shorthands
      * or `thisArg` binding.
      *
@@ -1816,13 +1618,8 @@ define("vendor/almond", function(){});
 
       if (isLarge) {
         var cache = createCache(seen);
-        if (cache) {
-          indexOf = cacheIndexOf;
-          seen = cache;
-        } else {
-          isLarge = false;
-          seen = callback ? seen : (releaseArray(seen), result);
-        }
+        indexOf = cacheIndexOf;
+        seen = cache;
       }
       while (++index < length) {
         var value = array[index],
@@ -1862,16 +1659,16 @@ define("vendor/almond", function(){});
         var result = {};
         callback = lodash.createCallback(callback, thisArg, 3);
 
-        if (isArray(collection)) {
-          var index = -1,
-              length = collection.length;
+        var index = -1,
+            length = collection ? collection.length : 0;
 
+        if (typeof length == 'number') {
           while (++index < length) {
             var value = collection[index];
             setter(result, value, callback(value, index, collection), collection);
           }
         } else {
-          baseEach(collection, function(value, key, collection) {
+          forOwn(collection, function(value, key, collection) {
             setter(result, value, callback(value, key, collection), collection);
           });
         }
@@ -1899,16 +1696,15 @@ define("vendor/almond", function(){});
      *  provided to the new function.
      * @param {*} [thisArg] The `this` binding of `func`.
      * @param {number} [arity] The arity of `func`.
-     * @returns {Function} Returns the new bound function.
+     * @returns {Function} Returns the new function.
      */
-    function createBound(func, bitmask, partialArgs, partialRightArgs, thisArg, arity) {
+    function createWrapper(func, bitmask, partialArgs, partialRightArgs, thisArg, arity) {
       var isBind = bitmask & 1,
           isBindKey = bitmask & 2,
           isCurry = bitmask & 4,
           isCurryBound = bitmask & 8,
           isPartial = bitmask & 16,
-          isPartialRight = bitmask & 32,
-          key = func;
+          isPartialRight = bitmask & 32;
 
       if (!isBindKey && !isFunction(func)) {
         throw new TypeError;
@@ -1922,148 +1718,42 @@ define("vendor/almond", function(){});
         isPartialRight = partialRightArgs = false;
       }
       var bindData = func && func.__bindData__;
-      if (bindData) {
+      if (bindData && bindData !== true) {
+        // clone `bindData`
+        bindData = slice(bindData);
+        if (bindData[2]) {
+          bindData[2] = slice(bindData[2]);
+        }
+        if (bindData[3]) {
+          bindData[3] = slice(bindData[3]);
+        }
+        // set `thisBinding` is not previously bound
         if (isBind && !(bindData[1] & 1)) {
           bindData[4] = thisArg;
         }
+        // set if previously bound but not currently (subsequent curried functions)
         if (!isBind && bindData[1] & 1) {
           bitmask |= 8;
         }
+        // set curried arity if not yet set
         if (isCurry && !(bindData[1] & 4)) {
           bindData[5] = arity;
         }
+        // append partial left arguments
         if (isPartial) {
           push.apply(bindData[2] || (bindData[2] = []), partialArgs);
         }
+        // append partial right arguments
         if (isPartialRight) {
-          push.apply(bindData[3] || (bindData[3] = []), partialRightArgs);
+          unshift.apply(bindData[3] || (bindData[3] = []), partialRightArgs);
         }
+        // merge flags
         bindData[1] |= bitmask;
-        return createBound.apply(null, bindData);
+        return createWrapper.apply(null, bindData);
       }
-      // use `Function#bind` if it exists and is fast
-      // (in V8 `Function#bind` is slower except when partially applied)
-      if (isBind && !(isBindKey || isCurry || isPartialRight) &&
-          (support.fastBind || (nativeBind && isPartial))) {
-        if (isPartial) {
-          var args = [thisArg];
-          push.apply(args, partialArgs);
-        }
-        var bound = isPartial
-          ? nativeBind.apply(func, args)
-          : nativeBind.call(func, thisArg);
-      }
-      else {
-        bound = function() {
-          // `Function#bind` spec
-          // http://es5.github.io/#x15.3.4.5
-          var args = arguments,
-              thisBinding = isBind ? thisArg : this;
-
-          if (isCurry || isPartial || isPartialRight) {
-            args = nativeSlice.call(args);
-            if (isPartial) {
-              unshift.apply(args, partialArgs);
-            }
-            if (isPartialRight) {
-              push.apply(args, partialRightArgs);
-            }
-            if (isCurry && args.length < arity) {
-              bitmask |= 16 & ~32;
-              return createBound(func, (isCurryBound ? bitmask : bitmask & ~3), args, null, thisArg, arity);
-            }
-          }
-          if (isBindKey) {
-            func = thisBinding[key];
-          }
-          if (this instanceof bound) {
-            // ensure `new bound` is an instance of `func`
-            thisBinding = createObject(func.prototype);
-
-            // mimic the constructor's `return` behavior
-            // http://es5.github.io/#x13.2.2
-            var result = func.apply(thisBinding, args);
-            return isObject(result) ? result : thisBinding;
-          }
-          return func.apply(thisBinding, args);
-        };
-      }
-      setBindData(bound, nativeSlice.call(arguments));
-      return bound;
-    }
-
-    /**
-     * Creates compiled iteration functions.
-     *
-     * @private
-     * @param {...Object} [options] The compile options object(s).
-     * @param {string} [options.array] Code to determine if the iterable is an array or array-like.
-     * @param {boolean} [options.useHas] Specify using `hasOwnProperty` checks in the object loop.
-     * @param {Function} [options.keys] A reference to `_.keys` for use in own property iteration.
-     * @param {string} [options.args] A comma separated string of iteration function arguments.
-     * @param {string} [options.top] Code to execute before the iteration branches.
-     * @param {string} [options.loop] Code to execute in the object loop.
-     * @param {string} [options.bottom] Code to execute after the iteration branches.
-     * @returns {Function} Returns the compiled function.
-     */
-    function createIterator() {
-      var data = getObject();
-
-      // data properties
-      data.shadowedProps = shadowedProps;
-
-      // iterator options
-      data.array = data.bottom = data.loop = data.top = '';
-      data.init = 'iterable';
-      data.useHas = true;
-
-      // merge options into a template data object
-      for (var object, index = 0; object = arguments[index]; index++) {
-        for (var key in object) {
-          data[key] = object[key];
-        }
-      }
-      var args = data.args;
-      data.firstArg = /^[^,]+/.exec(args)[0];
-
-      // create the function factory
-      var factory = Function(
-          'baseCreateCallback, errorClass, errorProto, hasOwnProperty, ' +
-          'indicatorObject, isArguments, isArray, isString, keys, objectProto, ' +
-          'objectTypes, nonEnumProps, stringClass, stringProto, toString',
-        'return function(' + args + ') {\n' + iteratorTemplate(data) + '\n}'
-      );
-
-      releaseObject(data);
-
-      // return the compiled function
-      return factory(
-        baseCreateCallback, errorClass, errorProto, hasOwnProperty,
-        indicatorObject, isArguments, isArray, isString, data.keys, objectProto,
-        objectTypes, nonEnumProps, stringClass, stringProto, toString
-      );
-    }
-
-    /**
-     * Creates a new object with the specified `prototype`.
-     *
-     * @private
-     * @param {Object} prototype The prototype object.
-     * @returns {Object} Returns the new object.
-     */
-    function createObject(prototype) {
-      return isObject(prototype) ? nativeCreate(prototype) : {};
-    }
-    // fallback for browsers without `Object.create`
-    if (!nativeCreate) {
-      createObject = function(prototype) {
-        if (isObject(prototype)) {
-          noop.prototype = prototype;
-          var result = new noop;
-          noop.prototype = null;
-        }
-        return result || {};
-      };
+      // fast path for `_.bind`
+      var creater = (bitmask == 1 || bitmask === 17) ? baseBind : baseCreateWrapper;
+      return creater([func, bitmask, partialArgs, partialRightArgs, thisArg, arity]);
     }
 
     /**
@@ -2091,17 +1781,26 @@ define("vendor/almond", function(){});
     }
 
     /**
+     * Checks if `value` is a native function.
+     *
+     * @private
+     * @param {*} value The value to check.
+     * @returns {boolean} Returns `true` if the `value` is a native function, else `false`.
+     */
+    function isNative(value) {
+      return typeof value == 'function' && reNative.test(value);
+    }
+
+    /**
      * Sets `this` binding data on a given function.
      *
      * @private
      * @param {Function} func The function to set data on.
-     * @param {*} value The value to set.
+     * @param {Array} value The data array to set.
      */
     var setBindData = !defineProperty ? noop : function(func, value) {
-      var descriptor = getObject();
       descriptor.value = value;
       defineProperty(func, '__bindData__', descriptor);
-      releaseObject(descriptor);
     };
 
     /**
@@ -2120,20 +1819,8 @@ define("vendor/almond", function(){});
 
       // avoid non Object objects, `arguments` objects, and DOM elements
       if (!(value && toString.call(value) == objectClass) ||
-          (ctor = value.constructor, isFunction(ctor) && !(ctor instanceof ctor)) ||
-          (!support.argsClass && isArguments(value)) ||
-          (!support.nodeClass && isNode(value))) {
+          (ctor = value.constructor, isFunction(ctor) && !(ctor instanceof ctor))) {
         return false;
-      }
-      // IE < 9 iterates inherited properties before own properties. If the first
-      // iterated property is an object's own property then there are no inherited
-      // enumerable properties.
-      if (support.ownLast) {
-        forIn(value, function(value, key, object) {
-          result = hasOwnProperty.call(object, key);
-          return false;
-        });
-        return result !== false;
       }
       // In most environments an object's own properties are iterated before
       // its inherited properties. If the last iterated property is an object's
@@ -2177,13 +1864,6 @@ define("vendor/almond", function(){});
       return value && typeof value == 'object' && typeof value.length == 'number' &&
         toString.call(value) == argsClass || false;
     }
-    // fallback for browsers that can't detect `arguments` objects by [[Class]]
-    if (!support.argsClass) {
-      isArguments = function(value) {
-        return value && typeof value == 'object' && typeof value.length == 'number' &&
-          hasOwnProperty.call(value, 'callee') || false;
-      };
-    }
 
     /**
      * Checks if `value` is an array.
@@ -2216,12 +1896,17 @@ define("vendor/almond", function(){});
      * @param {Object} object The object to inspect.
      * @returns {Array} Returns an array of property names.
      */
-    var shimKeys = createIterator({
-      'args': 'object',
-      'init': '[]',
-      'top': 'if (!(objectTypes[typeof object])) return result',
-      'loop': 'result.push(index)'
-    });
+    var shimKeys = function(object) {
+      var index, iterable = object, result = [];
+      if (!iterable) return result;
+      if (!(objectTypes[typeof object])) return result;
+        for (index in iterable) {
+          if (hasOwnProperty.call(iterable, index)) {
+            result.push(index);
+          }
+        }
+      return result
+    };
 
     /**
      * Creates an array composed of the own enumerable property names of an object.
@@ -2240,41 +1925,7 @@ define("vendor/almond", function(){});
       if (!isObject(object)) {
         return [];
       }
-      if ((support.enumPrototypes && typeof object == 'function') ||
-          (support.nonEnumArgs && object.length && isArguments(object))) {
-        return shimKeys(object);
-      }
       return nativeKeys(object);
-    };
-
-    /** Reusable iterator options shared by `each`, `forIn`, and `forOwn` */
-    var eachIteratorOptions = {
-      'args': 'collection, callback, thisArg',
-      'top': "callback = callback && typeof thisArg == 'undefined' ? callback : baseCreateCallback(callback, thisArg, 3)",
-      'array': "typeof length == 'number'",
-      'keys': keys,
-      'loop': 'if (callback(iterable[index], index, collection) === false) return result'
-    };
-
-    /** Reusable iterator options for `assign` and `defaults` */
-    var defaultsIteratorOptions = {
-      'args': 'object, source, guard',
-      'top':
-        'var args = arguments,\n' +
-        '    argsIndex = 0,\n' +
-        "    argsLength = typeof guard == 'number' ? 2 : args.length;\n" +
-        'while (++argsIndex < argsLength) {\n' +
-        '  iterable = args[argsIndex];\n' +
-        '  if (iterable && objectTypes[typeof iterable]) {',
-      'keys': keys,
-      'loop': "if (typeof result[index] == 'undefined') result[index] = iterable[index]",
-      'bottom': '  }\n}'
-    };
-
-    /** Reusable iterator options for `forIn` and `forOwn` */
-    var forOwnIteratorOptions = {
-      'top': 'if (!objectTypes[typeof iterable]) return result;\n' + eachIteratorOptions.top,
-      'array': false
     };
 
     /**
@@ -2300,22 +1951,6 @@ define("vendor/almond", function(){});
     var reEscapedHtml = RegExp('(' + keys(htmlUnescapes).join('|') + ')', 'g'),
         reUnescapedHtml = RegExp('[' + keys(htmlEscapes).join('') + ']', 'g');
 
-    /**
-     * A function compiled to iterate `arguments` objects, arrays, objects, and
-     * strings consistenly across environments, executing the callback for each
-     * element in the collection. The callback is bound to `thisArg` and invoked
-     * with three arguments; (value, index|key, collection). Callbacks may exit
-     * iteration early by explicitly returning `false`.
-     *
-     * @private
-     * @type Function
-     * @param {Array|Object|string} collection The collection to iterate over.
-     * @param {Function} [callback=identity] The function called per iteration.
-     * @param {*} [thisArg] The `this` binding of `callback`.
-     * @returns {Array|Object|string} Returns `collection`.
-     */
-    var baseEach = createIterator(eachIteratorOptions);
-
     /*--------------------------------------------------------------------------*/
 
     /**
@@ -2337,32 +1972,46 @@ define("vendor/almond", function(){});
      * @returns {Object} Returns the destination object.
      * @example
      *
-     * _.assign({ 'name': 'moe' }, { 'age': 40 });
-     * // => { 'name': 'moe', 'age': 40 }
+     * _.assign({ 'name': 'fred' }, { 'employer': 'slate' });
+     * // => { 'name': 'fred', 'employer': 'slate' }
      *
      * var defaults = _.partialRight(_.assign, function(a, b) {
      *   return typeof a == 'undefined' ? b : a;
      * });
      *
-     * var food = { 'name': 'apple' };
-     * defaults(food, { 'name': 'banana', 'type': 'fruit' });
-     * // => { 'name': 'apple', 'type': 'fruit' }
+     * var object = { 'name': 'barney' };
+     * defaults(object, { 'name': 'fred', 'employer': 'slate' });
+     * // => { 'name': 'barney', 'employer': 'slate' }
      */
-    var assign = createIterator(defaultsIteratorOptions, {
-      'top':
-        defaultsIteratorOptions.top.replace(';',
-          ';\n' +
-          "if (argsLength > 3 && typeof args[argsLength - 2] == 'function') {\n" +
-          '  var callback = baseCreateCallback(args[--argsLength - 1], args[argsLength--], 2);\n' +
-          "} else if (argsLength > 2 && typeof args[argsLength - 1] == 'function') {\n" +
-          '  callback = args[--argsLength];\n' +
-          '}'
-        ),
-      'loop': 'result[index] = callback ? callback(result[index], iterable[index]) : iterable[index]'
-    });
+    var assign = function(object, source, guard) {
+      var index, iterable = object, result = iterable;
+      if (!iterable) return result;
+      var args = arguments,
+          argsIndex = 0,
+          argsLength = typeof guard == 'number' ? 2 : args.length;
+      if (argsLength > 3 && typeof args[argsLength - 2] == 'function') {
+        var callback = baseCreateCallback(args[--argsLength - 1], args[argsLength--], 2);
+      } else if (argsLength > 2 && typeof args[argsLength - 1] == 'function') {
+        callback = args[--argsLength];
+      }
+      while (++argsIndex < argsLength) {
+        iterable = args[argsIndex];
+        if (iterable && objectTypes[typeof iterable]) {
+        var ownIndex = -1,
+            ownProps = objectTypes[typeof iterable] && keys(iterable),
+            length = ownProps ? ownProps.length : 0;
+
+        while (++ownIndex < length) {
+          index = ownProps[ownIndex];
+          result[index] = callback ? callback(result[index], iterable[index]) : iterable[index];
+        }
+        }
+      }
+      return result
+    };
 
     /**
-     * Creates a clone of `value`. If `deep` is `true` nested objects will also
+     * Creates a clone of `value`. If `isDeep` is `true` nested objects will also
      * be cloned, otherwise they will be assigned by reference. If a callback
      * is provided it will be executed to produce the cloned values. If the
      * callback returns `undefined` cloning will be handled by the method instead.
@@ -2372,23 +2021,23 @@ define("vendor/almond", function(){});
      * @memberOf _
      * @category Objects
      * @param {*} value The value to clone.
-     * @param {boolean} [deep=false] Specify a deep clone.
+     * @param {boolean} [isDeep=false] Specify a deep clone.
      * @param {Function} [callback] The function to customize cloning values.
      * @param {*} [thisArg] The `this` binding of `callback`.
-     * @returns {*} Returns the cloned `value`.
+     * @returns {*} Returns the cloned value.
      * @example
      *
-     * var stooges = [
-     *   { 'name': 'moe', 'age': 40 },
-     *   { 'name': 'larry', 'age': 50 }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36 },
+     *   { 'name': 'fred',   'age': 40 }
      * ];
      *
-     * var shallow = _.clone(stooges);
-     * shallow[0] === stooges[0];
+     * var shallow = _.clone(characters);
+     * shallow[0] === characters[0];
      * // => true
      *
-     * var deep = _.clone(stooges, true);
-     * deep[0] === stooges[0];
+     * var deep = _.clone(characters, true);
+     * deep[0] === characters[0];
      * // => false
      *
      * _.mixin({
@@ -2401,15 +2050,15 @@ define("vendor/almond", function(){});
      * clone.childNodes.length;
      * // => 0
      */
-    function clone(value, deep, callback, thisArg) {
+    function clone(value, isDeep, callback, thisArg) {
       // allows working with "Collections" methods without using their `index`
-      // and `collection` arguments for `deep` and `callback`
-      if (typeof deep != 'boolean' && deep != null) {
+      // and `collection` arguments for `isDeep` and `callback`
+      if (typeof isDeep != 'boolean' && isDeep != null) {
         thisArg = callback;
-        callback = deep;
-        deep = false;
+        callback = isDeep;
+        isDeep = false;
       }
-      return baseClone(value, deep, typeof callback == 'function' && baseCreateCallback(callback, thisArg, 1));
+      return baseClone(value, isDeep, typeof callback == 'function' && baseCreateCallback(callback, thisArg, 1));
     }
 
     /**
@@ -2429,16 +2078,16 @@ define("vendor/almond", function(){});
      * @param {*} value The value to deep clone.
      * @param {Function} [callback] The function to customize cloning values.
      * @param {*} [thisArg] The `this` binding of `callback`.
-     * @returns {*} Returns the deep cloned `value`.
+     * @returns {*} Returns the deep cloned value.
      * @example
      *
-     * var stooges = [
-     *   { 'name': 'moe', 'age': 40 },
-     *   { 'name': 'larry', 'age': 50 }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36 },
+     *   { 'name': 'fred',   'age': 40 }
      * ];
      *
-     * var deep = _.cloneDeep(stooges);
-     * deep[0] === stooges[0];
+     * var deep = _.cloneDeep(characters);
+     * deep[0] === characters[0];
      * // => false
      *
      * var view = {
@@ -2458,6 +2107,42 @@ define("vendor/almond", function(){});
     }
 
     /**
+     * Creates an object that inherits from the given `prototype` object. If a
+     * `properties` object is provided its own enumerable properties are assigned
+     * to the created object.
+     *
+     * @static
+     * @memberOf _
+     * @category Objects
+     * @param {Object} prototype The object to inherit from.
+     * @param {Object} [properties] The properties to assign to the object.
+     * @returns {Object} Returns the new object.
+     * @example
+     *
+     * function Shape() {
+     *   this.x = 0;
+     *   this.y = 0;
+     * }
+     *
+     * function Circle() {
+     *   Shape.call(this);
+     * }
+     *
+     * Circle.prototype = _.create(Shape.prototype, { 'constructor': Circle });
+     *
+     * var circle = new Circle;
+     * circle instanceof Circle;
+     * // => true
+     *
+     * circle instanceof Shape;
+     * // => true
+     */
+    function create(prototype, properties) {
+      var result = baseCreate(prototype);
+      return properties ? assign(result, properties) : result;
+    }
+
+    /**
      * Assigns own enumerable properties of source object(s) to the destination
      * object for all destination properties that resolve to `undefined`. Once a
      * property is set, additional defaults of the same property will be ignored.
@@ -2473,15 +2158,42 @@ define("vendor/almond", function(){});
      * @returns {Object} Returns the destination object.
      * @example
      *
-     * var food = { 'name': 'apple' };
-     * _.defaults(food, { 'name': 'banana', 'type': 'fruit' });
-     * // => { 'name': 'apple', 'type': 'fruit' }
+     * var object = { 'name': 'barney' };
+     * _.defaults(object, { 'name': 'fred', 'employer': 'slate' });
+     * // => { 'name': 'barney', 'employer': 'slate' }
      */
-    var defaults = createIterator(defaultsIteratorOptions);
+    var defaults = function(object, source, guard) {
+      var index, iterable = object, result = iterable;
+      if (!iterable) return result;
+      var args = arguments,
+          argsIndex = 0,
+          argsLength = typeof guard == 'number' ? 2 : args.length;
+      while (++argsIndex < argsLength) {
+        iterable = args[argsIndex];
+        if (iterable && objectTypes[typeof iterable]) {
+        var ownIndex = -1,
+            ownProps = objectTypes[typeof iterable] && keys(iterable),
+            length = ownProps ? ownProps.length : 0;
+
+        while (++ownIndex < length) {
+          index = ownProps[ownIndex];
+          if (typeof result[index] == 'undefined') result[index] = iterable[index];
+        }
+        }
+      }
+      return result
+    };
 
     /**
      * This method is like `_.findIndex` except that it returns the key of the
      * first element that passes the callback check, instead of the element itself.
+     *
+     * If a property name is provided for `callback` the created "_.pluck" style
+     * callback will return the property value of the given element.
+     *
+     * If an object is provided for `callback` the created "_.where" style callback
+     * will return `true` for elements that have the properties of the given object,
+     * else `false`.
      *
      * @static
      * @memberOf _
@@ -2494,10 +2206,24 @@ define("vendor/almond", function(){});
      * @returns {string|undefined} Returns the key of the found element, else `undefined`.
      * @example
      *
-     * _.findKey({ 'a': 1, 'b': 2, 'c': 3, 'd': 4 }, function(num) {
-     *   return num % 2 == 0;
+     * var characters = {
+     *   'barney': {  'age': 36, 'blocked': false },
+     *   'fred': {    'age': 40, 'blocked': true },
+     *   'pebbles': { 'age': 1,  'blocked': false }
+     * };
+     *
+     * _.findKey(characters, function(chr) {
+     *   return chr.age < 40;
      * });
-     * // => 'b' (property order is not guaranteed across environments)
+     * // => 'barney' (property order is not guaranteed across environments)
+     *
+     * // using "_.where" callback shorthand
+     * _.findKey(characters, { 'age': 1 });
+     * // => 'pebbles'
+     *
+     * // using "_.pluck" callback shorthand
+     * _.findKey(characters, 'blocked');
+     * // => 'fred'
      */
     function findKey(object, callback, thisArg) {
       var result;
@@ -2515,6 +2241,13 @@ define("vendor/almond", function(){});
      * This method is like `_.findKey` except that it iterates over elements
      * of a `collection` in the opposite order.
      *
+     * If a property name is provided for `callback` the created "_.pluck" style
+     * callback will return the property value of the given element.
+     *
+     * If an object is provided for `callback` the created "_.where" style callback
+     * will return `true` for elements that have the properties of the given object,
+     * else `false`.
+     *
      * @static
      * @memberOf _
      * @category Objects
@@ -2526,10 +2259,24 @@ define("vendor/almond", function(){});
      * @returns {string|undefined} Returns the key of the found element, else `undefined`.
      * @example
      *
-     * _.findLastKey({ 'a': 1, 'b': 2, 'c': 3, 'd': 4 }, function(num) {
-     *   return num % 2 == 1;
+     * var characters = {
+     *   'barney': {  'age': 36, 'blocked': true },
+     *   'fred': {    'age': 40, 'blocked': false },
+     *   'pebbles': { 'age': 1,  'blocked': true }
+     * };
+     *
+     * _.findLastKey(characters, function(chr) {
+     *   return chr.age < 40;
      * });
-     * // => returns `c`, assuming `_.findKey` returns `a`
+     * // => returns `pebbles`, assuming `_.findKey` returns `barney`
+     *
+     * // using "_.where" callback shorthand
+     * _.findLastKey(characters, { 'age': 40 });
+     * // => 'fred'
+     *
+     * // using "_.pluck" callback shorthand
+     * _.findLastKey(characters, 'blocked');
+     * // => 'pebbles'
      */
     function findLastKey(object, callback, thisArg) {
       var result;
@@ -2559,22 +2306,31 @@ define("vendor/almond", function(){});
      * @returns {Object} Returns `object`.
      * @example
      *
-     * function Dog(name) {
-     *   this.name = name;
+     * function Shape() {
+     *   this.x = 0;
+     *   this.y = 0;
      * }
      *
-     * Dog.prototype.bark = function() {
-     *   console.log('Woof, woof!');
+     * Shape.prototype.move = function(x, y) {
+     *   this.x += x;
+     *   this.y += y;
      * };
      *
-     * _.forIn(new Dog('Dagny'), function(value, key) {
+     * _.forIn(new Shape, function(value, key) {
      *   console.log(key);
      * });
-     * // => logs 'bark' and 'name' (property order is not guaranteed across environments)
+     * // => logs 'x', 'y', and 'move' (property order is not guaranteed across environments)
      */
-    var forIn = createIterator(eachIteratorOptions, forOwnIteratorOptions, {
-      'useHas': false
-    });
+    var forIn = function(collection, callback, thisArg) {
+      var index, iterable = collection, result = iterable;
+      if (!iterable) return result;
+      if (!objectTypes[typeof iterable]) return result;
+      callback = callback && typeof thisArg == 'undefined' ? callback : baseCreateCallback(callback, thisArg, 3);
+        for (index in iterable) {
+          if (callback(iterable[index], index, collection) === false) return result;
+        }
+      return result
+    };
 
     /**
      * This method is like `_.forIn` except that it iterates over elements
@@ -2589,18 +2345,20 @@ define("vendor/almond", function(){});
      * @returns {Object} Returns `object`.
      * @example
      *
-     * function Dog(name) {
-     *   this.name = name;
+     * function Shape() {
+     *   this.x = 0;
+     *   this.y = 0;
      * }
      *
-     * Dog.prototype.bark = function() {
-     *   console.log('Woof, woof!');
+     * Shape.prototype.move = function(x, y) {
+     *   this.x += x;
+     *   this.y += y;
      * };
      *
-     * _.forInRight(new Dog('Dagny'), function(value, key) {
+     * _.forInRight(new Shape, function(value, key) {
      *   console.log(key);
      * });
-     * // => logs 'name' and 'bark' assuming `_.forIn ` logs 'bark' and 'name'
+     * // => logs 'move', 'y', and 'x' assuming `_.forIn ` logs 'x', 'y', and 'move'
      */
     function forInRight(object, callback, thisArg) {
       var pairs = [];
@@ -2640,7 +2398,21 @@ define("vendor/almond", function(){});
      * });
      * // => logs '0', '1', and 'length' (property order is not guaranteed across environments)
      */
-    var forOwn = createIterator(eachIteratorOptions, forOwnIteratorOptions);
+    var forOwn = function(collection, callback, thisArg) {
+      var index, iterable = collection, result = iterable;
+      if (!iterable) return result;
+      if (!objectTypes[typeof iterable]) return result;
+      callback = callback && typeof thisArg == 'undefined' ? callback : baseCreateCallback(callback, thisArg, 3);
+        var ownIndex = -1,
+            ownProps = objectTypes[typeof iterable] && keys(iterable),
+            length = ownProps ? ownProps.length : 0;
+
+        while (++ownIndex < length) {
+          index = ownProps[ownIndex];
+          if (callback(iterable[index], index, collection) === false) return result;
+        }
+      return result
+    };
 
     /**
      * This method is like `_.forOwn` except that it iterates over elements
@@ -2700,22 +2472,22 @@ define("vendor/almond", function(){});
     }
 
     /**
-     * Checks if the specified object `property` exists and is a direct property,
+     * Checks if the specified property name exists as a direct property of `object`,
      * instead of an inherited property.
      *
      * @static
      * @memberOf _
      * @category Objects
-     * @param {Object} object The object to check.
-     * @param {string} property The property to check for.
+     * @param {Object} object The object to inspect.
+     * @param {string} key The name of the property to check.
      * @returns {boolean} Returns `true` if key is a direct property, else `false`.
      * @example
      *
      * _.has({ 'a': 1, 'b': 2, 'c': 3 }, 'b');
      * // => true
      */
-    function has(object, property) {
-      return object ? hasOwnProperty.call(object, property) : false;
+    function has(object, key) {
+      return object ? hasOwnProperty.call(object, key) : false;
     }
 
     /**
@@ -2728,8 +2500,8 @@ define("vendor/almond", function(){});
      * @returns {Object} Returns the created inverted object.
      * @example
      *
-     *  _.invert({ 'first': 'moe', 'second': 'larry' });
-     * // => { 'moe': 'first', 'larry': 'second' }
+     * _.invert({ 'first': 'fred', 'second': 'barney' });
+     * // => { 'fred': 'first', 'barney': 'second' }
      */
     function invert(object) {
       var index = -1,
@@ -2758,7 +2530,8 @@ define("vendor/almond", function(){});
      * // => false
      */
     function isBoolean(value) {
-      return value === true || value === false || toString.call(value) == boolClass;
+      return value === true || value === false ||
+        value && typeof value == 'object' && toString.call(value) == boolClass || false;
     }
 
     /**
@@ -2775,7 +2548,7 @@ define("vendor/almond", function(){});
      * // => true
      */
     function isDate(value) {
-      return value ? (typeof value == 'object' && toString.call(value) == dateClass) : false;
+      return value && typeof value == 'object' && toString.call(value) == dateClass || false;
     }
 
     /**
@@ -2792,7 +2565,7 @@ define("vendor/almond", function(){});
      * // => true
      */
     function isElement(value) {
-      return value ? value.nodeType === 1 : false;
+      return value && value.nodeType === 1 || false;
     }
 
     /**
@@ -2824,8 +2597,7 @@ define("vendor/almond", function(){});
       var className = toString.call(value),
           length = value.length;
 
-      if ((className == arrayClass || className == stringClass ||
-          (support.argsClass ? className == argsClass : isArguments(value))) ||
+      if ((className == arrayClass || className == stringClass || className == argsClass ) ||
           (className == objectClass && typeof length == 'number' && isFunction(value.splice))) {
         return !length;
       }
@@ -2852,13 +2624,13 @@ define("vendor/almond", function(){});
      * @returns {boolean} Returns `true` if the values are equivalent, else `false`.
      * @example
      *
-     * var moe = { 'name': 'moe', 'age': 40 };
-     * var copy = { 'name': 'moe', 'age': 40 };
+     * var object = { 'name': 'fred' };
+     * var copy = { 'name': 'fred' };
      *
-     * moe == copy;
+     * object == copy;
      * // => false
      *
-     * _.isEqual(moe, copy);
+     * _.isEqual(object, copy);
      * // => true
      *
      * var words = ['hello', 'goodbye'];
@@ -2924,12 +2696,6 @@ define("vendor/almond", function(){});
      */
     function isFunction(value) {
       return typeof value == 'function';
-    }
-    // fallback for older versions of Chrome and Safari
-    if (isFunction(/x/)) {
-      isFunction = function(value) {
-        return typeof value == 'function' && toString.call(value) == funcClass;
-      };
     }
 
     /**
@@ -3027,7 +2793,8 @@ define("vendor/almond", function(){});
      * // => true
      */
     function isNumber(value) {
-      return typeof value == 'number' || toString.call(value) == numberClass;
+      return typeof value == 'number' ||
+        value && typeof value == 'object' && toString.call(value) == numberClass || false;
     }
 
     /**
@@ -3040,26 +2807,26 @@ define("vendor/almond", function(){});
      * @returns {boolean} Returns `true` if `value` is a plain object, else `false`.
      * @example
      *
-     * function Stooge(name, age) {
-     *   this.name = name;
-     *   this.age = age;
+     * function Shape() {
+     *   this.x = 0;
+     *   this.y = 0;
      * }
      *
-     * _.isPlainObject(new Stooge('moe', 40));
+     * _.isPlainObject(new Shape);
      * // => false
      *
      * _.isPlainObject([1, 2, 3]);
      * // => false
      *
-     * _.isPlainObject({ 'name': 'moe', 'age': 40 });
+     * _.isPlainObject({ 'x': 0, 'y': 0 });
      * // => true
      */
     var isPlainObject = !getPrototypeOf ? shimIsPlainObject : function(value) {
-      if (!(value && toString.call(value) == objectClass) || (!support.argsClass && isArguments(value))) {
+      if (!(value && toString.call(value) == objectClass)) {
         return false;
       }
       var valueOf = value.valueOf,
-          objProto = typeof valueOf == 'function' && (objProto = getPrototypeOf(valueOf)) && getPrototypeOf(objProto);
+          objProto = isNative(valueOf) && (objProto = getPrototypeOf(valueOf)) && getPrototypeOf(objProto);
 
       return objProto
         ? (value == objProto || getPrototypeOf(value) == objProto)
@@ -3076,11 +2843,11 @@ define("vendor/almond", function(){});
      * @returns {boolean} Returns `true` if the `value` is a regular expression, else `false`.
      * @example
      *
-     * _.isRegExp(/moe/);
+     * _.isRegExp(/fred/);
      * // => true
      */
     function isRegExp(value) {
-      return (value && objectTypes[typeof value]) ? toString.call(value) == regexpClass : false;
+      return value && typeof value == 'object' && toString.call(value) == regexpClass || false;
     }
 
     /**
@@ -3093,11 +2860,12 @@ define("vendor/almond", function(){});
      * @returns {boolean} Returns `true` if the `value` is a string, else `false`.
      * @example
      *
-     * _.isString('moe');
+     * _.isString('fred');
      * // => true
      */
     function isString(value) {
-      return typeof value == 'string' || toString.call(value) == stringClass;
+      return typeof value == 'string' ||
+        value && typeof value == 'object' && toString.call(value) == stringClass || false;
     }
 
     /**
@@ -3115,6 +2883,52 @@ define("vendor/almond", function(){});
      */
     function isUndefined(value) {
       return typeof value == 'undefined';
+    }
+
+    /**
+     * Creates an object with the same keys as `object` and values generated by
+     * running each own enumerable property of `object` through the callback.
+     * The callback is bound to `thisArg` and invoked with three arguments;
+     * (value, key, object).
+     *
+     * If a property name is provided for `callback` the created "_.pluck" style
+     * callback will return the property value of the given element.
+     *
+     * If an object is provided for `callback` the created "_.where" style callback
+     * will return `true` for elements that have the properties of the given object,
+     * else `false`.
+     *
+     * @static
+     * @memberOf _
+     * @category Objects
+     * @param {Object} object The object to iterate over.
+     * @param {Function|Object|string} [callback=identity] The function called
+     *  per iteration. If a property name or object is provided it will be used
+     *  to create a "_.pluck" or "_.where" style callback, respectively.
+     * @param {*} [thisArg] The `this` binding of `callback`.
+     * @returns {Array} Returns a new object with values of the results of each `callback` execution.
+     * @example
+     *
+     * _.mapValues({ 'a': 1, 'b': 2, 'c': 3} , function(num) { return num * 3; });
+     * // => { 'a': 3, 'b': 6, 'c': 9 }
+     *
+     * var characters = {
+     *   'fred': { 'name': 'fred', 'age': 40 },
+     *   'pebbles': { 'name': 'pebbles', 'age': 1 }
+     * };
+     *
+     * // using "_.pluck" callback shorthand
+     * _.mapValues(characters, 'age');
+     * // => { 'fred': 40, 'pebbles': 1 }
+     */
+    function mapValues(object, callback, thisArg) {
+      var result = {};
+      callback = lodash.createCallback(callback, thisArg, 3);
+
+      forOwn(object, function(value, key, object) {
+        result[key] = callback(value, key, object);
+      });
+      return result;
     }
 
     /**
@@ -3137,21 +2951,21 @@ define("vendor/almond", function(){});
      * @example
      *
      * var names = {
-     *   'stooges': [
-     *     { 'name': 'moe' },
-     *     { 'name': 'larry' }
+     *   'characters': [
+     *     { 'name': 'barney' },
+     *     { 'name': 'fred' }
      *   ]
      * };
      *
      * var ages = {
-     *   'stooges': [
-     *     { 'age': 40 },
-     *     { 'age': 50 }
+     *   'characters': [
+     *     { 'age': 36 },
+     *     { 'age': 40 }
      *   ]
      * };
      *
      * _.merge(names, ages);
-     * // => { 'stooges': [{ 'name': 'moe', 'age': 40 }, { 'name': 'larry', 'age': 50 }] }
+     * // => { 'characters': [{ 'name': 'barney', 'age': 36 }, { 'name': 'fred', 'age': 40 }] }
      *
      * var food = {
      *   'fruits': ['apple'],
@@ -3185,7 +2999,7 @@ define("vendor/almond", function(){});
       } else if (length > 2 && typeof args[length - 1] == 'function') {
         callback = args[--length];
       }
-      var sources = nativeSlice.call(arguments, 1, length),
+      var sources = slice(arguments, 1, length),
           index = -1,
           stackA = getArray(),
           stackB = getArray();
@@ -3216,32 +3030,38 @@ define("vendor/almond", function(){});
      * @returns {Object} Returns an object without the omitted properties.
      * @example
      *
-     * _.omit({ 'name': 'moe', 'age': 40 }, 'age');
-     * // => { 'name': 'moe' }
+     * _.omit({ 'name': 'fred', 'age': 40 }, 'age');
+     * // => { 'name': 'fred' }
      *
-     * _.omit({ 'name': 'moe', 'age': 40 }, function(value) {
+     * _.omit({ 'name': 'fred', 'age': 40 }, function(value) {
      *   return typeof value == 'number';
      * });
-     * // => { 'name': 'moe' }
+     * // => { 'name': 'fred' }
      */
     function omit(object, callback, thisArg) {
-      var indexOf = getIndexOf(),
-          isFunc = typeof callback == 'function',
-          result = {};
+      var result = {};
+      if (typeof callback != 'function') {
+        var props = [];
+        forIn(object, function(value, key) {
+          props.push(key);
+        });
+        props = baseDifference(props, baseFlatten(arguments, true, false, 1));
 
-      if (isFunc) {
-        callback = lodash.createCallback(callback, thisArg, 3);
-      } else {
-        var props = baseFlatten(arguments, true, false, 1);
-      }
-      forIn(object, function(value, key, object) {
-        if (isFunc
-              ? !callback(value, key, object)
-              : indexOf(props, key) < 0
-            ) {
-          result[key] = value;
+        var index = -1,
+            length = props.length;
+
+        while (++index < length) {
+          var key = props[index];
+          result[key] = object[key];
         }
-      });
+      } else {
+        callback = lodash.createCallback(callback, thisArg, 3);
+        forIn(object, function(value, key, object) {
+          if (!callback(value, key, object)) {
+            result[key] = value;
+          }
+        });
+      }
       return result;
     }
 
@@ -3256,8 +3076,8 @@ define("vendor/almond", function(){});
      * @returns {Array} Returns new array of key-value pairs.
      * @example
      *
-     * _.pairs({ 'moe': 30, 'larry': 40 });
-     * // => [['moe', 30], ['larry', 40]] (property order is not guaranteed across environments)
+     * _.pairs({ 'barney': 36, 'fred': 40 });
+     * // => [['barney', 36], ['fred', 40]] (property order is not guaranteed across environments)
      */
     function pairs(object) {
       var index = -1,
@@ -3291,13 +3111,13 @@ define("vendor/almond", function(){});
      * @returns {Object} Returns an object composed of the picked properties.
      * @example
      *
-     * _.pick({ 'name': 'moe', '_userid': 'moe1' }, 'name');
-     * // => { 'name': 'moe' }
+     * _.pick({ 'name': 'fred', '_userid': 'fred1' }, 'name');
+     * // => { 'name': 'fred' }
      *
-     * _.pick({ 'name': 'moe', '_userid': 'moe1' }, function(value, key) {
+     * _.pick({ 'name': 'fred', '_userid': 'fred1' }, function(value, key) {
      *   return key.charAt(0) != '_';
      * });
-     * // => { 'name': 'moe' }
+     * // => { 'name': 'fred' }
      */
     function pick(object, callback, thisArg) {
       var result = {};
@@ -3325,16 +3145,16 @@ define("vendor/almond", function(){});
 
     /**
      * An alternative to `_.reduce` this method transforms `object` to a new
-     * `accumulator` object which is the result of running each of its elements
-     * through a callback, with each callback execution potentially mutating
-     * the `accumulator` object. The callback is bound to `thisArg` and invoked
-     * with four arguments; (accumulator, value, key, object). Callbacks may exit
-     * iteration early by explicitly returning `false`.
+     * `accumulator` object which is the result of running each of its own
+     * enumerable properties through a callback, with each callback execution
+     * potentially mutating the `accumulator` object. The callback is bound to
+     * `thisArg` and invoked with four arguments; (accumulator, value, key, object).
+     * Callbacks may exit iteration early by explicitly returning `false`.
      *
      * @static
      * @memberOf _
      * @category Objects
-     * @param {Array|Object} collection The collection to iterate over.
+     * @param {Array|Object} object The object to iterate over.
      * @param {Function} [callback=identity] The function called per iteration.
      * @param {*} [accumulator] The custom accumulator value.
      * @param {*} [thisArg] The `this` binding of `callback`.
@@ -3356,8 +3176,6 @@ define("vendor/almond", function(){});
      */
     function transform(object, callback, accumulator, thisArg) {
       var isArr = isArray(object);
-      callback = baseCreateCallback(callback, thisArg, 4);
-
       if (accumulator == null) {
         if (isArr) {
           accumulator = [];
@@ -3365,12 +3183,15 @@ define("vendor/almond", function(){});
           var ctor = object && object.constructor,
               proto = ctor && ctor.prototype;
 
-          accumulator = createObject(proto);
+          accumulator = baseCreate(proto);
         }
       }
-      (isArr ? baseEach : forOwn)(object, function(value, index, object) {
-        return callback(accumulator, value, index, object);
-      });
+      if (callback) {
+        callback = lodash.createCallback(callback, thisArg, 4);
+        (isArr ? forEach : forOwn)(object, function(value, index, object) {
+          return callback(accumulator, value, index, object);
+        });
+      }
       return accumulator;
     }
 
@@ -3419,8 +3240,8 @@ define("vendor/almond", function(){});
      * _.at(['a', 'b', 'c', 'd', 'e'], [0, 2, 4]);
      * // => ['a', 'c', 'e']
      *
-     * _.at(['moe', 'larry', 'curly'], 0, 2);
-     * // => ['moe', 'curly']
+     * _.at(['fred', 'barney', 'pebbles'], 0, 2);
+     * // => ['fred', 'pebbles']
      */
     function at(collection) {
       var args = arguments,
@@ -3429,9 +3250,6 @@ define("vendor/almond", function(){});
           length = (args[2] && args[2][args[1]] === collection) ? 1 : props.length,
           result = Array(length);
 
-      if (support.unindexedChars && isString(collection)) {
-        collection = collection.split('');
-      }
       while(++index < length) {
         result[index] = collection[props[index]];
       }
@@ -3459,10 +3277,10 @@ define("vendor/almond", function(){});
      * _.contains([1, 2, 3], 1, 2);
      * // => false
      *
-     * _.contains({ 'name': 'moe', 'age': 40 }, 'moe');
+     * _.contains({ 'name': 'fred', 'age': 40 }, 'fred');
      * // => true
      *
-     * _.contains('curly', 'ur');
+     * _.contains('pebbles', 'eb');
      * // => true
      */
     function contains(collection, target, fromIndex) {
@@ -3477,7 +3295,7 @@ define("vendor/almond", function(){});
       } else if (typeof length == 'number') {
         result = (isString(collection) ? collection.indexOf(target, fromIndex) : indexOf(collection, target, fromIndex)) > -1;
       } else {
-        baseEach(collection, function(value) {
+        forOwn(collection, function(value) {
           if (++index >= fromIndex) {
             return !(result = value === target);
           }
@@ -3549,37 +3367,37 @@ define("vendor/almond", function(){});
      *  else `false`.
      * @example
      *
-     * _.every([true, 1, null, 'yes'], Boolean);
+     * _.every([true, 1, null, 'yes']);
      * // => false
      *
-     * var stooges = [
-     *   { 'name': 'moe', 'age': 40 },
-     *   { 'name': 'larry', 'age': 50 }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36 },
+     *   { 'name': 'fred',   'age': 40 }
      * ];
      *
      * // using "_.pluck" callback shorthand
-     * _.every(stooges, 'age');
+     * _.every(characters, 'age');
      * // => true
      *
      * // using "_.where" callback shorthand
-     * _.every(stooges, { 'age': 50 });
+     * _.every(characters, { 'age': 36 });
      * // => false
      */
     function every(collection, callback, thisArg) {
       var result = true;
       callback = lodash.createCallback(callback, thisArg, 3);
 
-      if (isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection ? collection.length : 0;
 
+      if (typeof length == 'number') {
         while (++index < length) {
           if (!(result = !!callback(collection[index], index, collection))) {
             break;
           }
         }
       } else {
-        baseEach(collection, function(value, index, collection) {
+        forOwn(collection, function(value, index, collection) {
           return (result = !!callback(value, index, collection));
         });
       }
@@ -3613,27 +3431,27 @@ define("vendor/almond", function(){});
      * var evens = _.filter([1, 2, 3, 4, 5, 6], function(num) { return num % 2 == 0; });
      * // => [2, 4, 6]
      *
-     * var food = [
-     *   { 'name': 'apple',  'organic': false, 'type': 'fruit' },
-     *   { 'name': 'carrot', 'organic': true,  'type': 'vegetable' }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36, 'blocked': false },
+     *   { 'name': 'fred',   'age': 40, 'blocked': true }
      * ];
      *
      * // using "_.pluck" callback shorthand
-     * _.filter(food, 'organic');
-     * // => [{ 'name': 'carrot', 'organic': true, 'type': 'vegetable' }]
+     * _.filter(characters, 'blocked');
+     * // => [{ 'name': 'fred', 'age': 40, 'blocked': true }]
      *
      * // using "_.where" callback shorthand
-     * _.filter(food, { 'type': 'fruit' });
-     * // => [{ 'name': 'apple', 'organic': false, 'type': 'fruit' }]
+     * _.filter(characters, { 'age': 36 });
+     * // => [{ 'name': 'barney', 'age': 36, 'blocked': false }]
      */
     function filter(collection, callback, thisArg) {
       var result = [];
       callback = lodash.createCallback(callback, thisArg, 3);
 
-      if (isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection ? collection.length : 0;
 
+      if (typeof length == 'number') {
         while (++index < length) {
           var value = collection[index];
           if (callback(value, index, collection)) {
@@ -3641,7 +3459,7 @@ define("vendor/almond", function(){});
           }
         }
       } else {
-        baseEach(collection, function(value, index, collection) {
+        forOwn(collection, function(value, index, collection) {
           if (callback(value, index, collection)) {
             result.push(value);
           }
@@ -3674,32 +3492,32 @@ define("vendor/almond", function(){});
      * @returns {*} Returns the found element, else `undefined`.
      * @example
      *
-     * _.find([1, 2, 3, 4], function(num) {
-     *   return num % 2 == 0;
-     * });
-     * // => 2
-     *
-     * var food = [
-     *   { 'name': 'apple',  'organic': false, 'type': 'fruit' },
-     *   { 'name': 'banana', 'organic': true,  'type': 'fruit' },
-     *   { 'name': 'beet',   'organic': false, 'type': 'vegetable' }
+     * var characters = [
+     *   { 'name': 'barney',  'age': 36, 'blocked': false },
+     *   { 'name': 'fred',    'age': 40, 'blocked': true },
+     *   { 'name': 'pebbles', 'age': 1,  'blocked': false }
      * ];
      *
+     * _.find(characters, function(chr) {
+     *   return chr.age < 40;
+     * });
+     * // => { 'name': 'barney', 'age': 36, 'blocked': false }
+     *
      * // using "_.where" callback shorthand
-     * _.find(food, { 'type': 'vegetable' });
-     * // => { 'name': 'beet', 'organic': false, 'type': 'vegetable' }
+     * _.find(characters, { 'age': 1 });
+     * // =>  { 'name': 'pebbles', 'age': 1, 'blocked': false }
      *
      * // using "_.pluck" callback shorthand
-     * _.find(food, 'organic');
-     * // => { 'name': 'banana', 'organic': true, 'type': 'fruit' }
+     * _.find(characters, 'blocked');
+     * // => { 'name': 'fred', 'age': 40, 'blocked': true }
      */
     function find(collection, callback, thisArg) {
       callback = lodash.createCallback(callback, thisArg, 3);
 
-      if (isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection ? collection.length : 0;
 
+      if (typeof length == 'number') {
         while (++index < length) {
           var value = collection[index];
           if (callback(value, index, collection)) {
@@ -3708,7 +3526,7 @@ define("vendor/almond", function(){});
         }
       } else {
         var result;
-        baseEach(collection, function(value, index, collection) {
+        forOwn(collection, function(value, index, collection) {
           if (callback(value, index, collection)) {
             result = value;
             return false;
@@ -3756,6 +3574,10 @@ define("vendor/almond", function(){});
      * (value, index|key, collection). Callbacks may exit iteration early by
      * explicitly returning `false`.
      *
+     * Note: As with other "Collections" methods, objects with a `length` property
+     * are iterated like arrays. To avoid this behavior `_.forIn` or `_.forOwn`
+     * may be used for object iteration.
+     *
      * @static
      * @memberOf _
      * @alias each
@@ -3773,17 +3595,18 @@ define("vendor/almond", function(){});
      * // => logs each number and returns the object (property order is not guaranteed across environments)
      */
     function forEach(collection, callback, thisArg) {
-      if (callback && typeof thisArg == 'undefined' && isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection ? collection.length : 0;
 
+      callback = callback && typeof thisArg == 'undefined' ? callback : baseCreateCallback(callback, thisArg, 3);
+      if (typeof length == 'number') {
         while (++index < length) {
           if (callback(collection[index], index, collection) === false) {
             break;
           }
         }
       } else {
-        baseEach(collection, callback, thisArg);
+        forOwn(collection, callback);
       }
       return collection;
     }
@@ -3806,26 +3629,20 @@ define("vendor/almond", function(){});
      * // => logs each number from right to left and returns '3,2,1'
      */
     function forEachRight(collection, callback, thisArg) {
-      var iterable = collection,
-          length = collection ? collection.length : 0;
-
+      var length = collection ? collection.length : 0;
       callback = callback && typeof thisArg == 'undefined' ? callback : baseCreateCallback(callback, thisArg, 3);
-      if (isArray(collection)) {
+      if (typeof length == 'number') {
         while (length--) {
           if (callback(collection[length], length, collection) === false) {
             break;
           }
         }
       } else {
-        if (typeof length != 'number') {
-          var props = keys(collection);
-          length = props.length;
-        } else if (support.unindexedChars && isString(collection)) {
-          iterable = collection.split('');
-        }
-        baseEach(collection, function(value, key, collection) {
+        var props = keys(collection);
+        length = props.length;
+        forOwn(collection, function(value, key, collection) {
           key = props ? props[--length] : --length;
-          return callback(iterable[key], key, collection);
+          return callback(collection[key], key, collection);
         });
       }
       return collection;
@@ -3906,7 +3723,7 @@ define("vendor/almond", function(){});
      * _.indexBy(keys, function(key) { return String.fromCharCode(key.code); });
      * // => { 'a': { 'dir': 'left', 'code': 97 }, 'd': { 'dir': 'right', 'code': 100 } }
      *
-     * _.indexBy(stooges, function(key) { this.fromCharCode(key.code); }, String);
+     * _.indexBy(characters, function(key) { this.fromCharCode(key.code); }, String);
      * // => { 'a': { 'dir': 'left', 'code': 97 }, 'd': { 'dir': 'right', 'code': 100 } }
      */
     var indexBy = createAggregator(function(result, value, key) {
@@ -3936,7 +3753,7 @@ define("vendor/almond", function(){});
      * // => [['1', '2', '3'], ['4', '5', '6']]
      */
     function invoke(collection, methodName) {
-      var args = nativeSlice.call(arguments, 2),
+      var args = slice(arguments, 2),
           index = -1,
           isFunc = typeof methodName == 'function',
           length = collection ? collection.length : 0,
@@ -3978,27 +3795,28 @@ define("vendor/almond", function(){});
      * _.map({ 'one': 1, 'two': 2, 'three': 3 }, function(num) { return num * 3; });
      * // => [3, 6, 9] (property order is not guaranteed across environments)
      *
-     * var stooges = [
-     *   { 'name': 'moe', 'age': 40 },
-     *   { 'name': 'larry', 'age': 50 }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36 },
+     *   { 'name': 'fred',   'age': 40 }
      * ];
      *
      * // using "_.pluck" callback shorthand
-     * _.map(stooges, 'name');
-     * // => ['moe', 'larry']
+     * _.map(characters, 'name');
+     * // => ['barney', 'fred']
      */
     function map(collection, callback, thisArg) {
       var index = -1,
-          length = collection ? collection.length : 0,
-          result = Array(typeof length == 'number' ? length : 0);
+          length = collection ? collection.length : 0;
 
       callback = lodash.createCallback(callback, thisArg, 3);
-      if (isArray(collection)) {
+      if (typeof length == 'number') {
+        var result = Array(length);
         while (++index < length) {
           result[index] = callback(collection[index], index, collection);
         }
       } else {
-        baseEach(collection, function(value, key, collection) {
+        result = [];
+        forOwn(collection, function(value, key, collection) {
           result[++index] = callback(value, key, collection);
         });
       }
@@ -4033,23 +3851,28 @@ define("vendor/almond", function(){});
      * _.max([4, 2, 8, 6]);
      * // => 8
      *
-     * var stooges = [
-     *   { 'name': 'moe', 'age': 40 },
-     *   { 'name': 'larry', 'age': 50 }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36 },
+     *   { 'name': 'fred',   'age': 40 }
      * ];
      *
-     * _.max(stooges, function(stooge) { return stooge.age; });
-     * // => { 'name': 'larry', 'age': 50 };
+     * _.max(characters, function(chr) { return chr.age; });
+     * // => { 'name': 'fred', 'age': 40 };
      *
      * // using "_.pluck" callback shorthand
-     * _.max(stooges, 'age');
-     * // => { 'name': 'larry', 'age': 50 };
+     * _.max(characters, 'age');
+     * // => { 'name': 'fred', 'age': 40 };
      */
     function max(collection, callback, thisArg) {
       var computed = -Infinity,
           result = computed;
 
-      if (!callback && isArray(collection)) {
+      // allows working with functions like `_.map` without using
+      // their `index` argument as a callback
+      if (typeof callback != 'function' && thisArg && thisArg[callback] === collection) {
+        callback = null;
+      }
+      if (callback == null && isArray(collection)) {
         var index = -1,
             length = collection.length;
 
@@ -4060,11 +3883,11 @@ define("vendor/almond", function(){});
           }
         }
       } else {
-        callback = (!callback && isString(collection))
+        callback = (callback == null && isString(collection))
           ? charAtCallback
           : lodash.createCallback(callback, thisArg, 3);
 
-        baseEach(collection, function(value, index, collection) {
+        forEach(collection, function(value, index, collection) {
           var current = callback(value, index, collection);
           if (current > computed) {
             computed = current;
@@ -4103,23 +3926,28 @@ define("vendor/almond", function(){});
      * _.min([4, 2, 8, 6]);
      * // => 2
      *
-     * var stooges = [
-     *   { 'name': 'moe', 'age': 40 },
-     *   { 'name': 'larry', 'age': 50 }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36 },
+     *   { 'name': 'fred',   'age': 40 }
      * ];
      *
-     * _.min(stooges, function(stooge) { return stooge.age; });
-     * // => { 'name': 'moe', 'age': 40 };
+     * _.min(characters, function(chr) { return chr.age; });
+     * // => { 'name': 'barney', 'age': 36 };
      *
      * // using "_.pluck" callback shorthand
-     * _.min(stooges, 'age');
-     * // => { 'name': 'moe', 'age': 40 };
+     * _.min(characters, 'age');
+     * // => { 'name': 'barney', 'age': 36 };
      */
     function min(collection, callback, thisArg) {
       var computed = Infinity,
           result = computed;
 
-      if (!callback && isArray(collection)) {
+      // allows working with functions like `_.map` without using
+      // their `index` argument as a callback
+      if (typeof callback != 'function' && thisArg && thisArg[callback] === collection) {
+        callback = null;
+      }
+      if (callback == null && isArray(collection)) {
         var index = -1,
             length = collection.length;
 
@@ -4130,11 +3958,11 @@ define("vendor/almond", function(){});
           }
         }
       } else {
-        callback = (!callback && isString(collection))
+        callback = (callback == null && isString(collection))
           ? charAtCallback
           : lodash.createCallback(callback, thisArg, 3);
 
-        baseEach(collection, function(value, index, collection) {
+        forEach(collection, function(value, index, collection) {
           var current = callback(value, index, collection);
           if (current < computed) {
             computed = current;
@@ -4146,24 +3974,24 @@ define("vendor/almond", function(){});
     }
 
     /**
-     * Retrieves the value of a specified property from all elements in the `collection`.
+     * Retrieves the value of a specified property from all elements in the collection.
      *
      * @static
      * @memberOf _
      * @type Function
      * @category Collections
      * @param {Array|Object|string} collection The collection to iterate over.
-     * @param {string} property The property to pluck.
+     * @param {string} property The name of the property to pluck.
      * @returns {Array} Returns a new array of property values.
      * @example
      *
-     * var stooges = [
-     *   { 'name': 'moe', 'age': 40 },
-     *   { 'name': 'larry', 'age': 50 }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36 },
+     *   { 'name': 'fred',   'age': 40 }
      * ];
      *
-     * _.pluck(stooges, 'name');
-     * // => ['moe', 'larry']
+     * _.pluck(characters, 'name');
+     * // => ['barney', 'fred']
      */
     var pluck = map;
 
@@ -4198,13 +4026,14 @@ define("vendor/almond", function(){});
      * // => { 'a': 3, 'b': 6, 'c': 9 }
      */
     function reduce(collection, callback, accumulator, thisArg) {
+      if (!collection) return accumulator;
       var noaccum = arguments.length < 3;
-      callback = baseCreateCallback(callback, thisArg, 4);
+      callback = lodash.createCallback(callback, thisArg, 4);
 
-      if (isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection.length;
 
+      if (typeof length == 'number') {
         if (noaccum) {
           accumulator = collection[++index];
         }
@@ -4212,7 +4041,7 @@ define("vendor/almond", function(){});
           accumulator = callback(accumulator, collection[index], index, collection);
         }
       } else {
-        baseEach(collection, function(value, index, collection) {
+        forOwn(collection, function(value, index, collection) {
           accumulator = noaccum
             ? (noaccum = false, value)
             : callback(accumulator, value, index, collection)
@@ -4242,7 +4071,7 @@ define("vendor/almond", function(){});
      */
     function reduceRight(collection, callback, accumulator, thisArg) {
       var noaccum = arguments.length < 3;
-      callback = baseCreateCallback(callback, thisArg, 4);
+      callback = lodash.createCallback(callback, thisArg, 4);
       forEachRight(collection, function(value, index, collection) {
         accumulator = noaccum
           ? (noaccum = false, value)
@@ -4276,18 +4105,18 @@ define("vendor/almond", function(){});
      * var odds = _.reject([1, 2, 3, 4, 5, 6], function(num) { return num % 2 == 0; });
      * // => [1, 3, 5]
      *
-     * var food = [
-     *   { 'name': 'apple',  'organic': false, 'type': 'fruit' },
-     *   { 'name': 'carrot', 'organic': true,  'type': 'vegetable' }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36, 'blocked': false },
+     *   { 'name': 'fred',   'age': 40, 'blocked': true }
      * ];
      *
      * // using "_.pluck" callback shorthand
-     * _.reject(food, 'organic');
-     * // => [{ 'name': 'apple', 'organic': false, 'type': 'fruit' }]
+     * _.reject(characters, 'blocked');
+     * // => [{ 'name': 'barney', 'age': 36, 'blocked': false }]
      *
      * // using "_.where" callback shorthand
-     * _.reject(food, { 'type': 'fruit' });
-     * // => [{ 'name': 'carrot', 'organic': true, 'type': 'vegetable' }]
+     * _.reject(characters, { 'age': 36 });
+     * // => [{ 'name': 'fred', 'age': 40, 'blocked': true }]
      */
     function reject(collection, callback, thisArg) {
       callback = lodash.createCallback(callback, thisArg, 3);
@@ -4304,8 +4133,8 @@ define("vendor/almond", function(){});
      * @category Collections
      * @param {Array|Object|string} collection The collection to sample.
      * @param {number} [n] The number of elements to sample.
-     * @param- {Object} [guard] Allows working with functions, like `_.map`,
-     *  without using their `key` and `object` arguments as sources.
+     * @param- {Object} [guard] Allows working with functions like `_.map`
+     *  without using their `index` arguments as `n`.
      * @returns {Array} Returns the random sample(s) of `collection`.
      * @example
      *
@@ -4316,14 +4145,11 @@ define("vendor/almond", function(){});
      * // => [3, 1]
      */
     function sample(collection, n, guard) {
-      var length = collection ? collection.length : 0;
-      if (typeof length != 'number') {
+      if (collection && typeof collection.length != 'number') {
         collection = values(collection);
-      } else if (support.unindexedChars && isString(collection)) {
-        collection = collection.split('');
       }
       if (n == null || guard) {
-        return collection ? collection[random(length - 1)] : undefined;
+        return collection ? collection[baseRandom(0, collection.length - 1)] : undefined;
       }
       var result = shuffle(collection);
       result.length = nativeMin(nativeMax(0, n), result.length);
@@ -4350,7 +4176,7 @@ define("vendor/almond", function(){});
           result = Array(typeof length == 'number' ? length : 0);
 
       forEach(collection, function(value) {
-        var rand = random(++index);
+        var rand = baseRandom(0, ++index);
         result[index] = result[rand];
         result[rand] = value;
       });
@@ -4374,8 +4200,8 @@ define("vendor/almond", function(){});
      * _.size({ 'one': 1, 'two': 2, 'three': 3 });
      * // => 3
      *
-     * _.size('curly');
-     * // => 5
+     * _.size('pebbles');
+     * // => 7
      */
     function size(collection) {
       var length = collection ? collection.length : 0;
@@ -4411,34 +4237,34 @@ define("vendor/almond", function(){});
      * _.some([null, 0, 'yes', false], Boolean);
      * // => true
      *
-     * var food = [
-     *   { 'name': 'apple',  'organic': false, 'type': 'fruit' },
-     *   { 'name': 'carrot', 'organic': true,  'type': 'vegetable' }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36, 'blocked': false },
+     *   { 'name': 'fred',   'age': 40, 'blocked': true }
      * ];
      *
      * // using "_.pluck" callback shorthand
-     * _.some(food, 'organic');
+     * _.some(characters, 'blocked');
      * // => true
      *
      * // using "_.where" callback shorthand
-     * _.some(food, { 'type': 'meat' });
+     * _.some(characters, { 'age': 1 });
      * // => false
      */
     function some(collection, callback, thisArg) {
       var result;
       callback = lodash.createCallback(callback, thisArg, 3);
 
-      if (isArray(collection)) {
-        var index = -1,
-            length = collection.length;
+      var index = -1,
+          length = collection ? collection.length : 0;
 
+      if (typeof length == 'number') {
         while (++index < length) {
           if ((result = callback(collection[index], index, collection))) {
             break;
           }
         }
       } else {
-        baseEach(collection, function(value, index, collection) {
+        forOwn(collection, function(value, index, collection) {
           return !(result = callback(value, index, collection));
         });
       }
@@ -4455,6 +4281,9 @@ define("vendor/almond", function(){});
      * If a property name is provided for `callback` the created "_.pluck" style
      * callback will return the property value of the given element.
      *
+     * If an array of property names is provided for `callback` the collection
+     * will be sorted by each property value.
+     *
      * If an object is provided for `callback` the created "_.where" style callback
      * will return `true` for elements that have the properties of the given object,
      * else `false`.
@@ -4463,7 +4292,7 @@ define("vendor/almond", function(){});
      * @memberOf _
      * @category Collections
      * @param {Array|Object|string} collection The collection to iterate over.
-     * @param {Function|Object|string} [callback=identity] The function called
+     * @param {Array|Function|Object|string} [callback=identity] The function called
      *  per iteration. If a property name or object is provided it will be used
      *  to create a "_.pluck" or "_.where" style callback, respectively.
      * @param {*} [thisArg] The `this` binding of `callback`.
@@ -4476,19 +4305,37 @@ define("vendor/almond", function(){});
      * _.sortBy([1, 2, 3], function(num) { return this.sin(num); }, Math);
      * // => [3, 1, 2]
      *
+     * var characters = [
+     *   { 'name': 'barney',  'age': 36 },
+     *   { 'name': 'fred',    'age': 40 },
+     *   { 'name': 'barney',  'age': 26 },
+     *   { 'name': 'fred',    'age': 30 }
+     * ];
+     *
      * // using "_.pluck" callback shorthand
-     * _.sortBy(['banana', 'strawberry', 'apple'], 'length');
-     * // => ['apple', 'banana', 'strawberry']
+     * _.map(_.sortBy(characters, 'age'), _.values);
+     * // => [['barney', 26], ['fred', 30], ['barney', 36], ['fred', 40]]
+     *
+     * // sorting by multiple properties
+     * _.map(_.sortBy(characters, ['name', 'age']), _.values);
+     * // = > [['barney', 26], ['barney', 36], ['fred', 30], ['fred', 40]]
      */
     function sortBy(collection, callback, thisArg) {
       var index = -1,
+          isArr = isArray(callback),
           length = collection ? collection.length : 0,
           result = Array(typeof length == 'number' ? length : 0);
 
-      callback = lodash.createCallback(callback, thisArg, 3);
+      if (!isArr) {
+        callback = lodash.createCallback(callback, thisArg, 3);
+      }
       forEach(collection, function(value, key, collection) {
         var object = result[++index] = getObject();
-        object.criteria = callback(value, key, collection);
+        if (isArr) {
+          object.criteria = map(callback, function(key) { return value[key]; });
+        } else {
+          (object.criteria = getArray())[0] = callback(value, key, collection);
+        }
         object.index = index;
         object.value = value;
       });
@@ -4498,6 +4345,9 @@ define("vendor/almond", function(){});
       while (length--) {
         var object = result[length];
         result[length] = object.value;
+        if (!isArr) {
+          releaseArray(object.criteria);
+        }
         releaseObject(object);
       }
       return result;
@@ -4518,9 +4368,7 @@ define("vendor/almond", function(){});
      */
     function toArray(collection) {
       if (collection && typeof collection.length == 'number') {
-        return (support.unindexedChars && isString(collection))
-          ? collection.split('')
-          : slice(collection);
+        return slice(collection);
       }
       return values(collection);
     }
@@ -4535,20 +4383,20 @@ define("vendor/almond", function(){});
      * @type Function
      * @category Collections
      * @param {Array|Object|string} collection The collection to iterate over.
-     * @param {Object} properties The object of property values to filter by.
+     * @param {Object} props The object of property values to filter by.
      * @returns {Array} Returns a new array of elements that have the given properties.
      * @example
      *
-     * var stooges = [
-     *   { 'name': 'curly', 'age': 30, 'quotes': ['Oh, a wise guy, eh?', 'Poifect!'] },
-     *   { 'name': 'moe', 'age': 40, 'quotes': ['Spread out!', 'You knucklehead!'] }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36, 'pets': ['hoppy'] },
+     *   { 'name': 'fred',   'age': 40, 'pets': ['baby puss', 'dino'] }
      * ];
      *
-     * _.where(stooges, { 'age': 40 });
-     * // => [{ 'name': 'moe', 'age': 40, 'quotes': ['Spread out!', 'You knucklehead!'] }]
+     * _.where(characters, { 'age': 36 });
+     * // => [{ 'name': 'barney', 'age': 36, 'pets': ['hoppy'] }]
      *
-     * _.where(stooges, { 'quotes': ['Poifect!'] });
-     * // => [{ 'name': 'curly', 'age': 30, 'quotes': ['Oh, a wise guy, eh?', 'Poifect!'] }]
+     * _.where(characters, { 'pets': ['dino'] });
+     * // => [{ 'name': 'fred', 'age': 40, 'pets': ['baby puss', 'dino'] }]
      */
     var where = filter;
 
@@ -4590,7 +4438,7 @@ define("vendor/almond", function(){});
      * @memberOf _
      * @category Arrays
      * @param {Array} array The array to process.
-     * @param {...Array} [array] The arrays of values to exclude.
+     * @param {...Array} [values] The arrays of values to exclude.
      * @returns {Array} Returns a new array of filtered values.
      * @example
      *
@@ -4598,38 +4446,19 @@ define("vendor/almond", function(){});
      * // => [1, 3, 4]
      */
     function difference(array) {
-      var index = -1,
-          indexOf = getIndexOf(),
-          length = array ? array.length : 0,
-          seen = baseFlatten(arguments, true, true, 1),
-          result = [];
-
-      var isLarge = length >= largeArraySize && indexOf === baseIndexOf;
-
-      if (isLarge) {
-        var cache = createCache(seen);
-        if (cache) {
-          indexOf = cacheIndexOf;
-          seen = cache;
-        } else {
-          isLarge = false;
-        }
-      }
-      while (++index < length) {
-        var value = array[index];
-        if (indexOf(seen, value) < 0) {
-          result.push(value);
-        }
-      }
-      if (isLarge) {
-        releaseObject(seen);
-      }
-      return result;
+      return baseDifference(array, baseFlatten(arguments, true, true, 1));
     }
 
     /**
      * This method is like `_.find` except that it returns the index of the first
      * element that passes the callback check, instead of the element itself.
+     *
+     * If a property name is provided for `callback` the created "_.pluck" style
+     * callback will return the property value of the given element.
+     *
+     * If an object is provided for `callback` the created "_.where" style callback
+     * will return `true` for elements that have the properties of the given object,
+     * else `false`.
      *
      * @static
      * @memberOf _
@@ -4642,9 +4471,23 @@ define("vendor/almond", function(){});
      * @returns {number} Returns the index of the found element, else `-1`.
      * @example
      *
-     * _.findIndex(['apple', 'banana', 'beet'], function(food) {
-     *   return /^b/.test(food);
+     * var characters = [
+     *   { 'name': 'barney',  'age': 36, 'blocked': false },
+     *   { 'name': 'fred',    'age': 40, 'blocked': true },
+     *   { 'name': 'pebbles', 'age': 1,  'blocked': false }
+     * ];
+     *
+     * _.findIndex(characters, function(chr) {
+     *   return chr.age < 20;
      * });
+     * // => 2
+     *
+     * // using "_.where" callback shorthand
+     * _.findIndex(characters, { 'age': 36 });
+     * // => 0
+     *
+     * // using "_.pluck" callback shorthand
+     * _.findIndex(characters, 'blocked');
      * // => 1
      */
     function findIndex(array, callback, thisArg) {
@@ -4664,6 +4507,13 @@ define("vendor/almond", function(){});
      * This method is like `_.findIndex` except that it iterates over elements
      * of a `collection` from right to left.
      *
+     * If a property name is provided for `callback` the created "_.pluck" style
+     * callback will return the property value of the given element.
+     *
+     * If an object is provided for `callback` the created "_.where" style callback
+     * will return `true` for elements that have the properties of the given object,
+     * else `false`.
+     *
      * @static
      * @memberOf _
      * @category Arrays
@@ -4675,9 +4525,23 @@ define("vendor/almond", function(){});
      * @returns {number} Returns the index of the found element, else `-1`.
      * @example
      *
-     * _.findLastIndex(['apple', 'banana', 'beet'], function(food) {
-     *   return /^b/.test(food);
+     * var characters = [
+     *   { 'name': 'barney',  'age': 36, 'blocked': true },
+     *   { 'name': 'fred',    'age': 40, 'blocked': false },
+     *   { 'name': 'pebbles', 'age': 1,  'blocked': true }
+     * ];
+     *
+     * _.findLastIndex(characters, function(chr) {
+     *   return chr.age > 30;
      * });
+     * // => 1
+     *
+     * // using "_.where" callback shorthand
+     * _.findLastIndex(characters, { 'age': 36 });
+     * // => 0
+     *
+     * // using "_.pluck" callback shorthand
+     * _.findLastIndex(characters, 'blocked');
      * // => 2
      */
     function findLastIndex(array, callback, thisArg) {
@@ -4728,24 +4592,19 @@ define("vendor/almond", function(){});
      * });
      * // => [1, 2]
      *
-     * var food = [
-     *   { 'name': 'banana', 'organic': true },
-     *   { 'name': 'beet',   'organic': false },
+     * var characters = [
+     *   { 'name': 'barney',  'blocked': true,  'employer': 'slate' },
+     *   { 'name': 'fred',    'blocked': false, 'employer': 'slate' },
+     *   { 'name': 'pebbles', 'blocked': true,  'employer': 'na' }
      * ];
      *
      * // using "_.pluck" callback shorthand
-     * _.first(food, 'organic');
-     * // => [{ 'name': 'banana', 'organic': true }]
-     *
-     * var food = [
-     *   { 'name': 'apple',  'type': 'fruit' },
-     *   { 'name': 'banana', 'type': 'fruit' },
-     *   { 'name': 'beet',   'type': 'vegetable' }
-     * ];
+     * _.first(characters, 'blocked');
+     * // => [{ 'name': 'barney', 'blocked': true, 'employer': 'slate' }]
      *
      * // using "_.where" callback shorthand
-     * _.first(food, { 'type': 'fruit' });
-     * // => [{ 'name': 'apple', 'type': 'fruit' }, { 'name': 'banana', 'type': 'fruit' }]
+     * _.pluck(_.first(characters, { 'employer': 'slate' }), 'name');
+     * // => ['barney', 'fred']
      */
     function first(array, callback, thisArg) {
       var n = 0,
@@ -4798,20 +4657,20 @@ define("vendor/almond", function(){});
      * _.flatten([1, [2], [3, [[4]]]], true);
      * // => [1, 2, 3, [[4]]];
      *
-     * var stooges = [
-     *   { 'name': 'curly', 'quotes': ['Oh, a wise guy, eh?', 'Poifect!'] },
-     *   { 'name': 'moe', 'quotes': ['Spread out!', 'You knucklehead!'] }
+     * var characters = [
+     *   { 'name': 'barney', 'age': 30, 'pets': ['hoppy'] },
+     *   { 'name': 'fred',   'age': 40, 'pets': ['baby puss', 'dino'] }
      * ];
      *
      * // using "_.pluck" callback shorthand
-     * _.flatten(stooges, 'quotes');
-     * // => ['Oh, a wise guy, eh?', 'Poifect!', 'Spread out!', 'You knucklehead!']
+     * _.flatten(characters, 'pets');
+     * // => ['hoppy', 'baby puss', 'dino']
      */
     function flatten(array, isShallow, callback, thisArg) {
       // juggle arguments
       if (typeof isShallow != 'boolean' && isShallow != null) {
         thisArg = callback;
-        callback = !(thisArg && thisArg[isShallow] === array) ? isShallow : null;
+        callback = (typeof isShallow != 'function' && thisArg && thisArg[isShallow] === array) ? null : isShallow;
         isShallow = false;
       }
       if (callback != null) {
@@ -4891,24 +4750,19 @@ define("vendor/almond", function(){});
      * });
      * // => [1]
      *
-     * var food = [
-     *   { 'name': 'beet',   'organic': false },
-     *   { 'name': 'carrot', 'organic': true }
+     * var characters = [
+     *   { 'name': 'barney',  'blocked': false, 'employer': 'slate' },
+     *   { 'name': 'fred',    'blocked': true,  'employer': 'slate' },
+     *   { 'name': 'pebbles', 'blocked': true,  'employer': 'na' }
      * ];
      *
      * // using "_.pluck" callback shorthand
-     * _.initial(food, 'organic');
-     * // => [{ 'name': 'beet',   'organic': false }]
-     *
-     * var food = [
-     *   { 'name': 'banana', 'type': 'fruit' },
-     *   { 'name': 'beet',   'type': 'vegetable' },
-     *   { 'name': 'carrot', 'type': 'vegetable' }
-     * ];
+     * _.initial(characters, 'blocked');
+     * // => [{ 'name': 'barney',  'blocked': false, 'employer': 'slate' }]
      *
      * // using "_.where" callback shorthand
-     * _.initial(food, { 'type': 'vegetable' });
-     * // => [{ 'name': 'banana', 'type': 'fruit' }]
+     * _.pluck(_.initial(characters, { 'employer': 'na' }), 'name');
+     * // => ['barney', 'fred']
      */
     function initial(array, callback, thisArg) {
       var n = 0,
@@ -4934,29 +4788,34 @@ define("vendor/almond", function(){});
      * @memberOf _
      * @category Arrays
      * @param {...Array} [array] The arrays to inspect.
-     * @returns {Array} Returns an array of composite values.
+     * @returns {Array} Returns an array of shared values.
      * @example
      *
-     * _.intersection([1, 2, 3], [101, 2, 1, 10], [2, 1]);
+     * _.intersection([1, 2, 3], [5, 2, 1, 4], [2, 1]);
      * // => [1, 2]
      */
-    function intersection(array) {
-      var args = arguments,
-          argsLength = args.length,
+    function intersection() {
+      var args = [],
           argsIndex = -1,
+          argsLength = arguments.length,
           caches = getArray(),
-          index = -1,
           indexOf = getIndexOf(),
-          length = array ? array.length : 0,
-          result = [],
+          trustIndexOf = indexOf === baseIndexOf,
           seen = getArray();
 
       while (++argsIndex < argsLength) {
-        var value = args[argsIndex];
-        caches[argsIndex] = indexOf === baseIndexOf &&
-          (value ? value.length : 0) >= largeArraySize &&
-          createCache(argsIndex ? args[argsIndex] : seen);
+        var value = arguments[argsIndex];
+        if (isArray(value) || isArguments(value)) {
+          args.push(value);
+          caches.push(trustIndexOf && value.length >= largeArraySize &&
+            createCache(argsIndex ? args[argsIndex] : seen));
+        }
       }
+      var array = args[0],
+          index = -1,
+          length = array ? array.length : 0,
+          result = [];
+
       outer:
       while (++index < length) {
         var cache = caches[0];
@@ -5021,24 +4880,19 @@ define("vendor/almond", function(){});
      * });
      * // => [2, 3]
      *
-     * var food = [
-     *   { 'name': 'beet',   'organic': false },
-     *   { 'name': 'carrot', 'organic': true }
+     * var characters = [
+     *   { 'name': 'barney',  'blocked': false, 'employer': 'slate' },
+     *   { 'name': 'fred',    'blocked': true,  'employer': 'slate' },
+     *   { 'name': 'pebbles', 'blocked': true,  'employer': 'na' }
      * ];
      *
      * // using "_.pluck" callback shorthand
-     * _.last(food, 'organic');
-     * // => [{ 'name': 'carrot', 'organic': true }]
-     *
-     * var food = [
-     *   { 'name': 'banana', 'type': 'fruit' },
-     *   { 'name': 'beet',   'type': 'vegetable' },
-     *   { 'name': 'carrot', 'type': 'vegetable' }
-     * ];
+     * _.pluck(_.last(characters, 'blocked'), 'name');
+     * // => ['fred', 'pebbles']
      *
      * // using "_.where" callback shorthand
-     * _.last(food, { 'type': 'vegetable' });
-     * // => [{ 'name': 'beet', 'type': 'vegetable' }, { 'name': 'carrot', 'type': 'vegetable' }]
+     * _.last(characters, { 'employer': 'na' });
+     * // => [{ 'name': 'pebbles', 'blocked': true, 'employer': 'na' }]
      */
     function last(array, callback, thisArg) {
       var n = 0,
@@ -5063,6 +4917,13 @@ define("vendor/almond", function(){});
      * Gets the index at which the last occurrence of `value` is found using strict
      * equality for comparisons, i.e. `===`. If `fromIndex` is negative, it is used
      * as the offset from the end of the collection.
+     *
+     * If a property name is provided for `callback` the created "_.pluck" style
+     * callback will return the property value of the given element.
+     *
+     * If an object is provided for `callback` the created "_.where" style callback
+     * will return `true` for elements that have the properties of the given object,
+     * else `false`.
      *
      * @static
      * @memberOf _
@@ -5142,17 +5003,17 @@ define("vendor/almond", function(){});
      * @returns {Array} Returns a new range array.
      * @example
      *
-     * _.range(10);
-     * // => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+     * _.range(4);
+     * // => [0, 1, 2, 3]
      *
-     * _.range(1, 11);
-     * // => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+     * _.range(1, 5);
+     * // => [1, 2, 3, 4]
      *
-     * _.range(0, 30, 5);
-     * // => [0, 5, 10, 15, 20, 25]
+     * _.range(0, 20, 5);
+     * // => [0, 5, 10, 15]
      *
-     * _.range(0, -10, -1);
-     * // => [0, -1, -2, -3, -4, -5, -6, -7, -8, -9]
+     * _.range(0, -4, -1);
+     * // => [0, -1, -2, -3]
      *
      * _.range(1, 4, 0);
      * // => [1, 1, 1]
@@ -5168,7 +5029,7 @@ define("vendor/almond", function(){});
         end = start;
         start = 0;
       }
-      // use `Array(length)` so engines, like Chakra and V8, avoid slower modes
+      // use `Array(length)` so engines like Chakra and V8 avoid slower modes
       // http://youtu.be/XAqIpGU8ZZk#t=17m25s
       var index = -1,
           length = nativeMax(0, ceil((end - start) / (step || 1))),
@@ -5268,24 +5129,19 @@ define("vendor/almond", function(){});
      * });
      * // => [3]
      *
-     * var food = [
-     *   { 'name': 'banana', 'organic': true },
-     *   { 'name': 'beet',   'organic': false },
+     * var characters = [
+     *   { 'name': 'barney',  'blocked': true,  'employer': 'slate' },
+     *   { 'name': 'fred',    'blocked': false,  'employer': 'slate' },
+     *   { 'name': 'pebbles', 'blocked': true, 'employer': 'na' }
      * ];
      *
      * // using "_.pluck" callback shorthand
-     * _.rest(food, 'organic');
-     * // => [{ 'name': 'beet', 'organic': false }]
-     *
-     * var food = [
-     *   { 'name': 'apple',  'type': 'fruit' },
-     *   { 'name': 'banana', 'type': 'fruit' },
-     *   { 'name': 'beet',   'type': 'vegetable' }
-     * ];
+     * _.pluck(_.rest(characters, 'blocked'), 'name');
+     * // => ['fred', 'pebbles']
      *
      * // using "_.where" callback shorthand
-     * _.rest(food, { 'type': 'fruit' });
-     * // => [{ 'name': 'beet', 'type': 'vegetable' }]
+     * _.rest(characters, { 'employer': 'slate' });
+     * // => [{ 'name': 'pebbles', 'blocked': true, 'employer': 'na' }]
      */
     function rest(array, callback, thisArg) {
       if (typeof callback != 'number' && callback != null) {
@@ -5376,13 +5232,13 @@ define("vendor/almond", function(){});
      * @memberOf _
      * @category Arrays
      * @param {...Array} [array] The arrays to inspect.
-     * @returns {Array} Returns an array of composite values.
+     * @returns {Array} Returns an array of combined values.
      * @example
      *
-     * _.union([1, 2, 3], [101, 2, 1, 10], [2, 1]);
-     * // => [1, 2, 3, 101, 10]
+     * _.union([1, 2, 3], [5, 2, 1, 4], [2, 1]);
+     * // => [1, 2, 3, 5, 4]
      */
-    function union(array) {
+    function union() {
       return baseUniq(baseFlatten(arguments, true, true));
     }
 
@@ -5434,7 +5290,7 @@ define("vendor/almond", function(){});
       // juggle arguments
       if (typeof isSorted != 'boolean' && isSorted != null) {
         thisArg = callback;
-        callback = !(thisArg && thisArg[isSorted] === array) ? isSorted : null;
+        callback = (typeof isSorted != 'function' && thisArg && thisArg[isSorted] === array) ? null : isSorted;
         isSorted = false;
       }
       if (callback != null) {
@@ -5459,7 +5315,39 @@ define("vendor/almond", function(){});
      * // => [2, 3, 4]
      */
     function without(array) {
-      return difference(array, nativeSlice.call(arguments, 1));
+      return baseDifference(array, slice(arguments, 1));
+    }
+
+    /**
+     * Creates an array that is the symmetric difference of the provided arrays.
+     * See http://en.wikipedia.org/wiki/Symmetric_difference.
+     *
+     * @static
+     * @memberOf _
+     * @category Arrays
+     * @param {...Array} [array] The arrays to inspect.
+     * @returns {Array} Returns an array of values.
+     * @example
+     *
+     * _.xor([1, 2, 3], [5, 2, 1, 4]);
+     * // => [3, 5, 4]
+     *
+     * _.xor([1, 2, 5], [2, 3, 5], [3, 4, 5]);
+     * // => [1, 4, 5]
+     */
+    function xor() {
+      var index = -1,
+          length = arguments.length;
+
+      while (++index < length) {
+        var array = arguments[index];
+        if (isArray(array) || isArguments(array)) {
+          var result = result
+            ? baseUniq(baseDifference(result, array).concat(baseDifference(array, result)))
+            : array;
+        }
+      }
+      return result || [];
     }
 
     /**
@@ -5475,8 +5363,8 @@ define("vendor/almond", function(){});
      * @returns {Array} Returns a new array of grouped elements.
      * @example
      *
-     * _.zip(['moe', 'larry'], [30, 40], [true, false]);
-     * // => [['moe', 30, true], ['larry', 40, false]]
+     * _.zip(['fred', 'barney'], [30, 40], [true, false]);
+     * // => [['fred', 30, true], ['barney', 40, false]]
      */
     function zip() {
       var array = arguments.length > 1 ? arguments : arguments[0],
@@ -5505,14 +5393,17 @@ define("vendor/almond", function(){});
      *  corresponding values.
      * @example
      *
-     * _.zipObject(['moe', 'larry'], [30, 40]);
-     * // => { 'moe': 30, 'larry': 40 }
+     * _.zipObject(['fred', 'barney'], [30, 40]);
+     * // => { 'fred': 30, 'barney': 40 }
      */
     function zipObject(keys, values) {
       var index = -1,
           length = keys ? keys.length : 0,
           result = {};
 
+      if (!values && length && !isArray(keys[0])) {
+        values = [];
+      }
       while (++index < length) {
         var key = keys[index];
         if (values) {
@@ -5579,14 +5470,14 @@ define("vendor/almond", function(){});
      *   return greeting + ' ' + this.name;
      * };
      *
-     * func = _.bind(func, { 'name': 'moe' }, 'hi');
+     * func = _.bind(func, { 'name': 'fred' }, 'hi');
      * func();
-     * // => 'hi moe'
+     * // => 'hi fred'
      */
     function bind(func, thisArg) {
       return arguments.length > 2
-        ? createBound(func, 17, nativeSlice.call(arguments, 2), null, thisArg)
-        : createBound(func, 1, null, null, thisArg);
+        ? createWrapper(func, 17, slice(arguments, 2), null, thisArg)
+        : createWrapper(func, 1, null, null, thisArg);
     }
 
     /**
@@ -5605,8 +5496,8 @@ define("vendor/almond", function(){});
      * @example
      *
      * var view = {
-     *  'label': 'docs',
-     *  'onClick': function() { console.log('clicked ' + this.label); }
+     *   'label': 'docs',
+     *   'onClick': function() { console.log('clicked ' + this.label); }
      * };
      *
      * _.bindAll(view);
@@ -5620,7 +5511,7 @@ define("vendor/almond", function(){});
 
       while (++index < length) {
         var key = funcs[index];
-        object[key] = createBound(object[key], 1, null, null, object);
+        object[key] = createWrapper(object[key], 1, null, null, object);
       }
       return object;
     }
@@ -5642,7 +5533,7 @@ define("vendor/almond", function(){});
      * @example
      *
      * var object = {
-     *   'name': 'moe',
+     *   'name': 'fred',
      *   'greet': function(greeting) {
      *     return greeting + ' ' + this.name;
      *   }
@@ -5650,19 +5541,19 @@ define("vendor/almond", function(){});
      *
      * var func = _.bindKey(object, 'greet', 'hi');
      * func();
-     * // => 'hi moe'
+     * // => 'hi fred'
      *
      * object.greet = function(greeting) {
-     *   return greeting + ', ' + this.name + '!';
+     *   return greeting + 'ya ' + this.name + '!';
      * };
      *
      * func();
-     * // => 'hi, moe!'
+     * // => 'hiya fred!'
      */
     function bindKey(object, key) {
       return arguments.length > 2
-        ? createBound(key, 19, nativeSlice.call(arguments, 2), null, object)
-        : createBound(key, 3, null, null, object);
+        ? createWrapper(key, 19, slice(arguments, 2), null, object)
+        : createWrapper(key, 3, null, null, object);
     }
 
     /**
@@ -5679,7 +5570,7 @@ define("vendor/almond", function(){});
      * @example
      *
      * var realNameMap = {
-     *   'curly': 'jerome'
+     *   'pebbles': 'penelope'
      * };
      *
      * var format = function(name) {
@@ -5692,8 +5583,8 @@ define("vendor/almond", function(){});
      * };
      *
      * var welcome = _.compose(greet, format);
-     * welcome('curly');
-     * // => 'Hiya Jerome!'
+     * welcome('pebbles');
+     * // => 'Hiya Penelope!'
      */
     function compose() {
       var funcs = arguments,
@@ -5712,74 +5603,6 @@ define("vendor/almond", function(){});
           args = [funcs[length].apply(this, args)];
         }
         return args[0];
-      };
-    }
-
-    /**
-     * Produces a callback bound to an optional `thisArg`. If `func` is a property
-     * name the created callback will return the property value for a given element.
-     * If `func` is an object the created callback will return `true` for elements
-     * that contain the equivalent object properties, otherwise it will return `false`.
-     *
-     * @static
-     * @memberOf _
-     * @category Functions
-     * @param {*} [func=identity] The value to convert to a callback.
-     * @param {*} [thisArg] The `this` binding of the created callback.
-     * @param {number} [argCount] The number of arguments the callback accepts.
-     * @returns {Function} Returns a callback function.
-     * @example
-     *
-     * var stooges = [
-     *   { 'name': 'moe', 'age': 40 },
-     *   { 'name': 'larry', 'age': 50 }
-     * ];
-     *
-     * // wrap to create custom callback shorthands
-     * _.createCallback = _.wrap(_.createCallback, function(func, callback, thisArg) {
-     *   var match = /^(.+?)__([gl]t)(.+)$/.exec(callback);
-     *   return !match ? func(callback, thisArg) : function(object) {
-     *     return match[2] == 'gt' ? object[match[1]] > match[3] : object[match[1]] < match[3];
-     *   };
-     * });
-     *
-     * _.filter(stooges, 'age__gt45');
-     * // => [{ 'name': 'larry', 'age': 50 }]
-     */
-    function createCallback(func, thisArg, argCount) {
-      var type = typeof func;
-      if (func == null || type == 'function') {
-        return baseCreateCallback(func, thisArg, argCount);
-      }
-      // handle "_.pluck" style callback shorthands
-      if (type != 'object') {
-        return function(object) {
-          return object[func];
-        };
-      }
-      var props = keys(func),
-          key = props[0],
-          a = func[key];
-
-      // handle "_.where" style callback shorthands
-      if (props.length == 1 && a === a && !isObject(a)) {
-        // fast path the common case of providing an object with a single
-        // property containing a primitive value
-        return function(object) {
-          var b = object[key];
-          return a === b && (a !== 0 || (1 / a == 1 / b));
-        };
-      }
-      return function(object) {
-        var length = props.length,
-            result = false;
-
-        while (length--) {
-          if (!(result = baseIsEqual(object[props[length]], func[props[length]], null, true))) {
-            break;
-          }
-        }
-        return result;
       };
     }
 
@@ -5813,7 +5636,7 @@ define("vendor/almond", function(){});
      */
     function curry(func, arity) {
       arity = typeof arity == 'number' ? arity : (+arity || func.length);
-      return createBound(func, 4, null, null, null, arity);
+      return createWrapper(func, 4, null, null, null, arity);
     }
 
     /**
@@ -5880,7 +5703,7 @@ define("vendor/almond", function(){});
         trailing = 'trailing' in options ? options.trailing : trailing;
       }
       var delayed = function() {
-        var remaining = wait - (new Date - stamp);
+        var remaining = wait - (now() - stamp);
         if (remaining <= 0) {
           if (maxTimeoutId) {
             clearTimeout(maxTimeoutId);
@@ -5888,8 +5711,11 @@ define("vendor/almond", function(){});
           var isCalled = trailingCall;
           maxTimeoutId = timeoutId = trailingCall = undefined;
           if (isCalled) {
-            lastCalled = +new Date;
+            lastCalled = now();
             result = func.apply(thisArg, args);
+            if (!timeoutId && !maxTimeoutId) {
+              args = thisArg = null;
+            }
           }
         } else {
           timeoutId = setTimeout(delayed, remaining);
@@ -5902,14 +5728,17 @@ define("vendor/almond", function(){});
         }
         maxTimeoutId = timeoutId = trailingCall = undefined;
         if (trailing || (maxWait !== wait)) {
-          lastCalled = +new Date;
+          lastCalled = now();
           result = func.apply(thisArg, args);
+          if (!timeoutId && !maxTimeoutId) {
+            args = thisArg = null;
+          }
         }
       };
 
       return function() {
         args = arguments;
-        stamp = +new Date;
+        stamp = now();
         thisArg = this;
         trailingCall = trailing && (timeoutId || !leading);
 
@@ -5919,8 +5748,10 @@ define("vendor/almond", function(){});
           if (!maxTimeoutId && !leading) {
             lastCalled = stamp;
           }
-          var remaining = maxWait - (stamp - lastCalled);
-          if (remaining <= 0) {
+          var remaining = maxWait - (stamp - lastCalled),
+              isCalled = remaining <= 0;
+
+          if (isCalled) {
             if (maxTimeoutId) {
               maxTimeoutId = clearTimeout(maxTimeoutId);
             }
@@ -5931,11 +5762,18 @@ define("vendor/almond", function(){});
             maxTimeoutId = setTimeout(maxDelayed, remaining);
           }
         }
-        if (!timeoutId && wait !== maxWait) {
+        if (isCalled && timeoutId) {
+          timeoutId = clearTimeout(timeoutId);
+        }
+        else if (!timeoutId && wait !== maxWait) {
           timeoutId = setTimeout(delayed, wait);
         }
         if (leadingCall) {
+          isCalled = true;
           result = func.apply(thisArg, args);
+        }
+        if (isCalled && !timeoutId && !maxTimeoutId) {
+          args = thisArg = null;
         }
         return result;
       };
@@ -5953,24 +5791,15 @@ define("vendor/almond", function(){});
      * @returns {number} Returns the timer id.
      * @example
      *
-     * _.defer(function() { console.log('deferred'); });
-     * // returns from the function before 'deferred' is logged
+     * _.defer(function(text) { console.log(text); }, 'deferred');
+     * // logs 'deferred' after one or more milliseconds
      */
     function defer(func) {
       if (!isFunction(func)) {
         throw new TypeError;
       }
-      var args = nativeSlice.call(arguments, 1);
+      var args = slice(arguments, 1);
       return setTimeout(function() { func.apply(undefined, args); }, 1);
-    }
-    // use `setImmediate` if available in Node.js
-    if (isV8 && moduleExports && typeof setImmediate == 'function') {
-      defer = function(func) {
-        if (!isFunction(func)) {
-          throw new TypeError;
-        }
-        return setImmediate.apply(context, arguments);
-      };
     }
 
     /**
@@ -5986,15 +5815,14 @@ define("vendor/almond", function(){});
      * @returns {number} Returns the timer id.
      * @example
      *
-     * var log = _.bind(console.log, console);
-     * _.delay(log, 1000, 'logged later');
-     * // => 'logged later' (Appears after one second.)
+     * _.delay(function(text) { console.log(text); }, 1000, 'later');
+     * // => logs 'later' after one second
      */
     function delay(func, wait) {
       if (!isFunction(func)) {
         throw new TypeError;
       }
-      var args = nativeSlice.call(arguments, 2);
+      var args = slice(arguments, 2);
       return setTimeout(function() { func.apply(undefined, args); }, wait);
     }
 
@@ -6018,19 +5846,22 @@ define("vendor/almond", function(){});
      *   return n < 2 ? n : fibonacci(n - 1) + fibonacci(n - 2);
      * });
      *
+     * fibonacci(9)
+     * // => 34
+     *
      * var data = {
-     *   'moe': { 'name': 'moe', 'age': 40 },
-     *   'curly': { 'name': 'curly', 'age': 60 }
+     *   'fred': { 'name': 'fred', 'age': 40 },
+     *   'pebbles': { 'name': 'pebbles', 'age': 1 }
      * };
      *
      * // modifying the result cache
-     * var stooge = _.memoize(function(name) { return data[name]; }, _.identity);
-     * stooge('curly');
-     * // => { 'name': 'curly', 'age': 60 }
+     * var get = _.memoize(function(name) { return data[name]; }, _.identity);
+     * get('pebbles');
+     * // => { 'name': 'pebbles', 'age': 1 }
      *
-     * stooge.cache.curly.name = 'jerome';
-     * stooge('curly');
-     * // => { 'name': 'jerome', 'age': 60 }
+     * get.cache.pebbles.name = 'penelope';
+     * get('pebbles');
+     * // => { 'name': 'penelope', 'age': 1 }
      */
     function memoize(func, resolver) {
       if (!isFunction(func)) {
@@ -6100,11 +5931,11 @@ define("vendor/almond", function(){});
      *
      * var greet = function(greeting, name) { return greeting + ' ' + name; };
      * var hi = _.partial(greet, 'hi');
-     * hi('moe');
-     * // => 'hi moe'
+     * hi('fred');
+     * // => 'hi fred'
      */
     function partial(func) {
-      return createBound(func, 16, nativeSlice.call(arguments, 1));
+      return createWrapper(func, 16, slice(arguments, 1));
     }
 
     /**
@@ -6135,7 +5966,7 @@ define("vendor/almond", function(){});
      * // => { '_': _, 'jq': $ }
      */
     function partialRight(func) {
-      return createBound(func, 32, null, nativeSlice.call(arguments, 1));
+      return createWrapper(func, 32, null, slice(arguments, 1));
     }
 
     /**
@@ -6182,14 +6013,11 @@ define("vendor/almond", function(){});
         leading = 'leading' in options ? options.leading : leading;
         trailing = 'trailing' in options ? options.trailing : trailing;
       }
-      options = getObject();
-      options.leading = leading;
-      options.maxWait = wait;
-      options.trailing = trailing;
+      debounceOptions.leading = leading;
+      debounceOptions.maxWait = wait;
+      debounceOptions.trailing = trailing;
 
-      var result = debounce(func, wait, options);
-      releaseObject(options);
-      return result;
+      return debounce(func, wait, debounceOptions);
     }
 
     /**
@@ -6206,25 +6034,105 @@ define("vendor/almond", function(){});
      * @returns {Function} Returns the new function.
      * @example
      *
-     * var hello = function(name) { return 'hello ' + name; };
-     * hello = _.wrap(hello, function(func) {
-     *   return 'before, ' + func('moe') + ', after';
+     * var p = _.wrap(_.escape, function(func, text) {
+     *   return '<p>' + func(text) + '</p>';
      * });
-     * hello();
-     * // => 'before, hello moe, after'
+     *
+     * p('Fred, Wilma, & Pebbles');
+     * // => '<p>Fred, Wilma, &amp; Pebbles</p>'
      */
     function wrap(value, wrapper) {
-      if (!isFunction(wrapper)) {
-        throw new TypeError;
-      }
-      return function() {
-        var args = [value];
-        push.apply(args, arguments);
-        return wrapper.apply(this, args);
-      };
+      return createWrapper(wrapper, 16, [value]);
     }
 
     /*--------------------------------------------------------------------------*/
+
+    /**
+     * Creates a function that returns `value`.
+     *
+     * @static
+     * @memberOf _
+     * @category Utilities
+     * @param {*} value The value to return from the new function.
+     * @returns {Function} Returns the new function.
+     * @example
+     *
+     * var object = { 'name': 'fred' };
+     * var getter = _.constant(object);
+     * getter() === object;
+     * // => true
+     */
+    function constant(value) {
+      return function() {
+        return value;
+      };
+    }
+
+    /**
+     * Produces a callback bound to an optional `thisArg`. If `func` is a property
+     * name the created callback will return the property value for a given element.
+     * If `func` is an object the created callback will return `true` for elements
+     * that contain the equivalent object properties, otherwise it will return `false`.
+     *
+     * @static
+     * @memberOf _
+     * @category Utilities
+     * @param {*} [func=identity] The value to convert to a callback.
+     * @param {*} [thisArg] The `this` binding of the created callback.
+     * @param {number} [argCount] The number of arguments the callback accepts.
+     * @returns {Function} Returns a callback function.
+     * @example
+     *
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36 },
+     *   { 'name': 'fred',   'age': 40 }
+     * ];
+     *
+     * // wrap to create custom callback shorthands
+     * _.createCallback = _.wrap(_.createCallback, function(func, callback, thisArg) {
+     *   var match = /^(.+?)__([gl]t)(.+)$/.exec(callback);
+     *   return !match ? func(callback, thisArg) : function(object) {
+     *     return match[2] == 'gt' ? object[match[1]] > match[3] : object[match[1]] < match[3];
+     *   };
+     * });
+     *
+     * _.filter(characters, 'age__gt38');
+     * // => [{ 'name': 'fred', 'age': 40 }]
+     */
+    function createCallback(func, thisArg, argCount) {
+      var type = typeof func;
+      if (func == null || type == 'function') {
+        return baseCreateCallback(func, thisArg, argCount);
+      }
+      // handle "_.pluck" style callback shorthands
+      if (type != 'object') {
+        return property(func);
+      }
+      var props = keys(func),
+          key = props[0],
+          a = func[key];
+
+      // handle "_.where" style callback shorthands
+      if (props.length == 1 && a === a && !isObject(a)) {
+        // fast path the common case of providing an object with a single
+        // property containing a primitive value
+        return function(object) {
+          var b = object[key];
+          return a === b && (a !== 0 || (1 / a == 1 / b));
+        };
+      }
+      return function(object) {
+        var length = props.length,
+            result = false;
+
+        while (length--) {
+          if (!(result = baseIsEqual(object[props[length]], func[props[length]], null, true))) {
+            break;
+          }
+        }
+        return result;
+      };
+    }
 
     /**
      * Converts the characters `&`, `<`, `>`, `"`, and `'` in `string` to their
@@ -6237,8 +6145,8 @@ define("vendor/almond", function(){});
      * @returns {string} Returns the escaped string.
      * @example
      *
-     * _.escape('Moe, Larry & Curly');
-     * // => 'Moe, Larry &amp; Curly'
+     * _.escape('Fred, Wilma, & Pebbles');
+     * // => 'Fred, Wilma, &amp; Pebbles'
      */
     function escape(string) {
       return string == null ? '' : String(string).replace(reUnescapedHtml, escapeHtmlChar);
@@ -6254,8 +6162,8 @@ define("vendor/almond", function(){});
      * @returns {*} Returns `value`.
      * @example
      *
-     * var moe = { 'name': 'moe' };
-     * moe === _.identity(moe);
+     * var object = { 'name': 'fred' };
+     * _.identity(object) === object;
      * // => true
      */
     function identity(value) {
@@ -6263,49 +6171,72 @@ define("vendor/almond", function(){});
     }
 
     /**
-     * Adds function properties of a source object to the `lodash` function and
-     * chainable wrapper.
+     * Adds function properties of a source object to the destination object.
+     * If `object` is a function methods will be added to its prototype as well.
      *
      * @static
      * @memberOf _
      * @category Utilities
-     * @param {Object} object The object of function properties to add to `lodash`.
-     * @param {Object} object The object of function properties to add to `lodash`.
+     * @param {Function|Object} [object=lodash] object The destination object.
+     * @param {Object} source The object of functions to add.
+     * @param {Object} [options] The options object.
+     * @param {boolean} [options.chain=true] Specify whether the functions added are chainable.
      * @example
      *
-     * _.mixin({
-     *   'capitalize': function(string) {
-     *     return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
-     *   }
-     * });
+     * function capitalize(string) {
+     *   return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+     * }
      *
-     * _.capitalize('moe');
-     * // => 'Moe'
+     * _.mixin({ 'capitalize': capitalize });
+     * _.capitalize('fred');
+     * // => 'Fred'
      *
-     * _('moe').capitalize();
-     * // => 'Moe'
+     * _('fred').capitalize().value();
+     * // => 'Fred'
+     *
+     * _.mixin({ 'capitalize': capitalize }, { 'chain': false });
+     * _('fred').capitalize();
+     * // => 'Fred'
      */
-    function mixin(object, source) {
-      var ctor = object,
-          isFunc = !source || isFunction(ctor);
+    function mixin(object, source, options) {
+      var chain = true,
+          methodNames = source && functions(source);
 
-      if (!source) {
+      if (!source || (!options && !methodNames.length)) {
+        if (options == null) {
+          options = source;
+        }
         ctor = lodashWrapper;
         source = object;
         object = lodash;
+        methodNames = functions(source);
       }
-      forEach(functions(source), function(methodName) {
+      if (options === false) {
+        chain = false;
+      } else if (isObject(options) && 'chain' in options) {
+        chain = options.chain;
+      }
+      var ctor = object,
+          isFunc = isFunction(ctor);
+
+      forEach(methodNames, function(methodName) {
         var func = object[methodName] = source[methodName];
         if (isFunc) {
           ctor.prototype[methodName] = function() {
-            var value = this.__wrapped__,
+            var chainAll = this.__chain__,
+                value = this.__wrapped__,
                 args = [value];
 
             push.apply(args, arguments);
             var result = func.apply(object, args);
-            return (value && typeof value == 'object' && value === result)
-              ? this
-              : new ctor(result);
+            if (chain || chainAll) {
+              if (value === result && isObject(result)) {
+                return this;
+              }
+              result = new ctor(result);
+              result.__chain__ = chainAll;
+            }
+            return result;
           };
         }
       });
@@ -6329,6 +6260,39 @@ define("vendor/almond", function(){});
     }
 
     /**
+     * A no-operation function.
+     *
+     * @static
+     * @memberOf _
+     * @category Utilities
+     * @example
+     *
+     * var object = { 'name': 'fred' };
+     * _.noop(object) === undefined;
+     * // => true
+     */
+    function noop() {
+      // no operation performed
+    }
+
+    /**
+     * Gets the number of milliseconds that have elapsed since the Unix epoch
+     * (1 January 1970 00:00:00 UTC).
+     *
+     * @static
+     * @memberOf _
+     * @category Utilities
+     * @example
+     *
+     * var stamp = _.now();
+     * _.defer(function() { console.log(_.now() - stamp); });
+     * // => logs the number of milliseconds it took for the deferred function to be called
+     */
+    var now = isNative(now = Date.now) && now || function() {
+      return new Date().getTime();
+    };
+
+    /**
      * Converts the given value into an integer of the specified radix.
      * If `radix` is `undefined` or `0` a `radix` of `10` is used unless the
      * `value` is a hexadecimal, in which case a `radix` of `16` is used.
@@ -6348,9 +6312,39 @@ define("vendor/almond", function(){});
      * // => 8
      */
     var parseInt = nativeParseInt(whitespace + '08') == 8 ? nativeParseInt : function(value, radix) {
-      // Firefox and Opera still follow the ES3 specified implementation of `parseInt`
+      // Firefox < 21 and Opera < 15 follow the ES3 specified implementation of `parseInt`
       return nativeParseInt(isString(value) ? value.replace(reLeadingSpacesAndZeros, '') : value, radix || 0);
     };
+
+    /**
+     * Creates a "_.pluck" style function, which returns the `key` value of a
+     * given object.
+     *
+     * @static
+     * @memberOf _
+     * @category Utilities
+     * @param {string} key The name of the property to retrieve.
+     * @returns {Function} Returns the new function.
+     * @example
+     *
+     * var characters = [
+     *   { 'name': 'fred',   'age': 40 },
+     *   { 'name': 'barney', 'age': 36 }
+     * ];
+     *
+     * var getName = _.property('name');
+     *
+     * _.map(characters, getName);
+     * // => ['barney', 'fred']
+     *
+     * _.sortBy(characters, getName);
+     * // => [{ 'name': 'barney', 'age': 36 }, { 'name': 'fred',   'age': 40 }]
+     */
+    function property(key) {
+      return function(object) {
+        return object[key];
+      };
+    }
 
     /**
      * Produces a random number between `min` and `max` (inclusive). If only one
@@ -6403,14 +6397,15 @@ define("vendor/almond", function(){});
       } else {
         max = +max || 0;
       }
-      var rand = nativeRandom();
-      return (floating || min % 1 || max % 1)
-        ? min + nativeMin(rand * (max - min + parseFloat('1e-' + ((rand +'').length - 1))), max)
-        : min + floor(rand * (max - min + 1));
+      if (floating || min % 1 || max % 1) {
+        var rand = nativeRandom();
+        return nativeMin(min + (rand * (max - min + parseFloat('1e-' + ((rand +'').length - 1)))), max);
+      }
+      return baseRandom(min, max);
     }
 
     /**
-     * Resolves the value of `property` on `object`. If `property` is a function
+     * Resolves the value of property `key` on `object`. If `key` is a function
      * it will be invoked with the `this` binding of `object` and its result returned,
      * else the property value is returned. If `object` is falsey then `undefined`
      * is returned.
@@ -6419,7 +6414,7 @@ define("vendor/almond", function(){});
      * @memberOf _
      * @category Utilities
      * @param {Object} object The object to inspect.
-     * @param {string} property The property to get the value of.
+     * @param {string} key The name of the property to resolve.
      * @returns {*} Returns the resolved value.
      * @example
      *
@@ -6436,197 +6431,11 @@ define("vendor/almond", function(){});
      * _.result(object, 'stuff');
      * // => 'nonsense'
      */
-    function result(object, property) {
+    function result(object, key) {
       if (object) {
-        var value = object[property];
-        return isFunction(value) ? object[property]() : value;
+        var value = object[key];
+        return isFunction(value) ? object[key]() : value;
       }
-    }
-
-    /**
-     * A micro-templating method that handles arbitrary delimiters, preserves
-     * whitespace, and correctly escapes quotes within interpolated code.
-     *
-     * Note: In the development build, `_.template` utilizes sourceURLs for easier
-     * debugging. See http://www.html5rocks.com/en/tutorials/developertools/sourcemaps/#toc-sourceurl
-     *
-     * For more information on precompiling templates see:
-     * http://lodash.com/#custom-builds
-     *
-     * For more information on Chrome extension sandboxes see:
-     * http://developer.chrome.com/stable/extensions/sandboxingEval.html
-     *
-     * @static
-     * @memberOf _
-     * @category Utilities
-     * @param {string} text The template text.
-     * @param {Object} data The data object used to populate the text.
-     * @param {Object} [options] The options object.
-     * @param {RegExp} [options.escape] The "escape" delimiter.
-     * @param {RegExp} [options.evaluate] The "evaluate" delimiter.
-     * @param {Object} [options.imports] An object to import into the template as local variables.
-     * @param {RegExp} [options.interpolate] The "interpolate" delimiter.
-     * @param {string} [sourceURL] The sourceURL of the template's compiled source.
-     * @param {string} [variable] The data object variable name.
-     * @returns {Function|string} Returns a compiled function when no `data` object
-     *  is given, else it returns the interpolated text.
-     * @example
-     *
-     * // using the "interpolate" delimiter to create a compiled template
-     * var compiled = _.template('hello <%= name %>');
-     * compiled({ 'name': 'moe' });
-     * // => 'hello moe'
-     *
-     * // using the "escape" delimiter to escape HTML in data property values
-     * _.template('<b><%- value %></b>', { 'value': '<script>' });
-     * // => '<b>&lt;script&gt;</b>'
-     *
-     * // using the "evaluate" delimiter to generate HTML
-     * var list = '<% _.forEach(people, function(name) { %><li><%- name %></li><% }); %>';
-     * _.template(list, { 'people': ['moe', 'larry'] });
-     * // => '<li>moe</li><li>larry</li>'
-     *
-     * // using the ES6 delimiter as an alternative to the default "interpolate" delimiter
-     * _.template('hello ${ name }', { 'name': 'curly' });
-     * // => 'hello curly'
-     *
-     * // using the internal `print` function in "evaluate" delimiters
-     * _.template('<% print("hello " + name); %>!', { 'name': 'larry' });
-     * // => 'hello larry!'
-     *
-     * // using a custom template delimiters
-     * _.templateSettings = {
-     *   'interpolate': /{{([\s\S]+?)}}/g
-     * };
-     *
-     * _.template('hello {{ name }}!', { 'name': 'mustache' });
-     * // => 'hello mustache!'
-     *
-     * // using the `imports` option to import jQuery
-     * var list = '<% $.each(people, function(name) { %><li><%- name %></li><% }); %>';
-     * _.template(list, { 'people': ['moe', 'larry'] }, { 'imports': { '$': jQuery } });
-     * // => '<li>moe</li><li>larry</li>'
-     *
-     * // using the `sourceURL` option to specify a custom sourceURL for the template
-     * var compiled = _.template('hello <%= name %>', null, { 'sourceURL': '/basic/greeting.jst' });
-     * compiled(data);
-     * // => find the source of "greeting.jst" under the Sources tab or Resources panel of the web inspector
-     *
-     * // using the `variable` option to ensure a with-statement isn't used in the compiled template
-     * var compiled = _.template('hi <%= data.name %>!', null, { 'variable': 'data' });
-     * compiled.source;
-     * // => function(data) {
-     *   var __t, __p = '', __e = _.escape;
-     *   __p += 'hi ' + ((__t = ( data.name )) == null ? '' : __t) + '!';
-     *   return __p;
-     * }
-     *
-     * // using the `source` property to inline compiled templates for meaningful
-     * // line numbers in error messages and a stack trace
-     * fs.writeFileSync(path.join(cwd, 'jst.js'), '\
-     *   var JST = {\
-     *     "main": ' + _.template(mainText).source + '\
-     *   };\
-     * ');
-     */
-    function template(text, data, options) {
-      // based on John Resig's `tmpl` implementation
-      // http://ejohn.org/blog/javascript-micro-templating/
-      // and Laura Doktorova's doT.js
-      // https://github.com/olado/doT
-      var settings = lodash.templateSettings;
-      text || (text = '');
-
-      // avoid missing dependencies when `iteratorTemplate` is not defined
-      options = defaults({}, options, settings);
-
-      var imports = defaults({}, options.imports, settings.imports),
-          importsKeys = keys(imports),
-          importsValues = values(imports);
-
-      var isEvaluating,
-          index = 0,
-          interpolate = options.interpolate || reNoMatch,
-          source = "__p += '";
-
-      // compile the regexp to match each delimiter
-      var reDelimiters = RegExp(
-        (options.escape || reNoMatch).source + '|' +
-        interpolate.source + '|' +
-        (interpolate === reInterpolate ? reEsTemplate : reNoMatch).source + '|' +
-        (options.evaluate || reNoMatch).source + '|$'
-      , 'g');
-
-      text.replace(reDelimiters, function(match, escapeValue, interpolateValue, esTemplateValue, evaluateValue, offset) {
-        interpolateValue || (interpolateValue = esTemplateValue);
-
-        // escape characters that cannot be included in string literals
-        source += text.slice(index, offset).replace(reUnescapedString, escapeStringChar);
-
-        // replace delimiters with snippets
-        if (escapeValue) {
-          source += "' +\n__e(" + escapeValue + ") +\n'";
-        }
-        if (evaluateValue) {
-          isEvaluating = true;
-          source += "';\n" + evaluateValue + ";\n__p += '";
-        }
-        if (interpolateValue) {
-          source += "' +\n((__t = (" + interpolateValue + ")) == null ? '' : __t) +\n'";
-        }
-        index = offset + match.length;
-
-        // the JS engine embedded in Adobe products requires returning the `match`
-        // string in order to produce the correct `offset` value
-        return match;
-      });
-
-      source += "';\n";
-
-      // if `variable` is not specified, wrap a with-statement around the generated
-      // code to add the data object to the top of the scope chain
-      var variable = options.variable,
-          hasVariable = variable;
-
-      if (!hasVariable) {
-        variable = 'obj';
-        source = 'with (' + variable + ') {\n' + source + '\n}\n';
-      }
-      // cleanup code by stripping empty strings
-      source = (isEvaluating ? source.replace(reEmptyStringLeading, '') : source)
-        .replace(reEmptyStringMiddle, '$1')
-        .replace(reEmptyStringTrailing, '$1;');
-
-      // frame code as the function body
-      source = 'function(' + variable + ') {\n' +
-        (hasVariable ? '' : variable + ' || (' + variable + ' = {});\n') +
-        "var __t, __p = '', __e = _.escape" +
-        (isEvaluating
-          ? ', __j = Array.prototype.join;\n' +
-            "function print() { __p += __j.call(arguments, '') }\n"
-          : ';\n'
-        ) +
-        source +
-        'return __p\n}';
-
-      // Use a sourceURL for easier debugging.
-      // http://www.html5rocks.com/en/tutorials/developertools/sourcemaps/#toc-sourceurl
-      var sourceURL = '\n/*\n//# sourceURL=' + (options.sourceURL || '/lodash/template/source[' + (templateCounter++) + ']') + '\n*/';
-
-      try {
-        var result = Function(importsKeys, 'return ' + source + sourceURL).apply(undefined, importsValues);
-      } catch(e) {
-        e.source = source;
-        throw e;
-      }
-      if (data) {
-        return result(data);
-      }
-      // provide the compiled function's source by its `toString` method, in
-      // supported environments, or the `source` property as a convenience for
-      // inlining compiled templates during the build process
-      result.source = source;
-      return result;
     }
 
     /**
@@ -6676,8 +6485,8 @@ define("vendor/almond", function(){});
      * @returns {string} Returns the unescaped string.
      * @example
      *
-     * _.unescape('Moe, Larry &amp; Curly');
-     * // => 'Moe, Larry & Curly'
+     * _.unescape('Fred, Barney &amp; Pebbles');
+     * // => 'Fred, Barney & Pebbles'
      */
     function unescape(string) {
       return string == null ? '' : String(string).replace(reEscapedHtml, unescapeHtmlChar);
@@ -6707,7 +6516,8 @@ define("vendor/almond", function(){});
     /*--------------------------------------------------------------------------*/
 
     /**
-     * Creates a `lodash` object that wraps the given value.
+     * Creates a `lodash` object that wraps the given value with explicit
+     * method chaining enabled.
      *
      * @static
      * @memberOf _
@@ -6716,17 +6526,18 @@ define("vendor/almond", function(){});
      * @returns {Object} Returns the wrapper object.
      * @example
      *
-     * var stooges = [
-     *   { 'name': 'moe', 'age': 40 },
-     *   { 'name': 'larry', 'age': 50 },
-     *   { 'name': 'curly', 'age': 60 }
+     * var characters = [
+     *   { 'name': 'barney',  'age': 36 },
+     *   { 'name': 'fred',    'age': 40 },
+     *   { 'name': 'pebbles', 'age': 1 }
      * ];
      *
-     * var youngest = _.chain(stooges)
-     *     .sortBy(function(stooge) { return stooge.age; })
-     *     .map(function(stooge) { return stooge.name + ' is ' + stooge.age; })
-     *     .first();
-     * // => 'moe is 40'
+     * var youngest = _.chain(characters)
+     *     .sortBy('age')
+     *     .map(function(chr) { return chr.name + ' is ' + chr.age; })
+     *     .first()
+     *     .value();
+     * // => 'pebbles is 1'
      */
     function chain(value) {
       value = new lodashWrapper(value);
@@ -6749,12 +6560,10 @@ define("vendor/almond", function(){});
      * @example
      *
      * _([1, 2, 3, 4])
-     *  .filter(function(num) { return num % 2 == 0; })
-     *  .tap(function(array) { console.log(array); })
-     *  .map(function(num) { return num * num; })
+     *  .tap(function(array) { array.pop(); })
+     *  .reverse()
      *  .value();
-     * // => // [2, 4] (logged)
-     * // => [4, 16]
+     * // => [3, 2, 1]
      */
     function tap(value, interceptor) {
       interceptor(value);
@@ -6762,7 +6571,7 @@ define("vendor/almond", function(){});
     }
 
     /**
-     * Enables method chaining on the wrapper object.
+     * Enables explicit method chaining on the wrapper object.
      *
      * @name chain
      * @memberOf _
@@ -6770,11 +6579,21 @@ define("vendor/almond", function(){});
      * @returns {*} Returns the wrapper object.
      * @example
      *
-     * var sum = _([1, 2, 3])
-     *     .chain()
-     *     .reduce(function(sum, num) { return sum + num; })
-     *     .value()
-     * // => 6`
+     * var characters = [
+     *   { 'name': 'barney', 'age': 36 },
+     *   { 'name': 'fred',   'age': 40 }
+     * ];
+     *
+     * // without explicit chaining
+     * _(characters).first();
+     * // => { 'name': 'barney', 'age': 36 }
+     *
+     * // with explicit chaining
+     * _(characters).chain()
+     *   .first()
+     *   .pick('age')
+     *   .value();
+     * // => { 'age': 36 }
      */
     function wrapperChain() {
       this.__chain__ = true;
@@ -6826,7 +6645,9 @@ define("vendor/almond", function(){});
     lodash.chain = chain;
     lodash.compact = compact;
     lodash.compose = compose;
+    lodash.constant = constant;
     lodash.countBy = countBy;
+    lodash.create = create;
     lodash.createCallback = createCallback;
     lodash.curry = curry;
     lodash.debounce = debounce;
@@ -6851,6 +6672,7 @@ define("vendor/almond", function(){});
     lodash.invoke = invoke;
     lodash.keys = keys;
     lodash.map = map;
+    lodash.mapValues = mapValues;
     lodash.max = max;
     lodash.memoize = memoize;
     lodash.merge = merge;
@@ -6862,6 +6684,7 @@ define("vendor/almond", function(){});
     lodash.partialRight = partialRight;
     lodash.pick = pick;
     lodash.pluck = pluck;
+    lodash.property = property;
     lodash.pull = pull;
     lodash.range = range;
     lodash.reject = reject;
@@ -6880,6 +6703,7 @@ define("vendor/almond", function(){});
     lodash.where = where;
     lodash.without = without;
     lodash.wrap = wrap;
+    lodash.xor = xor;
     lodash.zip = zip;
     lodash.zipObject = zipObject;
 
@@ -6936,6 +6760,8 @@ define("vendor/almond", function(){});
     lodash.lastIndexOf = lastIndexOf;
     lodash.mixin = mixin;
     lodash.noConflict = noConflict;
+    lodash.noop = noop;
+    lodash.now = now;
     lodash.parseInt = parseInt;
     lodash.random = random;
     lodash.reduce = reduce;
@@ -6945,7 +6771,6 @@ define("vendor/almond", function(){});
     lodash.size = size;
     lodash.some = some;
     lodash.sortedIndex = sortedIndex;
-    lodash.template = template;
     lodash.unescape = unescape;
     lodash.uniqueId = uniqueId;
 
@@ -6959,20 +6784,15 @@ define("vendor/almond", function(){});
     lodash.include = contains;
     lodash.inject = reduce;
 
-    forOwn(lodash, function(func, methodName) {
-      if (!lodash.prototype[methodName]) {
-        lodash.prototype[methodName] = function() {
-          var args = [this.__wrapped__],
-              chainAll = this.__chain__;
-
-          push.apply(args, arguments);
-          var result = func.apply(lodash, args);
-          return chainAll
-            ? new lodashWrapper(result, chainAll)
-            : result;
-        };
-      }
-    });
+    mixin(function() {
+      var source = {}
+      forOwn(lodash, function(func, methodName) {
+        if (!lodash.prototype[methodName]) {
+          source[methodName] = func;
+        }
+      });
+      return source;
+    }(), false);
 
     /*--------------------------------------------------------------------------*/
 
@@ -7008,7 +6828,7 @@ define("vendor/almond", function(){});
      * @memberOf _
      * @type string
      */
-    lodash.VERSION = '2.1.0';
+    lodash.VERSION = '2.4.1';
 
     // add "Chaining" functions to the wrapper
     lodash.prototype.chain = wrapperChain;
@@ -7017,7 +6837,7 @@ define("vendor/almond", function(){});
     lodash.prototype.valueOf = wrapperValueOf;
 
     // add `Array` functions that return unwrapped values
-    baseEach(['join', 'pop', 'shift'], function(methodName) {
+    forEach(['join', 'pop', 'shift'], function(methodName) {
       var func = arrayRef[methodName];
       lodash.prototype[methodName] = function() {
         var chainAll = this.__chain__,
@@ -7029,8 +6849,8 @@ define("vendor/almond", function(){});
       };
     });
 
-    // add `Array` functions that return the wrapped value
-    baseEach(['push', 'reverse', 'sort', 'unshift'], function(methodName) {
+    // add `Array` functions that return the existing wrapped value
+    forEach(['push', 'reverse', 'sort', 'unshift'], function(methodName) {
       var func = arrayRef[methodName];
       lodash.prototype[methodName] = function() {
         func.apply(this.__wrapped__, arguments);
@@ -7039,34 +6859,12 @@ define("vendor/almond", function(){});
     });
 
     // add `Array` functions that return new wrapped values
-    baseEach(['concat', 'slice', 'splice'], function(methodName) {
+    forEach(['concat', 'slice', 'splice'], function(methodName) {
       var func = arrayRef[methodName];
       lodash.prototype[methodName] = function() {
         return new lodashWrapper(func.apply(this.__wrapped__, arguments), this.__chain__);
       };
     });
-
-    // avoid array-like object bugs with `Array#shift` and `Array#splice`
-    // in Firefox < 10 and IE < 9
-    if (!support.spliceObjects) {
-      baseEach(['pop', 'shift', 'splice'], function(methodName) {
-        var func = arrayRef[methodName],
-            isSplice = methodName == 'splice';
-
-        lodash.prototype[methodName] = function() {
-          var chainAll = this.__chain__,
-              value = this.__wrapped__,
-              result = func.apply(value, arguments);
-
-          if (value.length === 0) {
-            delete value[0];
-          }
-          return (chainAll || isSplice)
-            ? new lodashWrapper(result, chainAll)
-            : result;
-        };
-      });
-    }
 
     return lodash;
   }
@@ -7076,12 +6874,11 @@ define("vendor/almond", function(){});
   // expose Lo-Dash
   var _ = runInContext();
 
-  // some AMD build optimizers, like r.js, check for condition patterns like the following:
+  // some AMD build optimizers like r.js check for condition patterns like the following:
   if (typeof define == 'function' && typeof define.amd == 'object' && define.amd) {
     // Expose Lo-Dash to the global object even when an AMD loader is present in
-    // case Lo-Dash was injected by a third-party script and not intended to be
-    // loaded as a module. The global assignment can be reverted in the Lo-Dash
-    // module by its `noConflict()` method.
+    // case Lo-Dash is loaded with a RequireJS shim config.
+    // See http://requirejs.org/docs/api.html#config-shim
     root._ = _;
 
     // define as an anonymous module so, through path mapping, it can be
@@ -7177,7 +6974,7 @@ define('assets/range',['require','exports','module','lodash'],function(require, 
 		},
 		
 		/**
-		 * Shifts indexes position with passed <code>delat</code>
+		 * Shifts indexes position with passed <code>delta</code>
 		 * @param {Number} delta
 		 * @returns {Range} range itself
 		 */
@@ -7330,8 +7127,11 @@ define('assets/range',['require','exports','module','lodash'],function(require, 
 		return new Range(start, len);
 	};
 
-	module = module || {};
 	module.exports.create = module.exports;
+
+	module.exports.isRange = function(val) {
+		return val instanceof Range;
+	};
 
 	/**
 	 * <code>Range</code> object factory, the same as <code>this.create()</code>
@@ -7424,9 +7224,17 @@ define('utils/common',['require','exports','module','lodash','../assets/range'],
 		 * @param {String} text
 		 * @return {String}
 		 */
-		trim: function(text) {
-			return (text || "").replace(/^\s+|\s+$/g, "");
-		},
+		trim: (function() {
+			if (String.prototype.trim) {
+				return function(text) {
+					return text ? text.trim() : '';
+				};
+			}
+
+			return function(text) {
+				return (text || "").replace(/^\s+|\s+$/g, "");
+			}
+		})(),
 		
 		/**
 		 * Split text into lines. Set <code>remove_empty</code> to true to filter
@@ -7759,6 +7567,28 @@ define('utils/common',['require','exports','module','lodash','../assets/range'],
 			
 			return str.substring(0, start) + value + str.substring(end);
 		},
+
+		/**
+		 * Fills substrings in `content`, defined by given ranges,
+		 * wich `ch` character
+		 * @param  {String} content
+		 * @param  {Array} ranges
+		 * @return {String}
+		 */
+		replaceWith: function(content, ranges, ch, noRepeat) {
+			if (ranges.length) {
+				var offset = 0, fragments = [];
+				_.each(ranges, function(r) {
+					var repl = noRepeat ? ch : this.repeatString(ch, r[1] - r[0]);
+					fragments.push(content.substring(offset, r[0]), repl);
+					offset = r[1];
+				}, this);
+
+				content = fragments.join('') + content.substring(offset);
+			}
+
+			return content;
+		},
 		
 		/**
 		 * Narrows down text range, adjusting selection to non-space characters
@@ -7887,7 +7717,7 @@ define('utils/common',['require','exports','module','lodash','../assets/range'],
 			}
 			
 			try {
-				return (new Function('return ' + str))();
+				return JSON.parse(str);
 			} catch(e) {
 				return {};
 			}
@@ -7895,8 +7725,6 @@ define('utils/common',['require','exports','module','lodash','../assets/range'],
 	};
 });
 
-define('fs',{});
-define('path',{});
 /**
  * Module for working with file. Shall implement
  * IEmmetFile interface.
@@ -7918,8 +7746,18 @@ if (typeof module === 'object' && typeof define !== 'function') {
 	};
 }
 
-define('plugin/file',['require','exports','module','lodash','fs','fs','path','fs','path','fs'],function(require, exports, module) {
+define('plugin/file',['require','exports','module','lodash'],function(require, exports, module) {
 	var _ = require('lodash');
+	var fs = {};
+	var path = {};
+
+	// hide it from Require.JS parser
+	(function(r) {
+		if (typeof define === 'undefined' || !define.amd) {
+			fs = r('fs');
+			path = r('path');
+		}
+	})(require);
 
 	// module is a function that can extend itself
 	module.exports = function(obj) {
@@ -7957,7 +7795,6 @@ define('plugin/file',['require','exports','module','lodash','fs','fs','path','fs
 		},
 
 		_read: function(params, callback) {
-			var fs = require('fs');
 			if (isURL(params.path)) {
 				var req = require(/^https:/.test(params.path) ? 'https' : 'http').get(params.path, function(res) {
 					var bufs = [];
@@ -8042,9 +7879,6 @@ define('plugin/file',['require','exports','module','lodash','fs','fs','path','fs
 		 * @return {String} Returns null if <code>fileName</code> cannot be located
 		 */
 		locateFile: function(editorFile, fileName) {
-			var fs = require('fs');
-			var path = require('path');
-
 			if (isURL(fileName)) {
 				return fileName;
 			}
@@ -8069,9 +7903,6 @@ define('plugin/file',['require','exports','module','lodash','fs','fs','path','fs
 		 * @return {String}
 		 */
 		createPath: function(parent, fileName, callback) {
-			var fs = require('fs');
-			var path = require('path');
-
 			var stat = fs.statSync(parent);
 			if (stat && !stat.isDirectory()) {
 				parent = path.dirname(parent);
@@ -8086,7 +7917,6 @@ define('plugin/file',['require','exports','module','lodash','fs','fs','path','fs
 		 * @param {String} content File content
 		 */
 		save: function(file, content) {
-			var fs = require('fs');
 			fs.writeFileSync(file, content, 'ascii');
 		},
 		
@@ -8329,7 +8159,7 @@ define('assets/stringStream',['require','exports','module'],function(require, ex
 		 * @returns {Boolean} Returns <code>true</code> if pair was successfully
 		 * consumed
 		 */
-		skipToPair: function(open, close) {
+		skipToPair: function(open, close, skipString) {
 			var braceCount = 0, ch;
 			var pos = this.pos, len = this._length;
 			while (pos < len) {
@@ -8342,10 +8172,28 @@ define('assets/stringStream',['require','exports','module'],function(require, ex
 						this.pos = pos;
 						return true;
 					}
+				} else if (skipString && (ch == '"' || ch == "'")) {
+					this.skipString(ch);
 				}
 			}
 			
 			return false;
+		},
+
+		/**
+		 * A helper function which, in case of either single or
+		 * double quote was found in current position, skips entire
+		 * string (quoted value)
+		 * @return {Boolean} Wether quoted string was skipped
+		 */
+		skipQuoted: function(noBackup) {
+			var ch = this.string.charAt(noBackup ? this.pos : this.pos - 1);
+			if (ch === '"' || ch === "'") {
+				if (noBackup) {
+					this.pos++;
+				}
+				return this.skipString(ch);
+			}
 		},
 
 		/**
@@ -8417,8 +8265,8 @@ define('assets/stringStream',['require','exports','module'],function(require, ex
 		 * current stream position.
 		 * @returns {String}
 		 */
-		current: function() {
-			return this.string.slice(this.start, this.pos);
+		current: function(backUp) {
+			return this.string.slice(this.start, this.pos - (backUp ? 1 : 0));
 		}
 	};
 
@@ -8429,6 +8277,2514 @@ define('assets/stringStream',['require','exports','module'],function(require, ex
 	/** @deprecated */
 	module.exports.create = module.exports;
 	return module.exports;
+});
+/**
+ * Utility module for working with comments in source code
+ * (mostly stripping it from source)
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('utils/comments',['require','exports','module','lodash','./common','../assets/range','../assets/stringStream'],function(require, exports, module) {
+	var _ = require('lodash');
+	var utils = require('./common');
+	var range = require('../assets/range');
+	var stringStream = require('../assets/stringStream');
+	var reHasComment = /\/\*|\/\//;
+
+	return {
+		/**
+		 * Replaces all comments in given CSS source with spaces,
+		 * which allows more reliable (and faster) token search
+		 * in CSS content
+		 * @param  {String} content CSS content
+		 * @return {String}
+		 */
+		strip: function(content) {
+			if (!reHasComment.test(content)) {
+				return content;
+			}
+
+			var stream = stringStream(content);
+			var replaceRanges = [];
+			var ch, ch2;
+
+			while ((ch = stream.next())) {
+				if (ch === '/') {
+					ch2 = stream.peek();
+					if (ch2 === '*') { // multiline CSS comment
+						stream.start = stream.pos - 1;
+
+						if (stream.skipTo('*/')) {
+							stream.pos += 2;
+						} else {
+							// unclosed comment
+							stream.skipToEnd();
+						}
+
+						replaceRanges.push([stream.start, stream.pos]);
+					} else if (ch2 === '/') {
+						// preprocessor’s single line comments
+						stream.start = stream.pos - 1;
+						while ((ch2 = stream.next())) {
+							if (ch2 === '\n' || ch2 == '\r') {
+								break
+							}
+						}
+
+						replaceRanges.push([stream.start, stream.pos]);
+					}
+				} else {
+					stream.skipQuoted();
+				}
+			}
+
+			return utils.replaceWith(content, replaceRanges, ' ');
+		}
+	};
+});
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('parser/css',['require','exports','module'],function(require, exports, module) {
+	var session = {tokens: null};
+	
+	// walks around the source
+	var walker = {
+		init: function (source) {
+			// this.source = source.replace(/\r\n?/g, '\n');
+			this.source = source;
+			this.ch = '';
+			this.chnum = -1;
+		
+			// advance
+			this.nextChar();
+		},
+		nextChar: function () {
+			return this.ch = this.source.charAt(++this.chnum);
+		},
+		peek: function() {
+			return this.source.charAt(this.chnum + 1);
+		}
+	};
+
+	// utility helpers
+	function isNameChar(c, cc) {
+		cc = cc || c.charCodeAt(0);
+		return (
+			(cc >= 97 && cc <= 122 /* a-z */) || 
+			(cc >= 65 && cc <= 90 /* A-Z */) || 
+			/* 
+			Experimental: include cyrillic ranges 
+			since some letters, similar to latin ones, can 
+			accidentally appear in CSS tokens
+			*/
+			(cc >= 1024 && cc <= 1279) || 
+			c === '&' || /* selector placeholder (LESS, SCSS) */
+			c === '_' || 
+			c === '<' || /* comparisons (LESS, SCSS) */
+			c === '>' || 
+			c === '=' || 
+			c === '-'
+		);
+	}
+
+	function isDigit(c, cc) {
+		cc = cc || c.charCodeAt(0);
+		return (cc >= 48 && cc <= 57);
+	}
+
+	var isOp = (function () {
+		var opsa = "{}[]()+*=.,;:>~|\\%$#@^!".split(''),
+			opsmatcha = "*^|$~".split(''),
+			ops = {},
+			opsmatch = {},
+			i = 0;
+		for (; i < opsa.length; i += 1) {
+			ops[opsa[i]] = true;
+		}
+		for (i = 0; i < opsmatcha.length; i += 1) {
+			opsmatch[opsmatcha[i]] = true;
+		}
+		return function (ch, matchattr) {
+			if (matchattr) {
+				return ch in opsmatch;
+			}
+			return ch in ops;
+		};
+	}());
+	
+	// creates token objects and pushes them to a list
+	function tokener(value, type) {
+		session.tokens.push({
+			value: value,
+			type:  type || value,
+			start: null,
+			end:   null
+		});
+	}
+
+	function getPosInfo(w) {
+		var errPos = w.chnum;
+		var source = w.source.replace(/\r\n?/g, '\n');
+		var part = w.source.substring(0, errPos + 1).replace(/\r\n?/g, '\n');
+		var lines = part.split('\n');
+		var ch = (lines[lines.length - 1] || '').length;
+		var fullLine = source.split('\n')[lines.length - 1] || '';
+		
+		var chunkSize = 100;
+		var offset = Math.max(0, ch - chunkSize);
+		var formattedLine = fullLine.substr(offset, chunkSize * 2) + '\n';
+		for (var i = 0; i < ch - offset - 1; i++) {
+			formattedLine += '-';
+		}
+		formattedLine += '^';
+
+		return {
+			line: lines.length,
+			ch: ch,
+			text: fullLine,
+			hint: formattedLine
+		};
+	}
+
+	function raiseError(message) {
+		var err = error(message);
+		var errObj = new Error(err.message, '', err.line);
+		errObj.line = err.line;
+		errObj.ch = err.ch;
+		errObj.name = err.name;
+		errObj.hint = err.hint;
+
+		throw errObj;
+	}
+	
+	// oops
+	function error(m) { 
+		var w = walker;
+		var info = getPosInfo(walker);
+		var tokens = session.tokens;
+		session.tokens = null;
+
+		var message = 'CSS parsing error at line ' + info.line + ', char ' + info.ch + ': ' + m;
+		message += '\n' +  info.hint;
+		return {
+			name: "ParseError",
+			message: message,
+			hint: info.hint,
+			line: info.line,
+			ch: info.ch
+		};
+	}
+
+
+	// token handlers follow for:
+	// white space, comment, string, identifier, number, operator
+	function white() {
+		var c = walker.ch,
+			token = '';
+	
+		while (c === " " || c === "\t") {
+			token += c;
+			c = walker.nextChar();
+		}
+	
+		tokener(token, 'white');
+	
+	}
+
+	function comment() {
+		var w = walker,
+			c = w.ch,
+			token = c,
+			cnext;
+	 
+		cnext = w.nextChar();
+
+		if (cnext === '/') {
+			// inline comment in SCSS and LESS
+			while (c && !(cnext === "\n" || cnext === "\r")) {
+				token += cnext;
+				c = cnext;
+				cnext = w.nextChar();
+			}
+		} else if (cnext === '*') {
+			// multiline CSS commment
+			while (c && !(c === "*" && cnext === "/")) {
+				token += cnext;
+				c = cnext;
+				cnext = w.nextChar();
+			}
+		} else {
+			// oops, not a comment, just a /
+			return tokener(token, token);
+		}
+		
+		token += cnext;
+		w.nextChar();
+		tokener(token, 'comment');
+	}
+
+	function eatString() {
+		var w = walker,
+			c = w.ch,
+			q = c,
+			token = c,
+			cnext;
+	
+		c = w.nextChar();
+
+		while (c !== q) {
+			if (c === '\n') {
+				cnext = w.nextChar();
+				if (cnext === "\\") {
+					token += c + cnext;
+				} else {
+					// end of line with no \ escape = bad
+					raiseError("Unterminated string");
+				}
+			} else {
+				if (c === "\\") {
+					token += c + w.nextChar();
+				} else {
+					token += c;
+				}
+			}
+		
+			c = w.nextChar();
+		}
+
+		token += c;
+
+		return token;
+	}
+
+	function str() {
+		var token = eatString();
+		walker.nextChar();
+		tokener(token, 'string');
+	}
+	
+	function brace() {
+		var w = walker,
+			c = w.ch,
+			depth = 1,
+			token = c,
+			stop = false;
+	
+		c = w.nextChar();
+	
+		while (c && !stop) {
+			if (c === '(') {
+				depth++;
+			} else if (c === ')') {
+				depth--;
+				if (!depth) {
+					stop = true;
+				}
+			} else if (c === '"' || c === "'") {
+				c = eatString();
+			} else if (c === '') {
+				raiseError("Unterminated brace");
+			}
+			
+			token += c;
+			c = w.nextChar();
+		}
+		
+		tokener(token, 'brace');
+	}
+
+	function identifier(pre) {
+		var c = walker.ch;
+		var token = pre ? pre + c : c;
+			
+		c = walker.nextChar();
+		var cc = c.charCodeAt(0);
+		while (isNameChar(c, cc) || isDigit(c, cc)) {
+			token += c;
+			c = walker.nextChar();
+			cc = c.charCodeAt(0);
+		}
+	
+		tokener(token, 'identifier');
+	}
+
+	function num() {
+		var w = walker,
+			c = w.ch,
+			token = c,
+			point = token === '.',
+			nondigit;
+		
+		c = w.nextChar();
+		nondigit = !isDigit(c);
+	
+		// .2px or .classname?
+		if (point && nondigit) {
+			// meh, NaN, could be a class name, so it's an operator for now
+			return tokener(token, '.');    
+		}
+		
+		// -2px or -moz-something
+		if (token === '-' && nondigit) {
+			return identifier('-');
+		}
+	
+		while (c !== '' && (isDigit(c) || (!point && c === '.'))) { // not end of source && digit or first instance of .
+			if (c === '.') {
+				point = true;
+			}
+			token += c;
+			c = w.nextChar();
+		}
+
+		tokener(token, 'number');    
+	
+	}
+
+	function op() {
+		var w = walker,
+			c = w.ch,
+			token = c,
+			next = w.nextChar();
+			
+		if (next === "=" && isOp(token, true)) {
+			token += next;
+			tokener(token, 'match');
+			w.nextChar();
+			return;
+		} 
+		
+		tokener(token, token);
+	}
+
+
+	// call the appropriate handler based on the first character in a token suspect
+	function tokenize() {
+		var ch = walker.ch;
+	
+		if (ch === " " || ch === "\t") {
+			return white();
+		}
+
+		if (ch === '/') {
+			return comment();
+		} 
+
+		if (ch === '"' || ch === "'") {
+			return str();
+		}
+		
+		if (ch === '(') {
+			return brace();
+		}
+	
+		if (ch === '-' || ch === '.' || isDigit(ch)) { // tricky - char: minus (-1px) or dash (-moz-stuff)
+			return num();
+		}
+	
+		if (isNameChar(ch)) {
+			return identifier();
+		}
+
+		if (isOp(ch)) {
+			return op();
+		}
+
+		if (ch === '\r') {
+			if (walker.peek() === '\n') {
+				ch += walker.nextChar();
+			}
+
+			tokener(ch, 'line');
+			walker.nextChar();
+			return;
+		}
+		
+		if (ch === '\n') {
+			tokener(ch, 'line');
+			walker.nextChar();
+			return;
+		}
+		
+		raiseError("Unrecognized character '" + ch + "'");
+	}
+
+	return {
+		/**
+		 * Sprits given source into tokens
+		 * @param {String} source
+		 * @returns {Array}
+		 */
+		lex: function (source) {
+			walker.init(source);
+			session.tokens = [];
+
+			// for empty source, return single space token
+			if (!source) {
+				session.tokens.push(this.white());
+			} else {
+				while (walker.ch !== '') {
+					tokenize();
+				}
+			}
+
+			var tokens = session.tokens;
+			session.tokens = null;
+			return tokens;
+		},
+		
+		/**
+		 * Tokenizes CSS source. It's like `lex()` method,
+		 * but also stores proper token indexes in source, 
+		 * so it's a bit slower
+		 * @param {String} source
+		 * @returns {Array}
+		 */
+		parse: function(source) {
+			// transform tokens
+			var tokens = this.lex(source), pos = 0, token;
+			for (var i = 0, il = tokens.length; i < il; i++) {
+				token = tokens[i];
+				token.start = pos;
+				token.end = (pos += token.value.length);
+			}
+			return tokens;
+		},
+
+		white: function() {
+			return {
+				value: '',
+				type:  'white',
+				start: 0,
+				end:   0
+			};
+		},
+		
+		toSource: function(toks) {
+			var i = 0, max = toks.length, src = '';
+			for (; i < max; i++) {
+				src += toks[i].value;
+			}
+			return src;
+		}
+	};
+});
+/**
+ * HTML matcher: takes string and searches for HTML tag pairs for given position 
+ * 
+ * Unlike “classic” matchers, it parses content from the specified 
+ * position, not from the start, so it may work even outside HTML documents
+ * (for example, inside strings of programming languages like JavaScript, Python 
+ * etc.)
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('assets/htmlMatcher',['require','exports','module','./range'],function(require, exports, module) {
+	var range = require('./range');
+
+	// Regular Expressions for parsing tags and attributes
+	var reOpenTag = /^<([\w\:\-]+)((?:\s+[\w\-:]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/;
+	var reCloseTag = /^<\/([\w\:\-]+)[^>]*>/;
+
+	function openTag(i, match) {
+		return {
+			name: match[1],
+			selfClose: !!match[3],
+			/** @type Range */
+			range: range(i, match[0]),
+			type: 'open'
+		};
+	}
+	
+	function closeTag(i, match) {
+		return {
+			name: match[1],
+			/** @type Range */
+			range: range(i, match[0]),
+			type: 'close'
+		};
+	}
+	
+	function comment(i, match) {
+		return {
+			/** @type Range */
+			range: range(i, typeof match == 'number' ? match - i : match[0]),
+			type: 'comment'
+		};
+	}
+	
+	/**
+	 * Creates new tag matcher session
+	 * @param {String} text
+	 */
+	function createMatcher(text) {
+		var memo = {}, m;
+		return {
+			/**
+			 * Test if given position matches opening tag
+			 * @param {Number} i
+			 * @returns {Object} Matched tag object
+			 */
+			open: function(i) {
+				var m = this.matches(i);
+				return m && m.type == 'open' ? m : null;
+			},
+			
+			/**
+			 * Test if given position matches closing tag
+			 * @param {Number} i
+			 * @returns {Object} Matched tag object
+			 */
+			close: function(i) {
+				var m = this.matches(i);
+				return m && m.type == 'close' ? m : null;
+			},
+			
+			/**
+			 * Matches either opening or closing tag for given position
+			 * @param i
+			 * @returns
+			 */
+			matches: function(i) {
+				var key = 'p' + i;
+				
+				if (!(key in memo)) {
+					memo[key] = false;
+					if (text.charAt(i) == '<') {
+						var substr = text.slice(i);
+						if ((m = substr.match(reOpenTag))) {
+							memo[key] = openTag(i, m);
+						} else if ((m = substr.match(reCloseTag))) {
+							memo[key] = closeTag(i, m);
+						}
+					}
+				}
+				
+				return memo[key];
+			},
+			
+			/**
+			 * Returns original text
+			 * @returns {String}
+			 */
+			text: function() {
+				return text;
+			},
+
+			clean: function() {
+				memo = text = m = null;
+			}
+		};
+	}
+	
+	function matches(text, pos, pattern) {
+		return text.substring(pos, pos + pattern.length) == pattern;
+	}
+	
+	/**
+	 * Search for closing pair of opening tag
+	 * @param {Object} open Open tag instance
+	 * @param {Object} matcher Matcher instance
+	 */
+	function findClosingPair(open, matcher) {
+		var stack = [], tag = null;
+		var text = matcher.text();
+		
+		for (var pos = open.range.end, len = text.length; pos < len; pos++) {
+			if (matches(text, pos, '<!--')) {
+				// skip to end of comment
+				for (var j = pos; j < len; j++) {
+					if (matches(text, j, '-->')) {
+						pos = j + 3;
+						break;
+					}
+				}
+			}
+			
+			if ((tag = matcher.matches(pos))) {
+				if (tag.type == 'open' && !tag.selfClose) {
+					stack.push(tag.name);
+				} else if (tag.type == 'close') {
+					if (!stack.length) { // found valid pair?
+						return tag.name == open.name ? tag : null;
+					}
+					
+					// check if current closing tag matches previously opened one
+					if (stack[stack.length - 1] == tag.name) {
+						stack.pop();
+					} else {
+						var found = false;
+						while (stack.length && !found) {
+							var last = stack.pop();
+							if (last == tag.name) {
+								found = true;
+							}
+						}
+						
+						if (!stack.length && !found) {
+							return tag.name == open.name ? tag : null;
+						}
+					}
+				}
+
+				pos = tag.range.end - 1;
+			}
+		}
+	}
+	
+	return {
+		/**
+		 * Main function: search for tag pair in <code>text</code> for given 
+		 * position
+		 * @memberOf htmlMatcher
+		 * @param {String} text 
+		 * @param {Number} pos
+		 * @returns {Object}
+		 */
+		find: function(text, pos) {
+			var matcher = createMatcher(text); 
+			var open = null, close = null;
+			var j, jl;
+			
+			for (var i = pos; i >= 0; i--) {
+				if ((open = matcher.open(i))) {
+					// found opening tag
+					if (open.selfClose) {
+						if (open.range.cmp(pos, 'lt', 'gt')) {
+							// inside self-closing tag, found match
+							break;
+						}
+						
+						// outside self-closing tag, continue
+						continue;
+					}
+					
+					close = findClosingPair(open, matcher);
+					if (close) {
+						// found closing tag.
+						var r = range.create2(open.range.start, close.range.end);
+						if (r.contains(pos)) {
+							break;
+						}
+					} else if (open.range.contains(pos)) {
+						// we inside empty HTML tag like <br>
+						break;
+					}
+					
+					open = null;
+				} else if (matches(text, i, '-->')) {
+					// skip back to comment start
+					for (j = i - 1; j >= 0; j--) {
+						if (matches(text, j, '-->')) {
+							// found another comment end, do nothing
+							break;
+						} else if (matches(text, j, '<!--')) {
+							i = j;
+							break;
+						}
+					}
+				} else if (matches(text, i, '<!--')) {
+					// we're inside comment, match it
+					for (j = i + 4, jl = text.length; j < jl; j++) {
+						if (matches(text, j, '-->')) {
+							j += 3;
+							break;
+						}
+					}
+					
+					open = comment(i, j);
+					break;
+				}
+			}
+			
+			matcher.clean();
+
+			if (open) {
+				var outerRange = null;
+				var innerRange = null;
+				
+				if (close) {
+					outerRange = range.create2(open.range.start, close.range.end);
+					innerRange = range.create2(open.range.end, close.range.start);
+				} else {
+					outerRange = innerRange = range.create2(open.range.start, open.range.end);
+				}
+				
+				if (open.type == 'comment') {
+					// adjust positions of inner range for comment
+					var _c = outerRange.substring(text);
+					innerRange.start += _c.length - _c.replace(/^<\!--\s*/, '').length;
+					innerRange.end -= _c.length - _c.replace(/\s*-->$/, '').length;
+				}
+				
+				return {
+					open: open,
+					close: close,
+					type: open.type == 'comment' ? 'comment' : 'tag',
+					innerRange: innerRange,
+					innerContent: function() {
+						return this.innerRange.substring(text);
+					},
+					outerRange: outerRange,
+					outerContent: function() {
+						return this.outerRange.substring(text);
+					},
+					range: !innerRange.length() || !innerRange.cmp(pos, 'lte', 'gte') ? outerRange : innerRange,
+					content: function() {
+						return this.range.substring(text);
+					},
+					source: text
+				};
+			}
+		},
+		
+		/**
+		 * The same as <code>find()</code> method, but restricts matched result 
+		 * to <code>tag</code> type
+		 * @param {String} text 
+		 * @param {Number} pos
+		 * @returns {Object}
+		 */
+		tag: function(text, pos) {
+			var result = this.find(text, pos);
+			if (result && result.type == 'tag') {
+				return result;
+			}
+		}
+	};
+});
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('vendor/klass',['require','exports','module','lodash'],function(require, exports, module) {
+	var _ = require('lodash');
+
+	/**
+	 * Shared empty constructor function to aid in prototype-chain creation.
+	 */
+	var ctor = function(){};
+
+	/**
+	 * Helper function to correctly set up the prototype chain, for subclasses.
+	 * Similar to `goog.inherits`, but uses a hash of prototype properties and
+	 * class properties to be extended.
+	 * Took it from Backbone.
+	 * @param {Object} parent
+	 * @param {Object} protoProps
+	 * @param {Object} staticProps
+	 * @returns {Object}
+	 */
+	function inherits(parent, protoProps, staticProps) {
+		var child;
+
+		// The constructor function for the new subclass is either defined by
+		// you (the "constructor" property in your `extend` definition), or
+		// defaulted by us to simply call the parent's constructor.
+		if (protoProps && protoProps.hasOwnProperty('constructor')) {
+			child = protoProps.constructor;
+		} else {
+			child = function() {
+				parent.apply(this, arguments);
+			};
+		}
+
+		// Inherit class (static) properties from parent.
+		_.extend(child, parent);
+
+		// Set the prototype chain to inherit from `parent`, without calling
+		// `parent`'s constructor function.
+		ctor.prototype = parent.prototype;
+		child.prototype = new ctor();
+
+		// Add prototype properties (instance properties) to the subclass,
+		// if supplied.
+		if (protoProps)
+			_.extend(child.prototype, protoProps);
+
+		// Add static properties to the constructor function, if supplied.
+		if (staticProps)
+			_.extend(child, staticProps);
+
+		// Correctly set child's `prototype.constructor`.
+		child.prototype.constructor = child;
+
+		// Set a convenience property in case the parent's prototype is needed
+		// later.
+		child.__super__ = parent.prototype;
+
+		return child;
+	}
+
+	return {
+		/**
+		 * The self-propagating extend function for classes.
+		 * Took it from Backbone 
+		 * @param {Object} protoProps
+		 * @param {Object} classProps
+		 * @returns {Object}
+		 */
+		extend: function(protoProps, classProps) {
+			var child = inherits(this, protoProps, classProps);
+			child.extend = this.extend;
+			// a hack required to WSH inherit `toString` method
+			if (protoProps.hasOwnProperty('toString'))
+				child.prototype.toString = protoProps.toString;
+			return child;
+		}
+	};
+});
+/**
+ * Abstract implementation of edit tree interface.
+ * Edit tree is a named container of editable “name-value” child elements, 
+ * parsed from <code>source</code>. This container provides convenient methods
+ * for editing/adding/removing child elements. All these update actions are
+ * instantly reflected in the <code>source</code> code with respect of formatting.
+ * <br><br>
+ * For example, developer can create an edit tree from CSS rule and add or 
+ * remove properties from it–all changes will be immediately reflected in the 
+ * original source.
+ * <br><br>
+ * All classes defined in this module should be extended the same way as in
+ * Backbone framework: using <code>extend</code> method to create new class and 
+ * <code>initialize</code> method to define custom class constructor.
+ * 
+ * @example
+ * <pre><code>
+ * var MyClass = require('editTree/base').EditElement.extend({
+ *     initialize: function() {
+ *     // constructor code here
+ *   }
+ * });
+ * 
+ * var elem = new MyClass(); 
+ * </code></pre>
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('editTree/base',['require','exports','module','lodash','../assets/range','../utils/common','../vendor/klass'],function(require, exports, module) {
+	var _ = require('lodash');
+	var range = require('../assets/range');
+	var utils = require('../utils/common');
+	var klass = require('../vendor/klass');
+	
+	/**
+	 * Named container of edited source
+	 * @type EditContainer
+	 * @param {String} source
+	 * @param {Object} options
+	 */
+	function EditContainer(source, options) {
+		this.options = _.extend({offset: 0}, options);
+		/**
+		 * Source code of edited structure. All changes in the structure are 
+		 * immediately reflected into this property
+		 */
+		this.source = source;
+		
+		/** 
+		 * List of all editable children
+		 * @private 
+		 */
+		this._children = [];
+		
+		/**
+		 * Hash of all positions of container
+		 * @private
+		 */
+		this._positions = {
+			name: 0
+		};
+		
+		this.initialize.apply(this, arguments);
+	}
+	
+	/**
+	 * The self-propagating extend function for classes.
+	 * @type Function
+	 */
+	EditContainer.extend = klass.extend;
+	
+	EditContainer.prototype = {
+		type: 'container',
+		/**
+		 * Child class constructor
+		 */
+		initialize: function() {},
+
+		/**
+		 * Make position absolute
+		 * @private
+		 * @param {Number} num
+		 * @param {Boolean} isAbsolute
+		 * @returns {Boolean}
+		 */
+		_pos: function(num, isAbsolute) {
+			return num + (isAbsolute ? this.options.offset : 0);
+		},
+		
+		/**
+		 * Replace substring of tag's source
+		 * @param {String} value
+		 * @param {Number} start
+		 * @param {Number} end
+		 * @private
+		 */
+		_updateSource: function(value, start, end) {
+			// create modification range
+			var r = range.create(start, _.isUndefined(end) ? 0 : end - start);
+			var delta = value.length - r.length();
+			
+			var update = function(obj) {
+				_.each(obj, function(v, k) {
+					if (v >= r.end)
+						obj[k] += delta;
+				});
+			};
+			
+			// update affected positions of current container
+			update(this._positions);
+			
+			// update affected positions of children
+			var recursiveUpdate = function(items) {
+				_.each(items, function(item) {
+					update(item._positions);
+					if (item.type == 'container') {
+						recursiveUpdate(item.list());
+					}
+				});
+			};
+
+			recursiveUpdate(this.list());
+			this.source = utils.replaceSubstring(this.source, value, r);
+		},
+			
+			
+		/**
+		 * Adds new attribute 
+		 * @param {String} name Property name
+		 * @param {String} value Property value
+		 * @param {Number} pos Position at which to insert new property. By 
+		 * default the property is inserted at the end of rule 
+		 * @returns {EditElement} Newly created element
+		 */
+		add: function(name, value, pos) {
+			// this is abstract implementation
+			var item = new EditElement(name, value);
+			this._children.push(item);
+			return item;
+		},
+		
+		/**
+		 * Returns attribute object
+		 * @param {String} name Attribute name or its index
+		 * @returns {EditElement}
+		 */
+		get: function(name) {
+			if (_.isNumber(name))
+				return this.list()[name];
+			
+			if (_.isString(name))
+				return _.find(this.list(), function(prop) {
+					return prop.name() === name;
+				});
+			
+			return name;
+		},
+		
+		/**
+		 * Returns all children by name or indexes
+		 * @param {Object} name Element name(s) or indexes (<code>String</code>,
+		 * <code>Array</code>, <code>Number</code>)
+		 * @returns {Array}
+		 */
+		getAll: function(name) {
+			if (!_.isArray(name))
+				name = [name];
+			
+			// split names and indexes
+			var names = [], indexes = [];
+			_.each(name, function(item) {
+				if (_.isString(item))
+					names.push(item);
+				else if (_.isNumber(item))
+					indexes.push(item);
+			});
+			
+			return _.filter(this.list(), function(attribute, i) {
+				return _.include(indexes, i) || _.include(names, attribute.name());
+			});
+		},
+
+		/**
+		 * Returns list of all editable child elements
+		 * @returns {Array}
+		 */
+		list: function() {
+			return this._children;
+		},
+
+		/**
+		 * Remove child element
+		 * @param {String} name Property name or its index
+		 */
+		remove: function(name) {
+			var element = this.get(name);
+			if (element) {
+				this._updateSource('', element.fullRange());
+				this._children = _.without(this._children, element);
+			}
+		},
+		
+		/**
+		 * Returns index of editble child in list
+		 * @param {Object} item
+		 * @returns {Number}
+		 */
+		indexOf: function(item) {
+			return _.indexOf(this.list(), this.get(item));
+		},
+		
+		/**
+		 * Returns or updates element value. If such element doesn't exists,
+		 * it will be created automatically and added at the end of child list.
+		 * @param {String} name Element name or its index
+		 * @param {String} value New element value
+		 * @returns {String}
+		 */
+		value: function(name, value, pos) {
+			var element = this.get(name);
+			if (element)
+				return element.value(value);
+			
+			if (!_.isUndefined(value)) {
+				// no such element — create it
+				return this.add(name, value, pos);
+			}
+		},
+		
+		/**
+		 * Returns all values of child elements found by <code>getAll()</code>
+		 * method
+		 * @param {Object} name Element name(s) or indexes (<code>String</code>,
+		 * <code>Array</code>, <code>Number</code>)
+		 * @returns {Array}
+		 */
+		values: function(name) {
+			return _.map(this.getAll(name), function(element) {
+				return element.value();
+			});
+		},
+		
+		/**
+		 * Sets or gets container name
+		 * @param {String} val New name. If not passed, current 
+		 * name is returned
+		 * @return {String}
+		 */
+		name: function(val) {
+			if (!_.isUndefined(val) && this._name !== (val = String(val))) {
+				this._updateSource(val, this._positions.name, this._positions.name + this._name.length);
+				this._name = val;
+			}
+			
+			return this._name;
+		},
+		
+		/**
+		 * Returns name range object
+		 * @param {Boolean} isAbsolute Return absolute range (with respect of 
+		 * rule offset)
+		 * @returns {Range}
+		 */
+		nameRange: function(isAbsolute) {
+			return range.create(this._positions.name + (isAbsolute ? this.options.offset : 0), this.name());
+		},
+
+		/**
+		 * Returns range of current source
+		 * @param {Boolean} isAbsolute
+		 */
+		range: function(isAbsolute) {
+			return range.create(isAbsolute ? this.options.offset : 0, this.valueOf());
+		},
+		
+		/**
+		 * Returns element that belongs to specified position
+		 * @param {Number} pos
+		 * @param {Boolean} isAbsolute
+		 * @returns {EditElement}
+		 */
+		itemFromPosition: function(pos, isAbsolute) {
+			return _.find(this.list(), function(elem) {
+				return elem.range(isAbsolute).inside(pos);
+			});
+		},
+		
+		/**
+		 * Returns source code of current container 
+		 * @returns {String}
+		 */
+		toString: function() {
+			return this.valueOf();
+		},
+
+		valueOf: function() {
+			return this.source;
+		}
+	};
+	
+	/**
+	 * @param {EditContainer} parent
+	 * @param {Object} nameToken
+	 * @param {Object} valueToken
+	 */
+	function EditElement(parent, nameToken, valueToken) {
+		/** @type EditContainer */
+		this.parent = parent;
+		
+		this._name = nameToken.value;
+		this._value = valueToken ? valueToken.value : '';
+		
+		this._positions = {
+			name: nameToken.start,
+			value: valueToken ? valueToken.start : -1
+		};
+		
+		this.initialize.apply(this, arguments);
+	}
+	
+	/**
+	 * The self-propagating extend function for classes.
+	 * @type Function
+	 */
+	EditElement.extend = klass.extend;
+	
+	EditElement.prototype = {
+		type: 'element',
+
+		/**
+		 * Child class constructor
+		 */
+		initialize: function() {},
+		
+		/**
+		 * Make position absolute
+		 * @private
+		 * @param {Number} num
+		 * @param {Boolean} isAbsolute
+		 * @returns {Boolean}
+		 */
+		_pos: function(num, isAbsolute) {
+			return num + (isAbsolute ? this.parent.options.offset : 0);
+		},
+			
+		/**
+		 * Sets of gets element value
+		 * @param {String} val New element value. If not passed, current 
+		 * value is returned
+		 * @returns {String}
+		 */
+		value: function(val) {
+			if (!_.isUndefined(val) && this._value !== (val = String(val))) {
+				this.parent._updateSource(val, this.valueRange());
+				this._value = val;
+			}
+			
+			return this._value;
+		},
+		
+		/**
+		 * Sets of gets element name
+		 * @param {String} val New element name. If not passed, current 
+		 * name is returned
+		 * @returns {String}
+		 */
+		name: function(val) {
+			if (!_.isUndefined(val) && this._name !== (val = String(val))) {
+				this.parent._updateSource(val, this.nameRange());
+				this._name = val;
+			}
+			
+			return this._name;
+		},
+		
+		/**
+		 * Returns position of element name token
+		 * @param {Boolean} isAbsolute Return absolute position
+		 * @returns {Number}
+		 */
+		namePosition: function(isAbsolute) {
+			return this._pos(this._positions.name, isAbsolute);
+		},
+		
+		/**
+		 * Returns position of element value token
+		 * @param {Boolean} isAbsolute Return absolute position
+		 * @returns {Number}
+		 */
+		valuePosition: function(isAbsolute) {
+			return this._pos(this._positions.value, isAbsolute);
+		},
+		
+		/**
+		 * Returns element name
+		 * @param {Boolean} isAbsolute Return absolute range 
+		 * @returns {Range}
+		 */
+		range: function(isAbsolute) {
+			return range.create(this.namePosition(isAbsolute), this.valueOf());
+		},
+		
+		/**
+		 * Returns full element range, including possible indentation
+		 * @param {Boolean} isAbsolute Return absolute range
+		 * @returns {Range}
+		 */
+		fullRange: function(isAbsolute) {
+			return this.range(isAbsolute);
+		},
+		
+		/**
+		 * Returns element name range
+		 * @param {Boolean} isAbsolute Return absolute range
+		 * @returns {Range}
+		 */
+		nameRange: function(isAbsolute) {
+			return range.create(this.namePosition(isAbsolute), this.name());
+		},
+		
+		/**
+		 * Returns element value range
+		 * @param {Boolean} isAbsolute Return absolute range
+		 * @returns {Range}
+		 */
+		valueRange: function(isAbsolute) {
+			return range.create(this.valuePosition(isAbsolute), this.value());
+		},
+		
+		/**
+		 * Returns current element string representation
+		 * @returns {String}
+		 */
+		toString: function() {
+			return this.valueOf();
+		},
+		
+		valueOf: function() {
+			return this.name() + this.value();
+		}
+	};
+	
+	return {
+		EditContainer: EditContainer,
+		EditElement: EditElement,
+		
+		/**
+		 * Creates token that can be fed to <code>EditElement</code>
+		 * @param {Number} start
+		 * @param {String} value
+		 * @param {String} type
+		 * @returns
+		 */
+		createToken: function(start, value, type) {
+			var obj = {
+				start: start || 0,
+				value: value || '',
+				type: type
+			};
+			
+			obj.end = obj.start + obj.value.length;
+			return obj;
+		}
+	};
+});
+/**
+ * HTML tokenizer by Marijn Haverbeke
+ * http://codemirror.net/
+ * @constructor
+ * @memberOf __xmlParseDefine
+ * @param {Function} require
+ * @param {Underscore} _
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('parser/xml',['require','exports','module','lodash','../assets/stringStream'],function(require, exports, module) {
+	var _ = require('lodash');
+	var stringStream = require('../assets/stringStream');
+
+	var Kludges = {
+		autoSelfClosers : {},
+		implicitlyClosed : {},
+		contextGrabbers : {},
+		doNotIndent : {},
+		allowUnquoted : true,
+		allowMissing : true
+	};
+
+	// Return variables for tokenizers
+	var tagName = null, type = null;
+
+	function inText(stream, state) {
+		function chain(parser) {
+			state.tokenize = parser;
+			return parser(stream, state);
+		}
+
+		var ch = stream.next();
+		if (ch == "<") {
+			if (stream.eat("!")) {
+				if (stream.eat("[")) {
+					if (stream.match("CDATA["))
+						return chain(inBlock("atom", "]]>"));
+					else
+						return null;
+				} else if (stream.match("--"))
+					return chain(inBlock("comment", "-->"));
+				else if (stream.match("DOCTYPE", true, true)) {
+					stream.eatWhile(/[\w\._\-]/);
+					return chain(doctype(1));
+				} else
+					return null;
+			} else if (stream.eat("?")) {
+				stream.eatWhile(/[\w\._\-]/);
+				state.tokenize = inBlock("meta", "?>");
+				return "meta";
+			} else {
+				type = stream.eat("/") ? "closeTag" : "openTag";
+				stream.eatSpace();
+				tagName = "";
+				var c;
+				while ((c = stream.eat(/[^\s\u00a0=<>\"\'\/?]/)))
+					tagName += c;
+				state.tokenize = inTag;
+				return "tag";
+			}
+		} else if (ch == "&") {
+			var ok;
+			if (stream.eat("#")) {
+				if (stream.eat("x")) {
+					ok = stream.eatWhile(/[a-fA-F\d]/) && stream.eat(";");
+				} else {
+					ok = stream.eatWhile(/[\d]/) && stream.eat(";");
+				}
+			} else {
+				ok = stream.eatWhile(/[\w\.\-:]/) && stream.eat(";");
+			}
+			return ok ? "atom" : "error";
+		} else {
+			stream.eatWhile(/[^&<]/);
+			return "text";
+		}
+	}
+
+	function inTag(stream, state) {
+		var ch = stream.next();
+		if (ch == ">" || (ch == "/" && stream.eat(">"))) {
+			state.tokenize = inText;
+			type = ch == ">" ? "endTag" : "selfcloseTag";
+			return "tag";
+		} else if (ch == "=") {
+			type = "equals";
+			return null;
+		} else if (/[\'\"]/.test(ch)) {
+			state.tokenize = inAttribute(ch);
+			return state.tokenize(stream, state);
+		} else {
+			stream.eatWhile(/[^\s\u00a0=<>\"\'\/?]/);
+			return "word";
+		}
+	}
+
+	function inAttribute(quote) {
+		return function(stream, state) {
+			while (!stream.eol()) {
+				if (stream.next() == quote) {
+					state.tokenize = inTag;
+					break;
+				}
+			}
+			return "string";
+		};
+	}
+
+	function inBlock(style, terminator) {
+		return function(stream, state) {
+			while (!stream.eol()) {
+				if (stream.match(terminator)) {
+					state.tokenize = inText;
+					break;
+				}
+				stream.next();
+			}
+			return style;
+		};
+	}
+	
+	function doctype(depth) {
+		return function(stream, state) {
+			var ch;
+			while ((ch = stream.next()) !== null) {
+				if (ch == "<") {
+					state.tokenize = doctype(depth + 1);
+					return state.tokenize(stream, state);
+				} else if (ch == ">") {
+					if (depth == 1) {
+						state.tokenize = inText;
+						break;
+					} else {
+						state.tokenize = doctype(depth - 1);
+						return state.tokenize(stream, state);
+					}
+				}
+			}
+			return "meta";
+		};
+	}
+
+	var curState = null, setStyle;
+	function pass() {
+		for (var i = arguments.length - 1; i >= 0; i--)
+			curState.cc.push(arguments[i]);
+	}
+	
+	function cont() {
+		pass.apply(null, arguments);
+		return true;
+	}
+
+	function pushContext(tagName, startOfLine) {
+		var noIndent = Kludges.doNotIndent.hasOwnProperty(tagName) 
+			|| (curState.context && curState.context.noIndent);
+		curState.context = {
+			prev : curState.context,
+			tagName : tagName,
+			indent : curState.indented,
+			startOfLine : startOfLine,
+			noIndent : noIndent
+		};
+	}
+	
+	function popContext() {
+		if (curState.context)
+			curState.context = curState.context.prev;
+	}
+
+	function element(type) {
+		if (type == "openTag") {
+			curState.tagName = tagName;
+			return cont(attributes, endtag(curState.startOfLine));
+		} else if (type == "closeTag") {
+			var err = false;
+			if (curState.context) {
+				if (curState.context.tagName != tagName) {
+					if (Kludges.implicitlyClosed.hasOwnProperty(curState.context.tagName.toLowerCase())) {
+						popContext();
+					}
+					err = !curState.context || curState.context.tagName != tagName;
+				}
+			} else {
+				err = true;
+			}
+			
+			if (err)
+				setStyle = "error";
+			return cont(endclosetag(err));
+		}
+		return cont();
+	}
+	
+	function endtag(startOfLine) {
+		return function(type) {
+			if (type == "selfcloseTag"
+					|| (type == "endTag" && Kludges.autoSelfClosers
+							.hasOwnProperty(curState.tagName
+									.toLowerCase()))) {
+				maybePopContext(curState.tagName.toLowerCase());
+				return cont();
+			}
+			if (type == "endTag") {
+				maybePopContext(curState.tagName.toLowerCase());
+				pushContext(curState.tagName, startOfLine);
+				return cont();
+			}
+			return cont();
+		};
+	}
+	
+	function endclosetag(err) {
+		return function(type) {
+			if (err)
+				setStyle = "error";
+			if (type == "endTag") {
+				popContext();
+				return cont();
+			}
+			setStyle = "error";
+			return cont(arguments.callee);
+		};
+	}
+	
+	function maybePopContext(nextTagName) {
+		var parentTagName;
+		while (true) {
+			if (!curState.context) {
+				return;
+			}
+			parentTagName = curState.context.tagName.toLowerCase();
+			if (!Kludges.contextGrabbers.hasOwnProperty(parentTagName)
+					|| !Kludges.contextGrabbers[parentTagName].hasOwnProperty(nextTagName)) {
+				return;
+			}
+			popContext();
+		}
+	}
+
+	function attributes(type) {
+		if (type == "word") {
+			setStyle = "attribute";
+			return cont(attribute, attributes);
+		}
+		if (type == "endTag" || type == "selfcloseTag")
+			return pass();
+		setStyle = "error";
+		return cont(attributes);
+	}
+	
+	function attribute(type) {
+		if (type == "equals")
+			return cont(attvalue, attributes);
+		if (!Kludges.allowMissing)
+			setStyle = "error";
+		return (type == "endTag" || type == "selfcloseTag") ? pass()
+				: cont();
+	}
+	
+	function attvalue(type) {
+		if (type == "string")
+			return cont(attvaluemaybe);
+		if (type == "word" && Kludges.allowUnquoted) {
+			setStyle = "string";
+			return cont();
+		}
+		setStyle = "error";
+		return (type == "endTag" || type == "selfCloseTag") ? pass()
+				: cont();
+	}
+	
+	function attvaluemaybe(type) {
+		if (type == "string")
+			return cont(attvaluemaybe);
+		else
+			return pass();
+	}
+	
+	function startState() {
+		return {
+			tokenize : inText,
+			cc : [],
+			indented : 0,
+			startOfLine : true,
+			tagName : null,
+			context : null
+		};
+	}
+	
+	function token(stream, state) {
+		if (stream.sol()) {
+			state.startOfLine = true;
+			state.indented = 0;
+		}
+		
+		if (stream.eatSpace())
+			return null;
+
+		setStyle = type = tagName = null;
+		var style = state.tokenize(stream, state);
+		state.type = type;
+		if ((style || type) && style != "comment") {
+			curState = state;
+			while (true) {
+				var comb = state.cc.pop() || element;
+				if (comb(type || style))
+					break;
+			}
+		}
+		state.startOfLine = false;
+		return setStyle || style;
+	}
+
+	return {
+		/**
+		 * @memberOf emmet.xmlParser
+		 * @returns
+		 */
+		parse: function(data, offset) {
+			offset = offset || 0;
+			var state = startState();
+			var stream = stringStream.create(data);
+			var tokens = [];
+			while (!stream.eol()) {
+				tokens.push({
+					type: token(stream, state),
+					start: stream.start + offset,
+					end: stream.pos + offset
+				});
+				stream.start = stream.pos;
+			}
+			
+			return tokens;
+		}		
+	};
+});
+
+/**
+ * XML EditTree is a module that can parse an XML/HTML element into a tree with 
+ * convenient methods for adding, modifying and removing attributes. These 
+ * changes can be written back to string with respect of code formatting.
+ * 
+ * @memberOf __xmlEditTreeDefine
+ * @constructor
+ * @param {Function} require
+ * @param {Underscore} _ 
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('editTree/xml',['require','exports','module','lodash','./base','../parser/xml','../assets/range','../utils/common'],function(require, exports, module) {
+	var _ = require('lodash');
+	var editTree = require('./base');
+	var xmlParser = require('../parser/xml');
+	var range = require('../assets/range');
+	var utils = require('../utils/common');
+
+	var defaultOptions = {
+		styleBefore: ' ',
+		styleSeparator: '=',
+		styleQuote: '"',
+		offset: 0
+	};
+	
+	var startTag = /^<([\w\:\-]+)((?:\s+[\w\-:]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/m;
+	
+	var XMLEditContainer = editTree.EditContainer.extend({
+		initialize: function(source, options) {
+			_.defaults(this.options, defaultOptions);
+			this._positions.name = 1;
+			
+			var attrToken = null;
+			var tokens = xmlParser.parse(source);
+			
+			_.each(tokens, function(token) {
+				token.value = range.create(token).substring(source);
+				switch (token.type) {
+					case 'tag':
+						if (/^<[^\/]+/.test(token.value)) {
+							this._name = token.value.substring(1);
+						}
+						break;
+						
+					case 'attribute':
+						// add empty attribute
+						if (attrToken) {
+							this._children.push(new XMLEditElement(this, attrToken));
+						}
+						
+						attrToken = token;
+						break;
+						
+					case 'string':
+						this._children.push(new XMLEditElement(this, attrToken, token));
+						attrToken = null;
+						break;
+				}
+			}, this);
+			
+			if (attrToken) {
+				this._children.push(new XMLEditElement(this, attrToken));
+			}
+			
+			this._saveStyle();
+		},
+		
+		/**
+		 * Remembers all styles of properties
+		 * @private
+		 */
+		_saveStyle: function() {
+			var start = this.nameRange().end;
+			var source = this.source;
+			
+			_.each(this.list(), /** @param {EditElement} p */ function(p) {
+				p.styleBefore = source.substring(start, p.namePosition());
+				
+				if (p.valuePosition() !== -1) {
+					p.styleSeparator = source.substring(p.namePosition() + p.name().length, p.valuePosition() - p.styleQuote.length);
+				}
+				
+				start = p.range().end;
+			});
+		},
+		
+		/**
+		 * Adds new attribute 
+		 * @param {String} name Property name
+		 * @param {String} value Property value
+		 * @param {Number} pos Position at which to insert new property. By 
+		 * default the property is inserted at the end of rule 
+		 */
+		add: function(name, value, pos) {
+			var list = this.list();
+			var start = this.nameRange().end;
+			var styles = _.pick(this.options, 'styleBefore', 'styleSeparator', 'styleQuote');
+			
+			if (_.isUndefined(pos))
+				pos = list.length;
+			
+			
+			/** @type XMLEditAttribute */
+			var donor = list[pos];
+			if (donor) {
+				start = donor.fullRange().start;
+			} else if ((donor = list[pos - 1])) {
+				start = donor.range().end;
+			}
+			
+			if (donor) {
+				styles = _.pick(donor, 'styleBefore', 'styleSeparator', 'styleQuote');
+			}
+			
+			value = styles.styleQuote + value + styles.styleQuote;
+			
+			var attribute = new XMLEditElement(this, 
+					editTree.createToken(start + styles.styleBefore.length, name),
+					editTree.createToken(start + styles.styleBefore.length + name.length 
+							+ styles.styleSeparator.length, value)
+					);
+			
+			_.extend(attribute, styles);
+			
+			// write new attribute into the source
+			this._updateSource(attribute.styleBefore + attribute.toString(), start);
+			
+			// insert new attribute
+			this._children.splice(pos, 0, attribute);
+			return attribute;
+		},
+
+		/**
+		 * A special case of attribute editing: adds class value to existing
+		 * `class` attribute
+		 * @param {String} value
+		 */
+		addClass: function(value) {
+			var attr = this.get('class');
+			value = utils.trim(value);
+			if (!attr) {
+				return this.add('class', value);
+			}
+
+			var classVal = attr.value();
+			var classList = ' ' + classVal.replace(/\n/g, ' ') + ' ';
+			if (!~classList.indexOf(' ' + value + ' ')) {
+				attr.value(classVal + ' ' + value);
+			}
+		},
+
+		/**
+		 * A special case of attribute editing: removes class value from existing
+		 * `class` attribute
+		 * @param {String} value
+		 */
+		removeClass: function(value) {
+			var attr = this.get('class');
+			value = utils.trim(value);
+			if (!attr) {
+				return;
+			}
+
+			var reClass = new RegExp('(^|\\s+)' + utils.escapeForRegexp(value));
+			var classVal = attr.value().replace(reClass, '');
+			if (!utils.trim(classVal)) {
+				this.remove('class');
+			} else {
+				attr.value(classVal);
+			}
+		}
+	});
+	
+	var XMLEditElement = editTree.EditElement.extend({
+		initialize: function(parent, nameToken, valueToken) {
+			this.styleBefore = parent.options.styleBefore;
+			this.styleSeparator = parent.options.styleSeparator;
+			
+			var value = '', quote = parent.options.styleQuote;
+			if (valueToken) {
+				value = valueToken.value;
+				quote = value.charAt(0);
+				if (quote == '"' || quote == "'") {
+					value = value.substring(1);
+				} else {
+					quote = '';
+				}
+				
+				if (quote && value.charAt(value.length - 1) == quote) {
+					value = value.substring(0, value.length - 1);
+				}
+			}
+			
+			this.styleQuote = quote;
+			
+			this._value = value;
+			this._positions.value = valueToken ? valueToken.start + quote.length : -1;
+		},
+		
+		/**
+		 * Returns full rule range, with indentation
+		 * @param {Boolean} isAbsolute Return absolute range (with respect of
+		 * rule offset)
+		 * @returns {Range}
+		 */
+		fullRange: function(isAbsolute) {
+			var r = this.range(isAbsolute);
+			r.start -= this.styleBefore.length;
+			return r;
+		},
+		
+		valueOf: function() {
+			return this.name() + this.styleSeparator
+				+ this.styleQuote + this.value() + this.styleQuote;
+		}
+	});
+	
+	return {
+		/**
+		 * Parses HTML element into editable tree
+		 * @param {String} source
+		 * @param {Object} options
+		 * @memberOf emmet.htmlEditTree
+		 * @returns {EditContainer}
+		 */
+		parse: function(source, options) {
+			return new XMLEditContainer(source, options);
+		},
+		
+		/**
+		 * Extract and parse HTML from specified position in <code>content</code> 
+		 * @param {String} content CSS source code
+		 * @param {Number} pos Character position where to start source code extraction
+		 * @returns {XMLEditElement}
+		 */
+		parseFromPosition: function(content, pos, isBackward) {
+			var bounds = this.extractTag(content, pos, isBackward);
+			if (!bounds || !bounds.inside(pos))
+				// no matching HTML tag or caret outside tag bounds
+				return null;
+			
+			return this.parse(bounds.substring(content), {
+				offset: bounds.start
+			});
+		},
+		
+		/**
+		 * Extracts nearest HTML tag range from <code>content</code>, starting at 
+		 * <code>pos</code> position
+		 * @param {String} content
+		 * @param {Number} pos
+		 * @param {Boolean} isBackward
+		 * @returns {Range}
+		 */
+		extractTag: function(content, pos, isBackward) {
+			var len = content.length, i;
+			
+			// max extraction length. I don't think there may be tags larger 
+			// than 2000 characters length
+			var maxLen = Math.min(2000, len);
+			
+			/** @type Range */
+			var r = null;
+			
+			var match = function(pos) {
+				var m;
+				if (content.charAt(pos) == '<' && (m = content.substr(pos, maxLen).match(startTag)))
+					return range.create(pos, m[0]);
+			};
+			
+			// lookup backward, in case we are inside tag already
+			for (i = pos; i >= 0; i--) {
+				if ((r = match(i))) break;
+			}
+			
+			if (r && (r.inside(pos) || isBackward))
+				return r;
+			
+			if (!r && isBackward)
+				return null;
+			
+			// search forward
+			for (i = pos; i < len; i++) {
+				if ((r = match(i)))
+					return r;
+			}
+		}
+	};
+});
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('utils/cssSections',['require','exports','module','lodash','./common','./comments','../assets/range','../assets/stringStream','../parser/css','../assets/htmlMatcher','../editTree/xml'],function(require, exports, module) {
+	var _ = require('lodash');
+	var utils = require('./common');
+	var commentsUtils = require('./comments');
+	var range = require('../assets/range');
+	var stringStream = require('../assets/stringStream');
+	var cssParser = require('../parser/css');
+	var htmlMatcher = require('../assets/htmlMatcher');
+	var xmlEditTree = require('../editTree/xml');
+
+	var idCounter = 1;
+	var maxId = 1000000;
+
+	var reSpaceTrim = /^(\s*).+?(\s*)$/;
+	var reSpace = /\s/g;
+	var reComma = /,/;
+
+	function isQuote(ch) {
+		return ch == '"' || ch == "'";
+	}
+
+	function getId() {
+		idCounter = (idCounter + 1) % maxId;
+		return 's' + idCounter;
+	}
+
+	/**
+	 * @param {Range} range Full selector range with additional
+	 * properties for matching name and content (@see findAllRules())
+	 * @param {String} source CSS source
+	 */
+	function CSSSection(rng, source) {
+		this.id = getId();
+		/** @type {CSSSection} */
+		this.parent = null;
+		/** @type {CSSSection} */
+		this.nextSibling = null;
+		/** @type {CSSSection} */
+		this.previousSibling = null;
+		this._source = source;
+		this._name = null;
+		this._content = null;
+
+		/**
+		 * Custom data for current nodes, used by other modules for
+		 * caching etc.
+		 * @type {Object}
+		 */
+		this._data = {};
+
+		if (!rng && source) {
+			rng = range(0, source);
+		}
+
+		this.range = rng;
+		this.children = [];
+	}
+
+	CSSSection.prototype = {
+		addChild: function(section) {
+			if (!(section instanceof CSSSection)) {
+				section = new CSSSection(section);
+			}
+
+			var lastChild = _.last(this.children);
+			if (lastChild) {
+				lastChild.nextSibling = section;
+				section.previousSibling = lastChild;
+			}
+			section.parent = this;
+
+			this.children.push(section);
+			return section;
+		},
+
+		/**
+		 * Returns root node
+		 * @return {CSSSection}
+		 */
+		root: function() {
+			var root = this;
+			do {
+				if (!root.parent) {
+					return root;
+				}
+			} while(root = root.parent);
+
+			return root;
+		},
+
+		/**
+		 * Returns currect CSS source
+		 * @return {String}
+		 */
+		source: function() {
+			return this._source || this.root()._source;
+		},
+
+		/**
+		 * Returns section name
+		 * @return {String}
+		 */
+		name: function() {
+			if (this._name === null) {
+				var range = this.nameRange();
+				if (range) {
+					this._name = range.substring(this.source());
+				}
+			}
+
+			return this._name;
+		},
+
+		/**
+		 * Returns section name range
+		 * @return {[type]} [description]
+		 */
+		nameRange: function() {
+			if (this.range && '_selectorEnd' in this.range) {
+				return range.create2(this.range.start, this.range._selectorEnd);
+			}
+		},
+
+		/**
+		 * Returns deepest child of current section (or section itself) 
+		 * which includes given position.
+		 * @param  {Number} pos
+		 * @return {CSSSection}
+		 */
+		matchDeep: function(pos) {
+			if (!this.range.inside(pos)) {
+				return null;
+			}
+
+			for (var i = 0, il = this.children.length, m; i < il; i++) {
+				m = this.children[i].matchDeep(pos);
+				if (m) {
+					return m;
+				}
+			};
+
+			return this.parent ? this : null;
+		},
+
+		/**
+		 * Returns current and all nested sections ranges
+		 * @return {Array}
+		 */
+		allRanges: function() {
+			var out = [];
+			if (this.parent) {
+				// add current range if it is not root node
+				out.push(this.range);
+			}
+
+			_.each(this.children, function(child) {
+				out = out.concat(child.allRanges());
+			});
+
+			return out;
+		},
+
+		data: function(key, value) {
+			if (typeof value !== 'undefined') {
+				this._data[key] = value;
+			}
+
+			return this._data[key];
+		},
+
+		stringify: function(indent) {
+			indent = indent || '';
+			var out = '';
+			_.each(this.children, function(item) {
+				out += indent + item.name().replace(/\n/g, '\\n') + '\n';
+				out += item.stringify(indent + '--');
+			});
+
+			return out;
+		},
+
+		/**
+		 * Returns current section’s actual content,
+		 * e.g. content without nested sections
+		 * @return {String} 
+		 */
+		content: function() {
+			if (this._content !== null) {
+				return this._content;
+			}
+
+			if (!this.range || !('_contentStart' in this.range)) {
+				return '';
+			}
+
+			var r = range.create2(this.range._contentStart + 1, this.range.end - 1);
+			var source = this.source();
+			var start = r.start;
+			var out = '';
+
+			_.each(this.children, function(child) {
+				out += source.substring(start, child.range.start);
+				start = child.range.end;
+			});
+
+			out += source.substring(start, r.end);
+			return this._content = utils.trim(out);
+		}
+	};
+
+	return {
+		/**
+		 * Finds all CSS rules‘ ranges in given CSS source
+		 * @param  {String} content CSS source
+		 * @return {Array} Array of ranges
+		 */
+		findAllRules: function(content) {
+			content = this.sanitize(content);
+			var stream = stringStream(content);
+			var ranges = [], matchedRanges;
+
+			var saveRule = _.bind(function(r) {
+				var selRange = this.extractSelector(content, r.start);
+				var rule = range.create2(selRange.start, r.end);
+				rule._selectorEnd = selRange.end;
+				rule._contentStart = r.start;
+				ranges.push(rule);
+			}, this);
+
+			var ch;
+			while (ch = stream.next()) {
+				if (isQuote(ch)) {
+					if (!stream.skipString(ch)) {
+						break; // unterminated string
+					}
+
+					continue;
+				}
+
+				if (ch == '{') {
+					matchedRanges = this.matchBracesRanges(content, stream.pos - 1);
+					_.each(matchedRanges, saveRule);
+
+					if (matchedRanges.length) {
+						stream.pos = _.last(matchedRanges).end;
+						continue;
+					} 
+				}
+			}
+			
+			return ranges.sort(function(a, b) {
+				return a.start - b.start;
+			});
+		},
+
+		/**
+		 * Matches curly braces content right after given position
+		 * @param  {String} content CSS content. Must not contain comments!
+		 * @param  {Number} pos     Search start position
+		 * @return {Range}
+		 */
+		matchBracesRanges: function(content, pos, sanitize) {
+			if (sanitize) {
+				content = this.sanitize(content);
+			}
+
+			var stream = stringStream(content);
+			stream.start = stream.pos = pos;
+			var stack = [], ranges = [];
+			var ch;
+			while (ch = stream.next()) {
+				if (ch == '{') {
+					stack.push(stream.pos - 1);
+				} else if (ch == '}') {
+					if (!stack.length) {
+						throw 'Invalid source structure (check for curly braces)';
+					}
+					ranges.push(range.create2(stack.pop(), stream.pos));
+					if (!stack.length) {
+						return ranges;
+					}
+				} else {
+					stream.skipQuoted();
+				}
+			}
+
+			return ranges;
+		},
+
+		/**
+		 * Extracts CSS selector from CSS document from
+		 * given position. The selector is located by moving backward
+		 * from given position which means that passed position
+		 * must point to the end of selector 
+		 * @param  {String}  content CSS source
+		 * @param  {Number}  pos     Search position
+		 * @param  {Boolean} sanitize Sanitize CSS source before processing.
+		 * Off by default and assumes that CSS must be comment-free already
+		 * (for performance)
+		 * @return {Range}
+		 */
+		extractSelector: function(content, pos, sanitize) {
+			if (sanitize) {
+				content = this.sanitize(content);
+			}
+
+			var skipString = function() {
+				var quote = content.charAt(pos);
+				if (quote == '"' || quote == "'") {
+					while (--pos >= 0) {
+						if (content.charAt(pos) == quote && content.charAt(pos - 1) != '\\') {
+							break;
+						}
+					}
+					return true;
+				}
+
+				return false;
+			};
+
+			// find CSS selector
+			var ch;
+			var endPos = pos;
+			while (--pos >= 0) {
+				if (skipString()) continue;
+
+				ch = content.charAt(pos);
+				if (ch == ')') {
+					// looks like it’s a preprocessor thing,
+					// most likely a mixin arguments list, e.g.
+					// .mixin (@arg1; @arg2) {...}
+					while (--pos >= 0) {
+						if (skipString()) continue;
+
+						if (content.charAt(pos) == '(') {
+							break;
+						}
+					}
+					continue;
+				}
+
+				if (ch == '{' || ch == '}' || ch == ';') {
+					pos++;
+					break;
+				}
+			}
+
+			if (pos < 0) {
+				pos = 0;
+			}
+			
+			var selector = content.substring(pos, endPos);
+
+			// trim whitespace from matched selector
+			var m = selector.replace(reSpace, ' ').match(reSpaceTrim);
+			if (m) {
+				pos += m[1].length;
+				endPos -= m[2].length;
+			}
+
+			return range.create2(pos, endPos);
+		},
+
+		/**
+		 * Search for nearest CSS rule/section that contains
+		 * given position
+		 * @param  {String} content CSS content or matched CSS rules (array of ranges)
+		 * @param  {Number} pos     Search position
+		 * @return {Range}
+		 */
+		matchEnclosingRule: function(content, pos) {
+			if (_.isString(content)) {
+				content = this.findAllRules(content);
+			}
+
+			var rules = _.filter(content, function(r) {
+				return r.inside(pos);
+			});
+
+			return _.last(rules);
+		},
+
+		/**
+		 * Locates CSS rule next or before given position
+		 * @param  {String}  content    CSS content
+		 * @param  {Number}  pos        Search start position
+		 * @param  {Boolean} isBackward Search backward (find previous rule insteaf of next one)
+		 * @return {Range}
+		 */
+		locateRule: function(content, pos, isBackward) {
+			// possible case: editor reported that current syntax is
+			// CSS, but it’s actually a HTML document (either `style` tag or attribute)
+			var offset = 0;
+			var subrange = this.styleTagRange(content, pos);
+			if (subrange) {
+				offset = subrange.start;
+				pos -= subrange.start;
+				content = subrange.substring(content);
+			}
+
+			var rules = this.findAllRules(content);
+			var ctxRule = this.matchEnclosingRule(rules, pos);
+
+			if (ctxRule) {
+				return ctxRule.shift(offset);
+			}
+
+			for (var i = 0, il = rules.length; i < il; i++) {
+				if (rules[i].start > pos) {
+					return rules[isBackward ? i - 1 : i].shift(offset);
+				}
+			}
+		},
+
+		/**
+		 * Sanitizes given CSS content: replaces content that may 
+		 * interfere with parsing (comments, interpolations, etc.)
+		 * with spaces. Sanitized content MUST NOT be used for
+		 * editing or outputting, it just simplifies searching
+		 * @param  {String} content CSS content
+		 * @return {String}
+		 */
+		sanitize: function(content) {
+			content = commentsUtils.strip(content);
+
+			// remove preprocessor string interpolations like #{var}
+			var stream = stringStream(content);
+			var replaceRanges = [];
+			var ch, ch2;
+
+			while ((ch = stream.next())) {
+				if (isQuote(ch)) {
+					// skip string
+					stream.skipString(ch)
+					continue;
+				} else if (ch === '#' || ch === '@') {
+					ch2 = stream.peek();
+					if (ch2 === '{') { // string interpolation
+						stream.start = stream.pos - 1;
+
+						if (stream.skipTo('}')) {
+							stream.pos += 1;
+						} else {
+							throw 'Invalid string interpolation at ' + stream.start;
+						}
+
+						replaceRanges.push([stream.start, stream.pos]);
+					}
+				}
+			}
+
+			return utils.replaceWith(content, replaceRanges, 'a');
+		},
+
+		/**
+		 * Parses and returns all sections in given CSS
+		 * as tree-like structure, e.g. provides nesting
+		 * info
+		 * @param  {String} content CSS content
+		 * @return {CSSSection}
+		 */
+		sectionTree: function(content) {
+			var root = new CSSSection(null, content);
+			var rules = this.findAllRules(content);
+
+			// rules are sorted in order they appear in CSS source
+			// so we can optimize their nesting routine
+			var insert = function(range, ctx) {
+				while (ctx && ctx.range) {
+					if (ctx.range.contains(range)) {
+						return ctx.addChild(range);
+					}
+
+					ctx = ctx.parent;
+				}
+
+				// if we are here then given range is a top-level section
+				return root.addChild(range);
+			};
+
+			var ctx = root;
+			_.each(rules, function(r) {
+				ctx = insert(r, ctx);
+			});
+
+			return root;
+		},
+
+		/**
+		 * Returns ranges for all nested sections, available in
+		 * given CSS rule
+		 * @param  {CSSEditContainer} rule
+		 * @return {Array}
+		 */
+		nestedSectionsInRule: function(rule) {
+			var offset = rule.valueRange(true).start;
+			var nestedSections = this.findAllRules(rule.valueRange().substring(rule.source));
+			_.each(nestedSections, function(section) {
+				section.start += offset;
+				section.end += offset;
+				section._selectorEnd += offset;
+				section._contentStart += offset;
+			});
+			return nestedSections;
+		},
+
+		styleTagRange: function(content, pos) {
+			var tag = htmlMatcher.tag(content, pos);
+			return tag && tag.open.name.toLowerCase() == 'style' 
+				&& tag.innerRange.cmp(pos, 'lte', 'gte')
+				&& tag.innerRange;
+		},
+
+		styleAttrRange: function(content, pos) {
+			var tree = xmlEditTree.parseFromPosition(content, pos, true);
+			if (tree) {
+				var attr = tree.itemFromPosition(pos, true);
+				return attr && attr.name().toLowerCase() == 'style' 
+					&& attr.valueRange(true).cmp(pos, 'lte', 'gte')
+					&& attr.valueRange(true);
+			}
+		},
+
+		CSSSection: CSSSection
+	};
 });
 /**
  * Utility module that provides ordered storage of function handlers. 
@@ -8803,6 +11159,249 @@ define('vendor/stringScore',['require','exports','module'],function(require, exp
 	};
 });
 /**
+ * Common module's preferences storage. This module 
+ * provides general storage for all module preferences, their description and
+ * default values.<br><br>
+ * 
+ * This module can also be used to list all available properties to create 
+ * UI for updating properties
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('assets/preferences',['require','exports','module','lodash','../utils/common'],function(require, exports, module) {
+	var _ = require('lodash');
+	var utils = require('../utils/common');
+
+	var preferences = {};
+	var defaults = {};
+	var _dbgDefaults = null;
+	var _dbgPreferences = null;
+
+	function toBoolean(val) {
+		if (_.isString(val)) {
+			val = val.toLowerCase();
+			return val == 'yes' || val == 'true' || val == '1';
+		}
+
+		return !!val;
+	}
+	
+	function isValueObj(obj) {
+		return _.isObject(obj) 
+			&& 'value' in obj 
+			&& _.keys(obj).length < 3;
+	}
+	
+	return {
+		/**
+		 * Creates new preference item with default value
+		 * @param {String} name Preference name. You can also pass object
+		 * with many options
+		 * @param {Object} value Preference default value
+		 * @param {String} description Item textual description
+		 * @memberOf preferences
+		 */
+		define: function(name, value, description) {
+			var prefs = name;
+			if (_.isString(name)) {
+				prefs = {};
+				prefs[name] = {
+					value: value,
+					description: description
+				};
+			}
+			
+			_.each(prefs, function(v, k) {
+				defaults[k] = isValueObj(v) ? v : {value: v};
+			});
+		},
+		
+		/**
+		 * Updates preference item value. Preference value should be defined
+		 * first with <code>define</code> method.
+		 * @param {String} name Preference name. You can also pass object
+		 * with many options
+		 * @param {Object} value Preference default value
+		 * @memberOf preferences
+		 */
+		set: function(name, value) {
+			var prefs = name;
+			if (_.isString(name)) {
+				prefs = {};
+				prefs[name] = value;
+			}
+			
+			_.each(prefs, function(v, k) {
+				if (!(k in defaults)) {
+					throw 'Property "' + k + '" is not defined. You should define it first with `define` method of current module';
+				}
+				
+				// do not set value if it equals to default value
+				if (v !== defaults[k].value) {
+					// make sure we have value of correct type
+					switch (typeof defaults[k].value) {
+						case 'boolean':
+							v = toBoolean(v);
+							break;
+						case 'number':
+							v = parseInt(v + '', 10) || 0;
+							break;
+						default: // convert to string
+							if (v !== null) {
+								v += '';
+							}
+					}
+
+					preferences[k] = v;
+				} else if  (k in preferences) {
+					delete preferences[k];
+				}
+			});
+		},
+		
+		/**
+		 * Returns preference value
+		 * @param {String} name
+		 * @returns {String} Returns <code>undefined</code> if preference is 
+		 * not defined
+		 */
+		get: function(name) {
+			if (name in preferences)
+				return preferences[name];
+			
+			if (name in defaults)
+				return defaults[name].value;
+			
+			return void 0;
+		},
+		
+		/**
+		 * Returns comma-separated preference value as array of values
+		 * @param {String} name
+		 * @returns {Array} Returns <code>undefined</code> if preference is 
+		 * not defined, <code>null</code> if string cannot be converted to array
+		 */
+		getArray: function(name) {
+			var val = this.get(name);
+			if (_.isUndefined(val) || val === null || val === '')  {
+				return null;
+			}
+
+			val = _.map(val.split(','), utils.trim);
+			if (!val.length) {
+				return null;
+			}
+			
+			return val;
+		},
+		
+		/**
+		 * Returns comma and colon-separated preference value as dictionary
+		 * @param {String} name
+		 * @returns {Object}
+		 */
+		getDict: function(name) {
+			var result = {};
+			_.each(this.getArray(name), function(val) {
+				var parts = val.split(':');
+				result[parts[0]] = parts[1];
+			});
+			
+			return result;
+		},
+		
+		/**
+		 * Returns description of preference item
+		 * @param {String} name Preference name
+		 * @returns {Object}
+		 */
+		description: function(name) {
+			return name in defaults ? defaults[name].description : void 0;
+		},
+		
+		/**
+		 * Completely removes specified preference(s)
+		 * @param {String} name Preference name (or array of names)
+		 */
+		remove: function(name) {
+			if (!_.isArray(name))
+				name = [name];
+			
+			_.each(name, function(key) {
+				if (key in preferences)
+					delete preferences[key];
+				
+				if (key in defaults)
+					delete defaults[key];
+			});
+		},
+		
+		/**
+		 * Returns sorted list of all available properties
+		 * @returns {Array}
+		 */
+		list: function() {
+			return _.map(_.keys(defaults).sort(), function(key) {
+				return {
+					name: key,
+					value: this.get(key),
+					type: typeof defaults[key].value,
+					description: defaults[key].description
+				};
+			}, this);
+		},
+		
+		/**
+		 * Loads user-defined preferences from JSON
+		 * @param {Object} json
+		 * @returns
+		 */
+		load: function(json) {
+			_.each(json, function(value, key) {
+				this.set(key, value);
+			}, this);
+		},
+
+		/**
+		 * Returns hash of user-modified preferences
+		 * @returns {Object}
+		 */
+		exportModified: function() {
+			return _.clone(preferences);
+		},
+		
+		/**
+		 * Reset to defaults
+		 * @returns
+		 */
+		reset: function() {
+			preferences = {};
+		},
+		
+		/**
+		 * For unit testing: use empty storage
+		 */
+		_startTest: function() {
+			_dbgDefaults = defaults;
+			_dbgPreferences = preferences;
+			defaults = {};
+			preferences = {};
+		},
+		
+		/**
+		 * For unit testing: restore original storage
+		 */
+		_stopTest: function() {
+			defaults = _dbgDefaults;
+			preferences = _dbgPreferences;
+		}
+	};
+});
+/**
  * Parsed resources (snippets, abbreviations, variables, etc.) for Emmet.
  * Contains convenient method to get access for snippets with respect of 
  * inheritance. Also provides ability to store data in different vocabularies
@@ -8816,13 +11415,1970 @@ if (typeof module === 'object' && typeof define !== 'function') {
 	};
 }
 
-define('assets/resources',['require','exports','module','lodash','./handlerList','../utils/common','./elements','../assets/logger','../vendor/stringScore','fs','path'],function(require, exports, module) {
+define('assets/caniuse',['require','exports','module','lodash','./preferences'],function(require, exports, module) {
+	var _ = require('lodash');
+	var prefs = require('./preferences');
+
+	prefs.define('caniuse.enabled', true, 'Enable support of Can I Use database. When enabled,\
+		CSS abbreviation resolver will look at Can I Use database first before detecting\
+		CSS properties that should be resolved');
+	
+	prefs.define('caniuse.vendors', 'all', 'A comma-separated list vendor identifiers\
+		(as described in Can I Use database) that should be supported\
+		when resolving vendor-prefixed properties. Set value to <code>all</code>\
+		to support all available properties');
+	
+	prefs.define('caniuse.era', 'e-2', 'Browser era, as defined in Can I Use database.\
+		Examples: <code>e0</code> (current version), <code>e1</code> (near future)\
+		<code>e-2</code> (2 versions back) and so on.');
+	
+	var cssSections = {
+		'border-image': ['border-image'],
+		'css-boxshadow': ['box-shadow'],
+		'css3-boxsizing': ['box-sizing'],
+		'multicolumn': ['column-width', 'column-count', 'columns', 'column-gap', 'column-rule-color', 'column-rule-style', 'column-rule-width', 'column-rule', 'column-span', 'column-fill'],
+		'border-radius': ['border-radius', 'border-top-left-radius', 'border-top-right-radius', 'border-bottom-right-radius', 'border-bottom-left-radius'],
+		'transforms2d': ['transform'],
+		'css-hyphens': ['hyphens'],
+		'css-transitions': ['transition', 'transition-property', 'transition-duration', 'transition-timing-function', 'transition-delay'],
+		'font-feature': ['font-feature-settings'],
+		'css-animation': ['animation', 'animation-name', 'animation-duration', 'animation-timing-function', 'animation-iteration-count', 'animation-direction', 'animation-play-state', 'animation-delay', 'animation-fill-mode', '@keyframes'],
+		'css-gradients': ['linear-gradient'],
+		'css-masks': ['mask-image', 'mask-source-type', 'mask-repeat', 'mask-position', 'mask-clip', 'mask-origin', 'mask-size', 'mask', 'mask-type', 'mask-box-image-source', 'mask-box-image-slice', 'mask-box-image-width', 'mask-box-image-outset', 'mask-box-image-repeat', 'mask-box-image', 'clip-path', 'clip-rule'],
+		'css-featurequeries': ['@supports'],
+		'flexbox': ['flex', 'inline-flex', 'flex-direction', 'flex-wrap', 'flex-flow', 'order', 'flex'],
+		'calc': ['calc'],
+		'object-fit': ['object-fit', 'object-position'],
+		'css-grid': ['grid', 'inline-grid', 'grid-template-rows', 'grid-template-columns', 'grid-template-areas', 'grid-template', 'grid-auto-rows', 'grid-auto-columns', ' grid-auto-flow', 'grid-auto-position', 'grid', ' grid-row-start', 'grid-column-start', 'grid-row-end', 'grid-column-end', 'grid-column', 'grid-row', 'grid-area', 'justify-self', 'justify-items', 'align-self', 'align-items'],
+		'css-repeating-gradients': ['repeating-linear-gradient'],
+		'css-filters': ['filter'],
+		'user-select-none': ['user-select'],
+		'intrinsic-width': ['min-content', 'max-content', 'fit-content', 'fill-available'],
+		'css3-tabsize': ['tab-size']
+	};
+
+	/** @type {Object} The Can I Use database for CSS */
+	var cssDB = null;
+	/** @type {Object} A list of available vendors (browsers) and their prefixes */
+	var vendorsDB = null;
+	var erasDB = null;
+
+	/**
+	 * Parses raw Can I Use database for better lookups
+	 * @param  {String} data Raw database
+	 * @param  {Boolean} optimized Pass `true` if given `data` is already optimized
+	 * @return {Object}
+	 */
+	function parseDB(data, optimized) {
+		if (typeof data == 'string') {
+			data = JSON.parse(data);
+		}
+
+		if (!optimized) {
+			data = optimize(data);
+		}
+
+		vendorsDB = data.vendors;
+		cssDB = data.css;
+		erasDB = data.era;
+	}
+
+	/**
+	 * Extract required data only from CIU database 
+	 * @param  {Object} data Raw Can I Use database
+	 * @return {Object}      Optimized database
+	 */
+	function optimize(data) {
+		if (typeof data == 'string') {
+			data = JSON.parse(data);
+		}
+
+		return {
+			vendors: parseVendors(data),
+			css: parseCSS(data),
+			era: parseEra(data)
+		};
+	}
+
+	/**
+	 * Parses vendor data
+	 * @param  {Object} data
+	 * @return {Object}
+	 */
+	function parseVendors(data) {
+		var out = {};
+		_.each(data.agents, function(agent, name) {
+			out[name] = {
+				prefix: agent.prefix,
+				versions: agent.versions
+			};
+		});
+		return out;
+	}
+
+	/**
+	 * Parses CSS data from Can I Use raw database
+	 * @param  {Object} data
+	 * @return {Object}
+	 */
+	function parseCSS(data) {
+		var out = {};
+		var cssCategories = data.cats.CSS;
+		
+		_.each(data.data, function(section, name) {
+			if (name in cssSections) {
+				_.each(cssSections[name], function(kw) {
+					out[kw] = section.stats;
+				});
+			}
+		});
+
+		return out;
+	}
+
+	/**
+	 * Parses era data from Can I Use raw database
+	 * @param  {Object} data
+	 * @return {Array}
+	 */
+	function parseEra(data) {
+		// some runtimes (like Mozilla Rhino) does not preserves
+		// key order so we have to sort values manually
+		return _.keys(data.eras).sort(function(a, b) {
+			return parseInt(a.substr(1)) - parseInt(b.substr(1));
+		});
+	}
+	
+	/**
+	 * Returs list of supported vendors, depending on user preferences
+	 * @return {Array}
+	 */
+	function getVendorsList() {
+		var allVendors = _.keys(vendorsDB);
+		var vendors = prefs.getArray('caniuse.vendors');
+		if (!vendors || vendors[0] == 'all') {
+			return allVendors;
+		}
+
+		return _.intersection(allVendors, vendors);
+	}
+
+	/**
+	 * Returns size of version slice as defined by era identifier
+	 * @return {Number}
+	 */
+	function getVersionSlice() {
+		var era = prefs.get('caniuse.era');
+		var ix = _.indexOf(erasDB, era);
+		if (!~ix) {
+			ix = _.indexOf(erasDB, 'e-2');
+		}
+
+		return ix;
+	}
+
+	// try to load caniuse database
+	// hide it from Require.JS parser
+	var db = null;
+	(function(r) {
+		if (typeof define === 'undefined' || !define.amd) {
+			var fs = r('fs');
+			var path = r('path');
+
+			db = fs.readFileSync(path.join(__dirname, '../caniuse.json'), {encoding: 'utf8'});
+		}
+	})(require);
+	
+	if (db) {
+		parseDB(db);
+	}
+
+	return {
+		load: parseDB,
+		optimize: optimize,
+		
+		/**
+		 * Resolves prefixes for given property
+		 * @param {String} property A property to resolve. It can start with `@` symbol
+		 * (CSS section, like `@keyframes`) or `:` (CSS value, like `flex`)
+		 * @return {Array} Array of resolved prefixes or <code>null</code>
+		 * if prefixes can't be resolved. Empty array means property has no vendor
+		 * prefixes
+		 */
+		resolvePrefixes: function(property) {
+			if (!prefs.get('caniuse.enabled') || !cssDB || !(property in cssDB)) {
+				return null;
+			}
+
+			var prefixes = [];
+			var propStats = cssDB[property];
+			var versions = getVersionSlice();
+
+			_.each(getVendorsList(), function(vendor) {
+				var vendorVesions = vendorsDB[vendor].versions.slice(versions);
+				for (var i = 0, v; i < vendorVesions.length; i++) {
+					v = vendorVesions[i];
+					if (!v) {
+						continue;
+					}
+
+					if (~propStats[vendor][v].indexOf('x')) {
+						prefixes.push(vendorsDB[vendor].prefix);
+						break;
+					}
+				}
+			});
+
+			return _.unique(prefixes).sort(function(a, b) {
+				return b.length - a.length;
+			});
+		}
+	};
+});
+/**
+ * A very simple, ERB-style templating. Basically, just as string substitution.
+ * The reason to not use default Lo-dash’es `_.template()` implementation
+ * is because it fails to run in CSP-enabled environments (Chrome extension, Atom)
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('utils/template',['require','exports','module','lodash','../assets/stringStream','./common'],function(require, exports, module) {
+	var _ = require('lodash');
+	var stringStream = require('../assets/stringStream');
+	var utils = require('./common');
+
+	function parseArgs(str) {
+		var args = [];
+		var stream = stringStream(str);
+
+		while (!stream.eol()) {
+			if (stream.peek() == ',') {
+				args.push(utils.trim(stream.current()));
+				stream.next();
+				stream.start = stream.pos;
+			}
+			stream.next();
+		}
+
+		args.push(utils.trim(stream.current()));
+		return _.compact(args);
+	}
+
+	function parseFunctionCall(str) {
+		var fnName = null, args;
+		var stream = stringStream(str);
+		while (!stream.eol()) {
+			if (stream.peek() == '(') {
+				fnName = stream.current();
+				stream.start = stream.pos;
+				stream.skipToPair('(', ')', true);
+				args = stream.current();
+				args = parseArgs(args.substring(1, args.length - 1));
+				break;
+			}
+
+			stream.next();
+		}
+
+		return fnName && {
+			name: fnName,
+			args: args
+		};
+	}
+
+	function evalArg(arg, context) {
+		if (/^['"]/.test(arg)) {
+			// plain string
+			return arg.replace(/^(['"])(.+?)\1$/, '$2');
+		}
+
+		if (!_.isNaN(+arg)) {
+			// a number
+			return +arg;
+		}
+
+		// otherwise, treat argument as a property name
+		if (arg) {
+			var parts = arg.split('.');
+			var prop = context;
+			while (parts.length) {
+				prop = prop[parts.shift()];
+			}
+
+			return prop;
+		}
+	}
+
+	function process(template, context) {
+		return template.replace(/<%[=\-](.+?)%>/g, function(str, match) {
+			match = utils.trim(match);
+			var fn = parseFunctionCall(match);
+			if (fn) {
+				var fnArgs = _.map(fn.args, function(arg) {
+					return evalArg(arg, context);
+				});
+				return context[fn.name].apply(context, fnArgs);
+			}
+
+			return evalArg(match, context);
+		});
+	}
+
+	return function(template, context) {
+		return context ? process(template, context) : function(context) {
+			return process(template, context);
+		};
+	};
+});
+/**
+ * Helper class for convenient token iteration
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('assets/tokenIterator',['require','exports','module'],function(require, exports, module) {
+	/**
+	 * @type TokenIterator
+	 * @param {Array} tokens
+	 * @type TokenIterator
+	 * @constructor
+	 */
+	function TokenIterator(tokens) {
+		/** @type Array */
+		this.tokens = tokens;
+		this._position = 0;
+		this.reset();
+	}
+	
+	TokenIterator.prototype = {
+		next: function() {
+			if (this.hasNext()) {
+				var token = this.tokens[++this._i];
+				this._position = token.start;
+				return token;
+			} else {
+				this._i = this._il;
+			}
+			
+			return null;
+		},
+		
+		current: function() {
+			return this.tokens[this._i];
+		},
+
+		peek: function() {
+			return this.tokens[this._i + i];
+		},
+		
+		position: function() {
+			return this._position;
+		},
+		
+		hasNext: function() {
+			return this._i < this._il - 1;
+		},
+		
+		reset: function() {
+			this._i = 0;
+			this._il = this.tokens.length;
+		},
+		
+		item: function() {
+			return this.tokens[this._i];
+		},
+		
+		itemNext: function() {
+			return this.tokens[this._i + 1];
+		},
+		
+		itemPrev: function() {
+			return this.tokens[this._i - 1];
+		},
+		
+		nextUntil: function(type, callback) {
+			var token;
+			var test = typeof type == 'string' 
+				? function(t){return t.type == type;} 
+				: type;
+			
+			while ((token = this.next())) {
+				if (callback)
+					callback.call(this, token);
+				if (test.call(this, token))
+					break;
+			}
+		}
+	};
+	
+	return {
+		create: function(tokens) {
+			return new TokenIterator(tokens);
+		}
+	};
+});
+/**
+ * CSS EditTree is a module that can parse a CSS rule into a tree with 
+ * convenient methods for adding, modifying and removing CSS properties. These 
+ * changes can be written back to string with respect of code formatting.
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('editTree/css',['require','exports','module','lodash','../utils/common','./base','../parser/css','../utils/cssSections','../assets/range','../assets/stringStream','../assets/tokenIterator'],function(require, exports, module) {
+	var _ = require('lodash');
+	var utils = require('../utils/common');
+	var editTree = require('./base');
+	var cssParser = require('../parser/css');
+	var cssSections = require('../utils/cssSections');
+	var range = require('../assets/range');
+	var stringStream = require('../assets/stringStream');
+	var tokenIterator = require('../assets/tokenIterator');
+
+	var defaultOptions = {
+		styleBefore: '\n\t',
+		styleSeparator: ': ',
+		offset: 0
+	};
+	
+	var reSpaceStart = /^\s+/;
+	var reSpaceEnd = /\s+$/;
+	var WHITESPACE_REMOVE_FROM_START = 1;
+	var WHITESPACE_REMOVE_FROM_END   = 2;
+	
+	/**
+	 * Modifies given range to remove whitespace from beginning
+	 * and/or from the end
+	 * @param  {Range} rng Range to modify
+	 * @param  {String} text  Text that range belongs to
+	 * @param  {Number} mask  Mask indicating from which end 
+	 * whitespace should be removed
+	 * @return {Range}
+	 */
+	function trimWhitespaceInRange(rng, text, mask) {
+		mask = mask || (WHITESPACE_REMOVE_FROM_START | WHITESPACE_REMOVE_FROM_END);
+		text = rng.substring(text);
+		var m;
+		if ((mask & WHITESPACE_REMOVE_FROM_START) && (m = text.match(reSpaceStart))) {
+			rng.start += m[0].length;
+		}
+
+		if ((mask & WHITESPACE_REMOVE_FROM_END) && (m = text.match(reSpaceEnd))) {
+			rng.end -= m[0].length;
+		}
+
+		// in case given range is just a whatespace
+		if (rng.end < rng.start) {
+			rng.end = rng.start;
+		}
+
+		return rng;
+	}
+
+	/**
+	 * Consumes CSS property and value from current token
+	 * iterator state. Offsets iterator pointer into token
+	 * that can be used for next value consmption
+	 * @param  {TokenIterator} it
+	 * @param  {String} text
+	 * @return {Object}    Object with `name` and `value` properties 
+	 * ar ranges. Value range can be zero-length.
+	 */
+	function consumeSingleProperty(it, text) {
+		var name, value, end;
+		var token = it.current();
+
+		if (!token) {
+			return null;
+		}
+
+		// skip whitespace
+		var ws = {'white': 1, 'line': 1, 'comment': 1};
+		while ((token = it.current())) {
+			if (!(token.type in ws)) {
+				break;
+			}
+			it.next();
+		}
+
+		if (!it.hasNext()) {
+			return null;
+		}
+
+		// consume property name
+		token = it.current();
+		name = range(token.start, token.value);
+		while (token = it.next()) {
+			name.end = token.end;
+			if (token.type == ':' || token.type == 'white') {
+				name.end = token.start;
+				it.next();
+				break;
+			} else if (token.type == ';' || token.type == 'line') {
+				// there’s no value, looks like a mixin
+				// or a special use case:
+				// user is writing a new property or abbreviation
+				name.end = token.start;
+				value = range(token.start, 0);
+				it.next();
+				break;
+			}
+		}
+
+		token = it.current();
+		if (!value && token) {
+			if (token.type == 'line') {
+				lastNewline = token;
+			}
+			// consume value
+			value = range(token.start, token.value);
+			var lastNewline;
+			while ((token = it.next())) {
+				value.end = token.end;
+				if (token.type == 'line') {
+					lastNewline = token;
+				} else if (token.type == '}' || token.type == ';') {
+					value.end = token.start;
+					if (token.type == ';') {
+						end = range(token.start, token.value);
+					}
+					it.next();
+					break;
+				} else if (token.type == ':' && lastNewline) {
+					// A special case: 
+					// user is writing a value before existing
+					// property, but didn’t inserted closing semi-colon.
+					// In this case, limit value range to previous
+					// newline
+					value.end = lastNewline.start;
+					it._i = _.indexOf(it.tokens, lastNewline);
+					break;
+				}
+			}
+		}
+
+		if (!value) {
+			value = range(name.end, 0);
+		}
+
+		return {
+			name: trimWhitespaceInRange(name, text),
+			value: trimWhitespaceInRange(value, text, WHITESPACE_REMOVE_FROM_START | (end ? WHITESPACE_REMOVE_FROM_END : 0)),
+			end: end || range(value.end, 0)
+		};
+	}
+
+	/**
+	 * Finds parts of complex CSS value
+	 * @param {String} str
+	 * @returns {Array} Returns list of <code>Range</code>'s
+	 */
+	function findParts(str) {
+		/** @type StringStream */
+		var stream = stringStream.create(str);
+		var ch;
+		var result = [];
+		var sep = /[\s\u00a0,;]/;
+		
+		var add = function() {
+			stream.next();
+			result.push(range(stream.start, stream.current()));
+			stream.start = stream.pos;
+		};
+		
+		// skip whitespace
+		stream.eatSpace();
+		stream.start = stream.pos;
+		
+		while ((ch = stream.next())) {
+			if (ch == '"' || ch == "'") {
+				stream.next();
+				if (!stream.skipTo(ch)) break;
+				add();
+			} else if (ch == '(') {
+				// function found, may have nested function
+				stream.backUp(1);
+				if (!stream.skipToPair('(', ')')) break;
+				stream.backUp(1);
+				add();
+			} else {
+				if (sep.test(ch)) {
+					result.push(range(stream.start, stream.current().length - 1));
+					stream.eatWhile(sep);
+					stream.start = stream.pos;
+				}
+			}
+		}
+		
+		add();
+		
+		return _.chain(result)
+			.filter(function(item) {
+				return !!item.length();
+			})
+			.uniq(false, function(item) {
+				return item.toString();
+			})
+			.value();
+	}
+	
+	/**
+	 * Parses CSS properties from given CSS source
+	 * and adds them to CSSEditContainsd node
+	 * @param  {CSSEditContainer} node
+	 * @param  {String} source CSS source
+	 * @param {Number} offset Offset of properties subset from original source
+	 */
+	function consumeProperties(node, source, offset) {
+		var list = extractPropertiesFromSource(source, offset);
+
+		_.each(list, function(property) {
+			node._children.push(new CSSEditElement(node,
+				editTree.createToken(property.name.start, property.nameText),
+				editTree.createToken(property.value.start, property.valueText),
+				editTree.createToken(property.end.start, property.endText)
+				));
+		});
+	}
+
+	/**
+	 * Parses given CSS source and returns list of ranges of located CSS properties.
+	 * Normally, CSS source must contain properties only, it must be,
+	 * for example, a content of CSS selector or text between nested
+	 * CSS sections
+	 * @param  {String} source CSS source
+	 * @param {Number} offset Offset of properties subset from original source.
+	 * Used to provide proper ranges of locates items
+	 */
+	function extractPropertiesFromSource(source, offset) {
+		offset = offset || 0;
+		source = source.replace(reSpaceEnd, '');
+		var out = [];
+
+		if (!source) {
+			return out;
+		}
+
+		var tokens = cssParser.parse(source);
+		var it = tokenIterator.create(tokens);
+		var property;
+
+		while ((property = consumeSingleProperty(it, source))) {
+			out.push({
+				nameText: property.name.substring(source),
+				name: property.name.shift(offset),
+
+				valueText: property.value.substring(source),
+				value: property.value.shift(offset),
+
+				endText: property.end.substring(source),
+				end: property.end.shift(offset)
+			});
+		}
+
+		return out;
+	}
+	
+	/**
+	 * @class
+	 * @extends EditContainer
+	 */
+	var CSSEditContainer = editTree.EditContainer.extend({
+		initialize: function(source, options) {
+			_.extend(this.options, defaultOptions, options);
+			
+			if (_.isArray(source)) {
+				source = cssParser.toSource(source);
+			}
+
+			var allRules = cssSections.findAllRules(source);
+			var currentRule = allRules.shift();
+
+			// keep top-level rules only since they will
+			// be parsed by nested CSSEditContainer call
+			var topLevelRules = [];
+			_.each(allRules, function(r) {
+				var isTopLevel = !_.find(topLevelRules, function(tr) {
+					return tr.contains(r);
+				});
+
+				if (isTopLevel) {
+					topLevelRules.push(r);
+				}
+			});
+
+
+			var selectorRange = range.create2(currentRule.start, currentRule._selectorEnd);
+			this._name = selectorRange.substring(source);
+			this._positions.name = selectorRange.start;
+			this._positions.contentStart = currentRule._contentStart + 1;
+
+			var sectionOffset = currentRule._contentStart + 1;
+			var sectionEnd = currentRule.end - 1;
+
+			// parse properties between nested rules
+			// and add nested rules as children
+			var that = this;
+			_.each(topLevelRules, function(r) {
+				consumeProperties(that, source.substring(sectionOffset, r.start), sectionOffset);
+				var opt = _.extend({}, that.options, {offset: r.start + that.options.offset});
+				// XXX I think I don’t need nested containers here
+				// They should be handled separately
+				// that._children.push(new CSSEditContainer(r.substring(source), opt));
+				sectionOffset = r.end;
+			});
+
+			// consume the rest of data
+			consumeProperties(this, source.substring(sectionOffset, currentRule.end - 1), sectionOffset);
+			this._saveStyle();
+		},
+		
+		/**
+		 * Remembers all styles of properties
+		 * @private
+		 */
+		_saveStyle: function() {
+			var start = this._positions.contentStart;
+			var source = this.source;
+			
+			_.each(this.list(), /** @param {CSSEditProperty} p */ function(p) {
+				if (p.type == 'container') {
+					return;
+				}
+
+				p.styleBefore = source.substring(start, p.namePosition());
+				// a small hack here:
+				// Sometimes users add empty lines before properties to logically
+				// separate groups of properties. In this case, a blind copy of
+				// characters between rules may lead to undesired behavior,
+				// especially when current rule is duplicated or used as a donor
+				// to create new rule.
+				// To solve this issue, we‘ll take only last newline indentation
+				var lines = utils.splitByLines(p.styleBefore);
+				if (lines.length > 1) {
+					p.styleBefore = '\n' + _.last(lines);
+				}
+				
+				p.styleSeparator = source.substring(p.nameRange().end, p.valuePosition());
+				
+				// graceful and naive comments removal 
+				p.styleBefore = _.last(p.styleBefore.split('*/'));
+				p.styleSeparator = p.styleSeparator.replace(/\/\*.*?\*\//g, '');
+				
+				start = p.range().end;
+			});
+		},
+
+		/**
+		 * Returns position of element name token
+		 * @param {Boolean} isAbsolute Return absolute position
+		 * @returns {Number}
+		 */
+		namePosition: function(isAbsolute) {
+			return this._pos(this._positions.name, isAbsolute);
+		},
+		
+		/**
+		 * Returns position of element value token
+		 * @param {Boolean} isAbsolute Return absolute position
+		 * @returns {Number}
+		 */
+		valuePosition: function(isAbsolute) {
+			return this._pos(this._positions.contentStart, isAbsolute);
+		},
+
+		/**
+		 * Returns element value range
+		 * @param {Boolean} isAbsolute Return absolute range
+		 * @returns {Range}
+		 */
+		valueRange: function(isAbsolute) {
+			return range.create2(this.valuePosition(isAbsolute), this._pos(this.valueOf().length, isAbsolute) - 1);
+		},
+		
+		/**
+		 * Adds new CSS property 
+		 * @param {String} name Property name
+		 * @param {String} value Property value
+		 * @param {Number} pos Position at which to insert new property. By 
+		 * default the property is inserted at the end of rule 
+		 * @returns {CSSEditProperty}
+		 */
+		add: function(name, value, pos) {
+			var list = this.list();
+			var start = this._positions.contentStart;
+			var styles = _.pick(this.options, 'styleBefore', 'styleSeparator');
+			
+			if (_.isUndefined(pos))
+				pos = list.length;
+			
+			/** @type CSSEditProperty */
+			var donor = list[pos];
+			if (donor) {
+				start = donor.fullRange().start;
+			} else if ((donor = list[pos - 1])) {
+				// make sure that donor has terminating semicolon
+				donor.end(';');
+				start = donor.range().end;
+			}
+			
+			if (donor) {
+				styles = _.pick(donor, 'styleBefore', 'styleSeparator');
+			}
+			
+			var nameToken = editTree.createToken(start + styles.styleBefore.length, name);
+			var valueToken = editTree.createToken(nameToken.end + styles.styleSeparator.length, value);
+			
+			var property = new CSSEditElement(this, nameToken, valueToken,
+					editTree.createToken(valueToken.end, ';'));
+			
+			_.extend(property, styles);
+			
+			// write new property into the source
+			this._updateSource(property.styleBefore + property.toString(), start);
+			
+			// insert new property
+			this._children.splice(pos, 0, property);
+			return property;
+		}
+	});
+	
+	/**
+	 * @class
+	 * @type CSSEditElement
+	 * @constructor
+	 */
+	var CSSEditElement = editTree.EditElement.extend({
+		initialize: function(rule, name, value, end) {
+			this.styleBefore = rule.options.styleBefore;
+			this.styleSeparator = rule.options.styleSeparator;
+			
+			this._end = end.value;
+			this._positions.end = end.start;
+		},
+		
+		/**
+		 * Returns ranges of complex value parts
+		 * @returns {Array} Returns <code>null</code> if value is not complex
+		 */
+		valueParts: function(isAbsolute) {
+			var parts = findParts(this.value());
+			if (isAbsolute) {
+				var offset = this.valuePosition(true);
+				_.each(parts, function(p) {
+					p.shift(offset);
+				});
+			}
+			
+			return parts;
+		},
+
+		/**
+		 * Sets of gets element value. 
+		 * When setting value, this implementation will ensure that your have 
+		 * proper name-value separator
+		 * @param {String} val New element value. If not passed, current 
+		 * value is returned
+		 * @returns {String}
+		 */
+		value: function(val) {
+			var isUpdating = !_.isUndefined(val);
+			var allItems = this.parent.list();
+			if (isUpdating && this.isIncomplete()) {
+				var self = this;
+				var donor = _.find(allItems, function(item) {
+					return item !== self && !item.isIncomplete();
+				});
+
+				this.styleSeparator = donor 
+					? donor.styleSeparator 
+					: this.parent.options.styleSeparator;
+				this.parent._updateSource(this.styleSeparator, range(this.valueRange().start, 0));
+			}
+
+			var value = this.constructor.__super__.value.apply(this, arguments);
+			if (isUpdating) {
+				// make sure current property has terminating semi-colon
+				// if it’s not the last one
+				var ix = _.indexOf(allItems, this);
+				if (ix !== allItems.length - 1 && !this.end()) {
+					this.end(';');
+				}
+			}
+			return value;
+		},
+
+		/**
+		 * Test if current element is incomplete, e.g. has no explicit
+		 * name-value separator
+		 * @return {Boolean} [description]
+		 */
+		isIncomplete: function() {
+			return this.nameRange().end === this.valueRange().start;
+		},
+		
+		/**
+		 * Sets of gets property end value (basically, it's a semicolon)
+		 * @param {String} val New end value. If not passed, current 
+		 * value is returned
+		 */
+		end: function(val) {
+			if (!_.isUndefined(val) && this._end !== val) {
+				this.parent._updateSource(val, this._positions.end, this._positions.end + this._end.length);
+				this._end = val;
+			}
+			
+			return this._end;
+		},
+		
+		/**
+		 * Returns full rule range, with indentation
+		 * @param {Boolean} isAbsolute Return absolute range (with respect of
+		 * rule offset)
+		 * @returns {Range}
+		 */
+		fullRange: function(isAbsolute) {
+			var r = this.range(isAbsolute);
+			r.start -= this.styleBefore.length;
+			return r;
+		},
+		
+		/**
+		 * Returns item string representation
+		 * @returns {String}
+		 */
+		valueOf: function() {
+			return this.name() + this.styleSeparator + this.value() + this.end();
+		}
+	});
+	
+	return {
+		/**
+		 * Parses CSS rule into editable tree
+		 * @param {String} source
+		 * @param {Object} options
+		 * @memberOf emmet.cssEditTree
+		 * @returns {EditContainer}
+		 */
+		parse: function(source, options) {
+			return new CSSEditContainer(source, options);
+		},
+		
+		/**
+		 * Extract and parse CSS rule from specified position in <code>content</code> 
+		 * @param {String} content CSS source code
+		 * @param {Number} pos Character position where to start source code extraction
+		 * @returns {EditContainer}
+		 */
+		parseFromPosition: function(content, pos, isBackward) {
+			var bounds = cssSections.locateRule(content, pos, isBackward);
+			if (!bounds || !bounds.inside(pos)) {
+				// no matching CSS rule or caret outside rule bounds
+				return null;
+			}
+			
+			return this.parse(bounds.substring(content), {
+				offset: bounds.start
+			});
+		},
+
+		/**
+		 * Locates CSS property in given CSS code fragment under specified character position
+		 * @param  {String} css CSS code or parsed CSSEditContainer
+		 * @param  {Number} pos Character position where to search CSS property
+		 * @return {CSSEditElement}
+		 */
+		propertyFromPosition: function(css, pos) {
+			var cssProp = null;
+			/** @type EditContainer */
+			var cssRule = _.isString(css) ? this.parseFromPosition(css, pos, true) : css;
+			if (cssRule) {
+				cssProp = cssRule.itemFromPosition(pos, true);
+				if (!cssProp) {
+					// in case user just started writing CSS property
+					// and didn't include semicolon–try another approach
+					cssProp = _.find(cssRule.list(), function(elem) {
+						return elem.range(true).end == pos;
+					});
+				}
+			}
+
+			return cssProp;
+		},
+		
+		/**
+		 * Removes vendor prefix from CSS property
+		 * @param {String} name CSS property
+		 * @return {String}
+		 */
+		baseName: function(name) {
+			return name.replace(/^\s*\-\w+\-/, '');
+		},
+		
+		/**
+		 * Finds parts of complex CSS value
+		 * @param {String} str
+		 * @returns {Array}
+		 */
+		findParts: findParts,
+
+		extractPropertiesFromSource: extractPropertiesFromSource
+	};
+});
+/**
+ * Resolver for fast CSS typing. Handles abbreviations with the following 
+ * notation:<br>
+ * 
+ * <code>(-vendor prefix)?property(value)*(!)?</code>
+ * 
+ * <br><br>
+ * <b>Abbreviation handling</b><br>
+ * 
+ * By default, Emmet searches for matching snippet definition for provided abbreviation.
+ * If snippet wasn't found, Emmet automatically generates element with 
+ * abbreviation's name. For example, <code>foo</code> abbreviation will generate
+ * <code>&lt;foo&gt;&lt;/foo&gt;</code> output.
+ * <br><br>
+ * This module will capture all expanded properties and upgrade them with values, 
+ * vendor prefixes and !important declarations. All unmatched abbreviations will 
+ * be automatically transformed into <code>property-name: ${1}</code> snippets. 
+ * 
+ * <b>Vendor prefixes<b><br>
+ * 
+ * If CSS-property is preceded with dash, resolver should output property with
+ * all <i>known</i> vendor prefixes. For example, if <code>brad</code> 
+ * abbreviation generates <code>border-radius: ${value};</code> snippet,
+ * the <code>-brad</code> abbreviation should generate:
+ * <pre><code>
+ * -webkit-border-radius: ${value};
+ * -moz-border-radius: ${value};
+ * border-radius: ${value};
+ * </code></pre>
+ * Note that <i>o</i> and <i>ms</i> prefixes are omitted since Opera and IE 
+ * supports unprefixed property.<br><br>
+ * 
+ * Users can also provide an explicit list of one-character prefixes for any
+ * CSS property. For example, <code>-wm-float</code> will produce
+ * 
+ * <pre><code>
+ * -webkit-float: ${1};
+ * -moz-float: ${1};
+ * float: ${1};
+ * </code></pre>
+ * 
+ * Although this example looks pointless, users can use this feature to write
+ * cutting-edge properties implemented by browser vendors recently.  
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('resolver/css',['require','exports','module','lodash','../assets/preferences','../assets/resources','../assets/stringStream','../assets/caniuse','../utils/common','../utils/template','../editTree/css'],function(require, exports, module) {
+	var _ = require('lodash');
+	var prefs = require('../assets/preferences');
+	var resources = require('../assets/resources');
+	var stringStream = require('../assets/stringStream');
+	var ciu = require('../assets/caniuse');
+	var utils = require('../utils/common');
+	var template = require('../utils/template');
+	var cssEditTree = require('../editTree/css');
+
+	var prefixObj = {
+		/** Real vendor prefix name */
+		prefix: 'emmet',
+		
+		/** 
+		 * Indicates this prefix is obsolete and should't be used when user 
+		 * wants to generate all-prefixed properties
+		 */
+		obsolete: false,
+		
+		/**
+		 * Returns prefixed CSS property name
+		 * @param {String} name Unprefixed CSS property
+		 */
+		transformName: function(name) {
+			return '-' + this.prefix + '-' + name;
+		},
+		
+		/**
+		 * List of unprefixed CSS properties that supported by 
+		 * current prefix. This list is used to generate all-prefixed property
+		 * @returns {Array} 
+		 */
+		properties: function() {
+			return getProperties('css.' + this.prefix + 'Properties') || [];
+		},
+		
+		/**
+		 * Check if given property is supported by current prefix
+		 * @param name
+		 */
+		supports: function(name) {
+			return _.include(this.properties(), name);
+		}
+	};
+	
+	
+	/** 
+	 * List of registered one-character prefixes. Key is a one-character prefix, 
+	 * value is an <code>prefixObj</code> object
+	 */
+	var vendorPrefixes = {};
+	
+	var defaultValue = '${1};';
+	
+	// XXX module preferences
+	prefs.define('css.valueSeparator', ': ',
+			'Defines a symbol that should be placed between CSS property and ' 
+			+ 'value when expanding CSS abbreviations.');
+	prefs.define('css.propertyEnd', ';',
+			'Defines a symbol that should be placed at the end of CSS property  ' 
+			+ 'when expanding CSS abbreviations.');
+	
+	prefs.define('stylus.valueSeparator', ' ',
+			'Defines a symbol that should be placed between CSS property and ' 
+			+ 'value when expanding CSS abbreviations in Stylus dialect.');
+	prefs.define('stylus.propertyEnd', '',
+			'Defines a symbol that should be placed at the end of CSS property  ' 
+			+ 'when expanding CSS abbreviations in Stylus dialect.');
+	
+	prefs.define('sass.propertyEnd', '',
+			'Defines a symbol that should be placed at the end of CSS property  ' 
+			+ 'when expanding CSS abbreviations in SASS dialect.');
+
+	prefs.define('css.syntaxes', 'css, less, sass, scss, stylus, styl',
+			'List of syntaxes that should be treated as CSS dialects.');
+	
+	prefs.define('css.autoInsertVendorPrefixes', true,
+			'Automatically generate vendor-prefixed copies of expanded CSS ' 
+			+ 'property. By default, Emmet will generate vendor-prefixed '
+			+ 'properties only when you put dash before abbreviation ' 
+			+ '(e.g. <code>-bxsh</code>). With this option enabled, you don’t ' 
+			+ 'need dashes before abbreviations: Emmet will produce ' 
+			+ 'vendor-prefixed properties for you.');
+	
+	var descTemplate = template('A comma-separated list of CSS properties that may have ' 
+		+ '<code><%= vendor %></code> vendor prefix. This list is used to generate '
+		+ 'a list of prefixed properties when expanding <code>-property</code> '
+		+ 'abbreviations. Empty list means that all possible CSS values may ' 
+		+ 'have <code><%= vendor %></code> prefix.');
+	
+	var descAddonTemplate = template('A comma-separated list of <em>additional</em> CSS properties ' 
+			+ 'for <code>css.<%= vendor %>Preperties</code> preference. ' 
+			+ 'You should use this list if you want to add or remove a few CSS ' 
+			+ 'properties to original set. To add a new property, simply write its name, '
+			+ 'to remove it, precede property with hyphen.<br>'
+			+ 'For example, to add <em>foo</em> property and remove <em>border-radius</em> one, '
+			+ 'the preference value will look like this: <code>foo, -border-radius</code>.');
+	
+	// properties list is created from cssFeatures.html file
+	var props = {
+		'webkit': 'animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-clip, background-composite, background-origin, background-size, border-fit, border-horizontal-spacing, border-image, border-vertical-spacing, box-align, box-direction, box-flex, box-flex-group, box-lines, box-ordinal-group, box-orient, box-pack, box-reflect, box-shadow, color-correction, column-break-after, column-break-before, column-break-inside, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-span, column-width, dashboard-region, font-smoothing, highlight, hyphenate-character, hyphenate-limit-after, hyphenate-limit-before, hyphens, line-box-contain, line-break, line-clamp, locale, margin-before-collapse, margin-after-collapse, marquee-direction, marquee-increment, marquee-repetition, marquee-style, mask-attachment, mask-box-image, mask-box-image-outset, mask-box-image-repeat, mask-box-image-slice, mask-box-image-source, mask-box-image-width, mask-clip, mask-composite, mask-image, mask-origin, mask-position, mask-repeat, mask-size, nbsp-mode, perspective, perspective-origin, rtl-ordering, text-combine, text-decorations-in-effect, text-emphasis-color, text-emphasis-position, text-emphasis-style, text-fill-color, text-orientation, text-security, text-stroke-color, text-stroke-width, transform, transition, transform-origin, transform-style, transition-delay, transition-duration, transition-property, transition-timing-function, user-drag, user-modify, user-select, writing-mode, svg-shadow, box-sizing, border-radius',
+		'moz': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-inline-policy, binding, border-bottom-colors, border-image, border-left-colors, border-right-colors, border-top-colors, box-align, box-direction, box-flex, box-ordinal-group, box-orient, box-pack, box-shadow, box-sizing, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-width, float-edge, font-feature-settings, font-language-override, force-broken-image-icon, hyphens, image-region, orient, outline-radius-bottomleft, outline-radius-bottomright, outline-radius-topleft, outline-radius-topright, perspective, perspective-origin, stack-sizing, tab-size, text-blink, text-decoration-color, text-decoration-line, text-decoration-style, text-size-adjust, transform, transform-origin, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-focus, user-input, user-modify, user-select, window-shadow, background-clip, border-radius',
+		'ms': 'accelerator, backface-visibility, background-position-x, background-position-y, behavior, block-progression, box-align, box-direction, box-flex, box-line-progression, box-lines, box-ordinal-group, box-orient, box-pack, content-zoom-boundary, content-zoom-boundary-max, content-zoom-boundary-min, content-zoom-chaining, content-zoom-snap, content-zoom-snap-points, content-zoom-snap-type, content-zooming, filter, flow-from, flow-into, font-feature-settings, grid-column, grid-column-align, grid-column-span, grid-columns, grid-layer, grid-row, grid-row-align, grid-row-span, grid-rows, high-contrast-adjust, hyphenate-limit-chars, hyphenate-limit-lines, hyphenate-limit-zone, hyphens, ime-mode, interpolation-mode, layout-flow, layout-grid, layout-grid-char, layout-grid-line, layout-grid-mode, layout-grid-type, line-break, overflow-style, perspective, perspective-origin, perspective-origin-x, perspective-origin-y, scroll-boundary, scroll-boundary-bottom, scroll-boundary-left, scroll-boundary-right, scroll-boundary-top, scroll-chaining, scroll-rails, scroll-snap-points-x, scroll-snap-points-y, scroll-snap-type, scroll-snap-x, scroll-snap-y, scrollbar-arrow-color, scrollbar-base-color, scrollbar-darkshadow-color, scrollbar-face-color, scrollbar-highlight-color, scrollbar-shadow-color, scrollbar-track-color, text-align-last, text-autospace, text-justify, text-kashida-space, text-overflow, text-size-adjust, text-underline-position, touch-action, transform, transform-origin, transform-origin-x, transform-origin-y, transform-origin-z, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-select, word-break, wrap-flow, wrap-margin, wrap-through, writing-mode',
+		'o': 'dashboard-region, animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, border-image, link, link-source, object-fit, object-position, tab-size, table-baseline, transform, transform-origin, transition, transition-delay, transition-duration, transition-property, transition-timing-function, accesskey, input-format, input-required, marquee-dir, marquee-loop, marquee-speed, marquee-style'
+	};
+	
+	_.each(props, function(v, k) {
+		prefs.define('css.' + k + 'Properties', v, descTemplate({vendor: k}));
+		prefs.define('css.' + k + 'PropertiesAddon', '', descAddonTemplate({vendor: k}));
+	});
+	
+	prefs.define('css.unitlessProperties', 'z-index, line-height, opacity, font-weight, zoom', 
+			'The list of properties whose values ​​must not contain units.');
+	
+	prefs.define('css.intUnit', 'px', 'Default unit for integer values');
+	prefs.define('css.floatUnit', 'em', 'Default unit for float values');
+	
+	prefs.define('css.keywords', 'auto, inherit, all', 
+			'A comma-separated list of valid keywords that can be used in CSS abbreviations.');
+	
+	prefs.define('css.keywordAliases', 'a:auto, i:inherit, s:solid, da:dashed, do:dotted, t:transparent', 
+			'A comma-separated list of keyword aliases, used in CSS abbreviation. '
+			+ 'Each alias should be defined as <code>alias:keyword_name</code>.');
+	
+	prefs.define('css.unitAliases', 'e:em, p:%, x:ex, r:rem', 
+			'A comma-separated list of unit aliases, used in CSS abbreviation. '
+			+ 'Each alias should be defined as <code>alias:unit_value</code>.');
+	
+	prefs.define('css.color.short', true, 
+			'Should color values like <code>#ffffff</code> be shortened to '
+			+ '<code>#fff</code> after abbreviation with color was expanded.');
+	
+	prefs.define('css.color.case', 'keep', 
+			'Letter case of color values generated by abbreviations with color '
+			+ '(like <code>c#0</code>). Possible values are <code>upper</code>, '
+			+ '<code>lower</code> and <code>keep</code>.');
+	
+	prefs.define('css.fuzzySearch', true, 
+			'Enable fuzzy search among CSS snippet names. When enabled, every ' 
+			+ '<em>unknown</em> snippet will be scored against available snippet '
+			+ 'names (not values or CSS properties!). The match with best score '
+			+ 'will be used to resolve snippet value. For example, with this ' 
+			+ 'preference enabled, the following abbreviations are equal: '
+			+ '<code>ov:h</code> == <code>ov-h</code> == <code>o-h</code> == '
+			+ '<code>oh</code>');
+	
+	prefs.define('css.fuzzySearchMinScore', 0.3, 
+			'The minium score (from 0 to 1) that fuzzy-matched abbreviation should ' 
+			+ 'achive. Lower values may produce many false-positive matches, '
+			+ 'higher values may reduce possible matches.');
+	
+	prefs.define('css.alignVendor', false, 
+			'If set to <code>true</code>, all generated vendor-prefixed properties ' 
+			+ 'will be aligned by real property name.');
+	
+	
+	function isNumeric(ch) {
+		var code = ch && ch.charCodeAt(0);
+		return (ch && ch == '.' || (code > 47 && code < 58));
+	}
+	
+	/**
+	 * Check if provided snippet contains only one CSS property and value.
+	 * @param {String} snippet
+	 * @returns {Boolean}
+	 */
+	function isSingleProperty(snippet) {
+		snippet = utils.trim(snippet);
+		
+		// check if it doesn't contain a comment and a newline
+		if (/\/\*|\n|\r/.test(snippet)) {
+			return false;
+		}
+		
+		// check if it's a valid snippet definition
+		if (!/^[a-z0-9\-]+\s*\:/i.test(snippet)) {
+			return false;
+		}
+		
+		return snippet.replace(/\$\{.+?\}/g, '').split(':').length == 2;
+	}
+	
+	/**
+	 * Normalizes abbreviated value to final CSS one
+	 * @param {String} value
+	 * @returns {String}
+	 */
+	function normalizeValue(value) {
+		if (value.charAt(0) == '-' && !/^\-[\.\d]/.test(value)) {
+			value = value.replace(/^\-+/, '');
+		}
+		
+		var ch = value.charAt(0);
+		if (ch == '#') {
+			return normalizeHexColor(value);
+		}
+
+		if (ch == '$') {
+			return utils.escapeText(value);
+		}
+
+		return getKeyword(value);
+	}
+	
+	function normalizeHexColor(value) {
+		var hex = value.replace(/^#+/, '') || '0';
+		if (hex.toLowerCase() == 't') {
+			return 'transparent';
+		}
+
+		var opacity = '';
+		hex = hex.replace(/\.(\d+)$/, function(str) {
+			opacity = '0' + str;
+			return '';
+		});
+		
+		var repeat = utils.repeatString;
+		var color = null;
+		switch (hex.length) {
+			case 1:
+				color = repeat(hex, 6);
+				break;
+			case 2:
+				color = repeat(hex, 3);
+				break;
+			case 3:
+				color = hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
+				break;
+			case 4:
+				color = hex + hex.substr(0, 2);
+				break;
+			case 5:
+				color = hex + hex.charAt(0);
+				break;
+			default:
+				color = hex.substr(0, 6);
+		}
+
+		if (opacity) {
+			return toRgba(color, opacity);
+		}
+		
+		// color must be shortened?
+		if (prefs.get('css.color.short')) {
+			var p = color.split('');
+			if (p[0] == p[1] && p[2] == p[3] && p[4] == p[5]) {
+				color = p[0] + p[2] + p[4];
+			}
+		}
+		
+		// should transform case?
+		switch (prefs.get('css.color.case')) {
+			case 'upper':
+				color = color.toUpperCase();
+				break;
+			case 'lower':
+				color = color.toLowerCase();
+				break;
+		}
+		
+		return '#' + color;
+	}
+
+	/**
+	 * Transforms HEX color definition into RGBA one
+	 * @param  {String} color   HEX color, 6 characters
+	 * @param  {String} opacity Opacity value
+	 * @return {String}
+	 */
+	function toRgba(color, opacity) {
+		var r = parseInt(color.substr(0, 2), 16);
+		var g = parseInt(color.substr(2, 2), 16);
+		var b = parseInt(color.substr(4, 2), 16);
+
+		return 'rgba(' + [r, g, b, opacity].join(', ') + ')';
+	}
+	
+	function getKeyword(name) {
+		var aliases = prefs.getDict('css.keywordAliases');
+		return name in aliases ? aliases[name] : name;
+	}
+	
+	function getUnit(name) {
+		var aliases = prefs.getDict('css.unitAliases');
+		return name in aliases ? aliases[name] : name;
+	}
+	
+	function isValidKeyword(keyword) {
+		return _.include(prefs.getArray('css.keywords'), getKeyword(keyword));
+	}
+	
+	/**
+	 * Check if passed CSS property support specified vendor prefix 
+	 * @param {String} property
+	 * @param {String} prefix
+	 */
+	function hasPrefix(property, prefix) {
+		var info = vendorPrefixes[prefix];
+		
+		if (!info)
+			info = _.find(vendorPrefixes, function(data) {
+				return data.prefix == prefix;
+			});
+		
+		return info && info.supports(property);
+	}
+
+	/**
+	 * Finds available vendor prefixes for given CSS property.
+	 * Search is performed within Can I Use database and internal
+	 * property list
+	 * @param  {String} property CSS property name
+	 * @return {Array} Array of resolved prefixes or null if
+	 * prefixes are not available for this property at all.
+	 * Empty array means prefixes are not available for current
+	 * user-define era
+	 */
+	function findVendorPrefixes(property) {
+		var prefixes = ciu.resolvePrefixes(property);
+		if (!prefixes) {
+			// Can I Use database is disabled or prefixes are not
+			// available for this property
+			prefixes = [];
+			_.each(vendorPrefixes, function(obj, key) {
+				if (hasPrefix(property, key)) {
+					prefixes.push(obj.prefix);
+				}
+			});
+
+			if (!prefixes.length) {
+				prefixes = null;
+			}
+		}
+
+		return prefixes;
+	}
+	
+	/**
+	 * Search for a list of supported prefixes for CSS property. This list
+	 * is used to generate all-prefixed snippet
+	 * @param {String} property CSS property name
+	 * @returns {Array}
+	 */
+	function findInternalPrefixes(property, noAutofill) {
+		var result = [];
+		var prefixes = findVendorPrefixes(property);
+		
+		if (prefixes) {
+			var prefixMap = {};
+			_.each(vendorPrefixes, function(obj, name) {
+				prefixMap[obj.prefix] = name;
+			});
+
+			result = _.map(prefixes, function(prefix) {
+				return prefixMap[prefix];
+			});
+		}
+		
+		if (!result.length && !noAutofill) {
+			// add all non-obsolete prefixes
+			_.each(vendorPrefixes, function(obj, prefix) {
+				if (!obj.obsolete)
+					result.push(prefix);
+			});
+		}
+		
+		return result;
+	}
+	
+	function addPrefix(name, obj) {
+		if (_.isString(obj))
+			obj = {prefix: obj};
+		
+		vendorPrefixes[name] = _.extend({}, prefixObj, obj);
+	}
+	
+	function getSyntaxPreference(name, syntax) {
+		if (syntax) {
+			// hacky alias for Stylus dialect
+			if (syntax == 'styl') {
+				syntax = 'stylus';
+			}
+
+			var val = prefs.get(syntax + '.' + name);
+			if (!_.isUndefined(val))
+				return val;
+		}
+		
+		return prefs.get('css.' + name);
+	}
+	
+	/**
+	 * Format CSS property according to current syntax dialect
+	 * @param {String} property
+	 * @param {String} syntax
+	 * @returns {String}
+	 */
+	function formatProperty(property, syntax) {
+		var ix = property.indexOf(':');
+		property = property.substring(0, ix).replace(/\s+$/, '') 
+			+ getSyntaxPreference('valueSeparator', syntax)
+			+ utils.trim(property.substring(ix + 1));
+		
+		return property.replace(/\s*;\s*$/, getSyntaxPreference('propertyEnd', syntax));
+	}
+	
+	/**
+	 * Transforms snippet value if required. For example, this transformation
+	 * may add <i>!important</i> declaration to CSS property
+	 * @param {String} snippet
+	 * @param {Boolean} isImportant
+	 * @returns {String}
+	 */
+	function transformSnippet(snippet, isImportant, syntax) {
+		if (!_.isString(snippet))
+			snippet = snippet.data;
+		
+		if (!isSingleProperty(snippet))
+			return snippet;
+		
+		if (isImportant) {
+			if (~snippet.indexOf(';')) {
+				snippet = snippet.split(';').join(' !important;');
+			} else {
+				snippet += ' !important';
+			}
+		}
+		
+		return formatProperty(snippet, syntax);
+	}
+	
+	function getProperties(key) {
+		var list = prefs.getArray(key);
+		_.each(prefs.getArray(key + 'Addon'), function(prop) {
+			if (prop.charAt(0) == '-') {
+				list = _.without(list, prop.substr(1));
+			} else {
+				if (prop.charAt(0) == '+')
+					prop = prop.substr(1);
+				
+				list.push(prop);
+			}
+		});
+		
+		return list;
+	}
+
+	/**
+	 * Tries to produce properties with vendor-prefixed value
+	 * @param  {Object} snippetObj Parsed snippet object
+	 * @return {Array} Array of properties with prefixed values
+	 */
+	function resolvePrefixedValues(snippetObj, isImportant, syntax) {
+		var prefixes = [];
+		var lookup = {};
+
+		var parts = cssEditTree.findParts(snippetObj.value);
+		parts.reverse();
+		_.each(parts, function(p) {
+			var partValue = p.substring(snippetObj.value);
+			_.each(findVendorPrefixes(partValue), function(prefix) {
+				if (!lookup[prefix]) {
+					lookup[prefix] = snippetObj.value;
+					prefixes.push(prefix);
+				}
+
+				lookup[prefix] = utils.replaceSubstring(lookup[prefix], '-' + prefix + '-' + partValue, p);
+			});
+		});
+
+		return _.map(prefixes, function(prefix) {
+			return transformSnippet(snippetObj.name + ':' + lookup[prefix], isImportant, syntax);
+		});
+	}
+	
+	
+	// TODO refactor, this looks awkward now
+	addPrefix('w', {
+		prefix: 'webkit'
+	});
+	addPrefix('m', {
+		prefix: 'moz'
+	});
+	addPrefix('s', {
+		prefix: 'ms'
+	});
+	addPrefix('o', {
+		prefix: 'o'
+	});
+	
+	
+	module = module || {};
+	module.exports = {
+		/**
+		 * Adds vendor prefix
+		 * @param {String} name One-character prefix name
+		 * @param {Object} obj Object describing vendor prefix
+		 * @memberOf cssResolver
+		 */
+		addPrefix: addPrefix,
+		
+		/**
+		 * Check if passed CSS property supports specified vendor prefix
+		 * @param {String} property
+		 * @param {String} prefix
+		 */
+		supportsPrefix: hasPrefix,
+
+		resolve: function(node, syntax) {
+			var cssSyntaxes = prefs.getArray('css.syntaxes');
+			if (_.include(cssSyntaxes, syntax) && node.isElement()) {
+				return this.expandToSnippet(node.abbreviation, syntax);
+			}
+			
+			return null;
+		},
+
+		/**
+		 * Returns prefixed version of passed CSS property, only if this
+		 * property supports such prefix
+		 * @param {String} property
+		 * @param {String} prefix
+		 * @returns
+		 */
+		prefixed: function(property, prefix) {
+			return hasPrefix(property, prefix) 
+				? '-' + prefix + '-' + property 
+				: property;
+		},
+		
+		/**
+		 * Returns list of all registered vendor prefixes
+		 * @returns {Array}
+		 */
+		listPrefixes: function() {
+			return _.map(vendorPrefixes, function(obj) {
+				return obj.prefix;
+			});
+		},
+		
+		/**
+		 * Returns object describing vendor prefix
+		 * @param {String} name
+		 * @returns {Object}
+		 */
+		getPrefix: function(name) {
+			return vendorPrefixes[name];
+		},
+		
+		/**
+		 * Removes prefix object
+		 * @param {String} name
+		 */
+		removePrefix: function(name) {
+			if (name in vendorPrefixes)
+				delete vendorPrefixes[name];
+		},
+		
+		/**
+		 * Extract vendor prefixes from abbreviation
+		 * @param {String} abbr
+		 * @returns {Object} Object containing array of prefixes and clean 
+		 * abbreviation name
+		 */
+		extractPrefixes: function(abbr) {
+			if (abbr.charAt(0) != '-') {
+				return {
+					property: abbr,
+					prefixes: null
+				};
+			}
+			
+			// abbreviation may either contain sequence of one-character prefixes
+			// or just dash, meaning that user wants to produce all possible
+			// prefixed properties
+			var i = 1, il = abbr.length, ch;
+			var prefixes = [];
+			
+			while (i < il) {
+				ch = abbr.charAt(i);
+				if (ch == '-') {
+					// end-sequence character found, stop searching
+					i++;
+					break;
+				}
+				
+				if (ch in vendorPrefixes) {
+					prefixes.push(ch);
+				} else {
+					// no prefix found, meaning user want to produce all
+					// vendor-prefixed properties
+					prefixes.length = 0;
+					i = 1;
+					break;
+				}
+				
+				i++;
+			}
+			
+			// reached end of abbreviation and no property name left
+			if (i == il -1) {
+				i = 1;
+				prefixes.length = 1;
+			}
+			
+			return {
+				property: abbr.substring(i),
+				prefixes: prefixes.length ? prefixes : 'all'
+			};
+		},
+		
+		/**
+		 * Search for value substring in abbreviation
+		 * @param {String} abbr
+		 * @returns {String} Value substring
+		 */
+		findValuesInAbbreviation: function(abbr, syntax) {
+			syntax = syntax || 'css';
+			
+			var i = 0, il = abbr.length, value = '', ch;
+			while (i < il) {
+				ch = abbr.charAt(i);
+				if (isNumeric(ch) || ch == '#' || ch == '$' || (ch == '-' && isNumeric(abbr.charAt(i + 1)))) {
+					value = abbr.substring(i);
+					break;
+				}
+				
+				i++;
+			}
+			
+			// try to find keywords in abbreviation
+			var property = abbr.substring(0, abbr.length - value.length);
+			var keywords = [];
+			// try to extract some commonly-used properties
+			while (~property.indexOf('-') && !resources.findSnippet(syntax, property)) {
+				var parts = property.split('-');
+				var lastPart = parts.pop();
+				if (!isValidKeyword(lastPart)) {
+					break;
+				}
+				
+				keywords.unshift(lastPart);
+				property = parts.join('-');
+			}
+
+			return keywords.join('-') + value;
+		},
+		
+		parseValues: function(str) {
+			/** @type StringStream */
+			var stream = stringStream.create(str);
+			var values = [];
+			var ch = null;
+			
+			while ((ch = stream.next())) {
+				if (ch == '$') {
+					stream.match(/^[^\$]+/, true);
+					values.push(stream.current());
+				} else if (ch == '#') {
+					stream.match(/^t|[0-9a-f]+(\.\d+)?/i, true);
+					values.push(stream.current());
+				} else if (ch == '-') {
+					if (isValidKeyword(_.last(values)) || 
+							( stream.start && isNumeric(str.charAt(stream.start - 1)) )
+						) {
+						stream.start = stream.pos;
+					}
+					
+					stream.match(/^\-?[0-9]*(\.[0-9]+)?[a-z%\.]*/, true);
+					values.push(stream.current());
+				} else {
+					stream.match(/^[0-9]*(\.[0-9]*)?[a-z%]*/, true);
+					values.push(stream.current());
+				}
+				
+				stream.start = stream.pos;
+			}
+			
+			return _.map(_.compact(values), normalizeValue);
+		},
+		
+		/**
+		 * Extracts values from abbreviation
+		 * @param {String} abbr
+		 * @returns {Object} Object containing array of values and clean 
+		 * abbreviation name
+		 */
+		extractValues: function(abbr) {
+			// search for value start
+			var abbrValues = this.findValuesInAbbreviation(abbr);
+			if (!abbrValues) {
+				return {
+					property: abbr,
+					values: null
+				};
+			}
+			
+			return {
+				property: abbr.substring(0, abbr.length - abbrValues.length).replace(/-$/, ''),
+				values: this.parseValues(abbrValues)
+			};
+		},
+		
+		/**
+		 * Normalizes value, defined in abbreviation.
+		 * @param {String} value
+		 * @param {String} property
+		 * @returns {String}
+		 */
+		normalizeValue: function(value, property) {
+			property = (property || '').toLowerCase();
+			var unitlessProps = prefs.getArray('css.unitlessProperties');
+			return value.replace(/^(\-?[0-9\.]+)([a-z]*)$/, function(str, val, unit) {
+				if (!unit && (val == '0' || _.include(unitlessProps, property)))
+					return val;
+				
+				if (!unit)
+					return val.replace(/\.$/, '') + prefs.get(~val.indexOf('.') ? 'css.floatUnit' : 'css.intUnit');
+				
+				return val + getUnit(unit);
+			});
+		},
+		
+		/**
+		 * Expands abbreviation into a snippet
+		 * @param {String} abbr Abbreviation name to expand
+		 * @param {String} value Abbreviation value
+		 * @param {String} syntax Currect syntax or dialect. Default is 'css'
+		 * @returns {Object} Array of CSS properties and values or predefined
+		 * snippet (string or element)
+		 */
+		expand: function(abbr, value, syntax) {
+			syntax = syntax || 'css';
+			var autoInsertPrefixes = prefs.get(syntax + '.autoInsertVendorPrefixes');
+			
+			// check if snippet should be transformed to !important
+			var isImportant = /^(.+)\!$/.test(abbr);
+			if (isImportant) {
+				abbr = RegExp.$1;
+			}
+
+			// check if we have abbreviated resource
+			var snippet = resources.findSnippet(syntax, abbr);
+			if (snippet && !autoInsertPrefixes) {
+				return transformSnippet(snippet, isImportant, syntax);
+			}
+			
+			// no abbreviated resource, parse abbreviation
+			var prefixData = this.extractPrefixes(abbr);
+			var valuesData = this.extractValues(prefixData.property);
+			var abbrData = _.extend(prefixData, valuesData);
+
+			if (!snippet) {
+				snippet = resources.findSnippet(syntax, abbrData.property);
+			} else {
+				abbrData.values = null;
+			}
+			
+			if (!snippet && prefs.get('css.fuzzySearch')) {
+				// let’s try fuzzy search
+				snippet = resources.fuzzyFindSnippet(syntax, abbrData.property, parseFloat(prefs.get('css.fuzzySearchMinScore')));
+			}
+			
+			if (!snippet) {
+				if (!abbrData.property) {
+					return null;
+				}
+				snippet = abbrData.property + ':' + defaultValue;
+			} else if (!_.isString(snippet)) {
+				snippet = snippet.data;
+			}
+			
+			if (!isSingleProperty(snippet)) {
+				return snippet;
+			}
+			
+			var snippetObj = this.splitSnippet(snippet);
+			var result = [];
+			if (!value && abbrData.values) {
+				value = _.map(abbrData.values, function(val) {
+					return this.normalizeValue(val, snippetObj.name);
+				}, this).join(' ') + ';';
+			}
+			
+			snippetObj.value = value || snippetObj.value;
+
+			var prefixes = abbrData.prefixes == 'all' || (!abbrData.prefixes && autoInsertPrefixes) 
+				? findInternalPrefixes(snippetObj.name, autoInsertPrefixes && abbrData.prefixes != 'all')
+				: abbrData.prefixes;
+				
+				
+			var names = [], propName;
+			_.each(prefixes, function(p) {
+				if (p in vendorPrefixes) {
+					propName = vendorPrefixes[p].transformName(snippetObj.name);
+					names.push(propName);
+					result.push(transformSnippet(propName + ':' + snippetObj.value,
+							isImportant, syntax));
+				}
+			});
+			
+			// put the original property
+			result.push(transformSnippet(snippetObj.name + ':' + snippetObj.value, isImportant, syntax));
+			names.push(snippetObj.name);
+
+			result = resolvePrefixedValues(snippetObj, isImportant, syntax).concat(result);
+			
+			if (prefs.get('css.alignVendor')) {
+				var pads = utils.getStringsPads(names);
+				result = _.map(result, function(prop, i) {
+					return pads[i] + prop;
+				});
+			}
+			
+			return result;
+		},
+		
+		/**
+		 * Same as <code>expand</code> method but transforms output into 
+		 * Emmet snippet
+		 * @param {String} abbr
+		 * @param {String} syntax
+		 * @returns {String}
+		 */
+		expandToSnippet: function(abbr, syntax) {
+			var snippet = this.expand(abbr, null, syntax);
+			if (snippet === null) {
+				return null;
+			}
+
+			if (_.isArray(snippet)) {
+				return snippet.join('\n');
+			}
+			
+			if (!_.isString(snippet)) {
+				return snippet.data;
+			}
+			
+			return snippet + '';
+		},
+		
+		/**
+		 * Split snippet into a CSS property-value pair
+		 * @param {String} snippet
+		 */
+		splitSnippet: function(snippet) {
+			snippet = utils.trim(snippet);
+			if (snippet.indexOf(':') == -1) {
+				return {
+					name: snippet,
+					value: defaultValue
+				};
+			}
+			
+			var pair = snippet.split(':');
+			
+			return {
+				name: utils.trim(pair.shift()),
+				// replace ${0} tabstop to produce valid vendor-prefixed values
+				// where possible
+				value: utils.trim(pair.join(':')).replace(/^(\$\{0\}|\$0)(\s*;?)$/, '${1}$2')
+			};
+		},
+		
+		getSyntaxPreference: getSyntaxPreference,
+		transformSnippet: transformSnippet,
+		vendorPrefixes: findVendorPrefixes
+	};
+
+	return module.exports;
+});
+/**
+ * Parsed resources (snippets, abbreviations, variables, etc.) for Emmet.
+ * Contains convenient method to get access for snippets with respect of 
+ * inheritance. Also provides ability to store data in different vocabularies
+ * ('system' and 'user') for fast and safe resource update
+ * @author Sergey Chikuyonok (serge.che@gmail.com)
+ * @link http://chikuyonok.ru
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('assets/resources',['require','exports','module','lodash','./handlerList','../utils/common','./elements','../assets/logger','../vendor/stringScore','../resolver/css'],function(require, exports, module) {
 	var _ = require('lodash');
 	var handlerList = require('./handlerList');
 	var utils = require('../utils/common');
 	var elements = require('./elements');
 	var logger = require('../assets/logger');
 	var stringScore = require('../vendor/stringScore');
+	var cssResolver = require('../resolver/css');
 
 	var VOC_SYSTEM = 'system';
 	var VOC_USER = 'user';
@@ -9097,24 +13653,32 @@ define('assets/resources',['require','exports','module','lodash','./handlerList'
 		 * @returns
 		 */
 		fuzzyFindSnippet: function(syntax, name, minScore) {
-			minScore = minScore || 0.3;
-			
-			var payload = this.getAllSnippets(syntax);
-			
-			name = normalizeName(name);
-			var scores = _.map(payload, function(value, key) {
-				return {
-					key: key,
-					score: stringScore.score(value.nk, name, 0.1)
-				};
-			});
-			
-			var result = _.last(_.sortBy(scores, 'score'));
-			if (result && result.score >= minScore) {
-				var k = result.key;
-				return payload[k].parsedValue;
-//				return parseItem(k, payload[k].value, payload[k].type);
+			var result = this.fuzzyFindMatches(syntax, name, minScore)[0];
+			if (result) {
+				return result.value.parsedValue;
 			}
+		},
+
+		fuzzyFindMatches: function(syntax, name, minScore) {
+			minScore = minScore || 0.3;
+			name = normalizeName(name);
+			
+			var result = _(this.getAllSnippets(syntax))
+				.map(function(value, key) {
+					return {
+						key: key,
+						score: stringScore.score(value.nk, name, 0.1),
+						value: value
+					};
+				})
+				.filter(function(item) {
+					return item.score >= minScore;
+				})
+				.sortBy('score')
+				.valueOf();
+
+			result.reverse();
+			return result;
 		},
 		
 		/**
@@ -9179,21 +13743,20 @@ define('assets/resources',['require','exports','module','lodash','./handlerList'
 	});
 
 	// XXX add default resolvers
-	_.each(['css'], function(name) {
-		var mod = require('../resolver/' + name);
-		if (mod.resolve) {
-			exports.addResolver(_.bind(mod.resolve, mod));
-		}
-	});
+	exports.addResolver(_.bind(cssResolver.resolve, cssResolver));
 
 	// try to load snippets
-	try {
-		var fs = require('fs');
-		var path = require('path');
-
-		var defaultSnippets = fs.readFileSync(path.join(__dirname, '../snippets.json'), {encoding: 'utf8'});
-		exports.setVocabulary(JSON.parse(defaultSnippets), VOC_SYSTEM);
-	} catch(e) {}
+	// hide it from Require.JS parser
+	(function(r) {
+		if (typeof define === 'undefined' || !define.amd) {
+			var fs = r('fs');
+			var path = r('path');
+			
+			var defaultSnippets = fs.readFileSync(path.join(__dirname, '../snippets.json'), {encoding: 'utf8'});
+			exports.setVocabulary(JSON.parse(defaultSnippets), VOC_SYSTEM);
+		}
+	})(require);
+	
 
 	return exports;
 });
@@ -9561,249 +14124,6 @@ define('assets/tabStops',['require','exports','module','lodash','../utils/common
 			
 			tabstopIndex += maxNum + 1;
 			return text;
-		}
-	};
-});
-/**
- * Common module's preferences storage. This module 
- * provides general storage for all module preferences, their description and
- * default values.<br><br>
- * 
- * This module can also be used to list all available properties to create 
- * UI for updating properties
- */
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('assets/preferences',['require','exports','module','lodash','../utils/common'],function(require, exports, module) {
-	var _ = require('lodash');
-	var utils = require('../utils/common');
-
-	var preferences = {};
-	var defaults = {};
-	var _dbgDefaults = null;
-	var _dbgPreferences = null;
-
-	function toBoolean(val) {
-		if (_.isString(val)) {
-			val = val.toLowerCase();
-			return val == 'yes' || val == 'true' || val == '1';
-		}
-
-		return !!val;
-	}
-	
-	function isValueObj(obj) {
-		return _.isObject(obj) 
-			&& 'value' in obj 
-			&& _.keys(obj).length < 3;
-	}
-	
-	return {
-		/**
-		 * Creates new preference item with default value
-		 * @param {String} name Preference name. You can also pass object
-		 * with many options
-		 * @param {Object} value Preference default value
-		 * @param {String} description Item textual description
-		 * @memberOf preferences
-		 */
-		define: function(name, value, description) {
-			var prefs = name;
-			if (_.isString(name)) {
-				prefs = {};
-				prefs[name] = {
-					value: value,
-					description: description
-				};
-			}
-			
-			_.each(prefs, function(v, k) {
-				defaults[k] = isValueObj(v) ? v : {value: v};
-			});
-		},
-		
-		/**
-		 * Updates preference item value. Preference value should be defined
-		 * first with <code>define</code> method.
-		 * @param {String} name Preference name. You can also pass object
-		 * with many options
-		 * @param {Object} value Preference default value
-		 * @memberOf preferences
-		 */
-		set: function(name, value) {
-			var prefs = name;
-			if (_.isString(name)) {
-				prefs = {};
-				prefs[name] = value;
-			}
-			
-			_.each(prefs, function(v, k) {
-				if (!(k in defaults)) {
-					throw 'Property "' + k + '" is not defined. You should define it first with `define` method of current module';
-				}
-				
-				// do not set value if it equals to default value
-				if (v !== defaults[k].value) {
-					// make sure we have value of correct type
-					switch (typeof defaults[k].value) {
-						case 'boolean':
-							v = toBoolean(v);
-							break;
-						case 'number':
-							v = parseInt(v + '', 10) || 0;
-							break;
-						default: // convert to string
-							if (v !== null) {
-								v += '';
-							}
-					}
-
-					preferences[k] = v;
-				} else if  (k in preferences) {
-					delete preferences[k];
-				}
-			});
-		},
-		
-		/**
-		 * Returns preference value
-		 * @param {String} name
-		 * @returns {String} Returns <code>undefined</code> if preference is 
-		 * not defined
-		 */
-		get: function(name) {
-			if (name in preferences)
-				return preferences[name];
-			
-			if (name in defaults)
-				return defaults[name].value;
-			
-			return void 0;
-		},
-		
-		/**
-		 * Returns comma-separated preference value as array of values
-		 * @param {String} name
-		 * @returns {Array} Returns <code>undefined</code> if preference is 
-		 * not defined, <code>null</code> if string cannot be converted to array
-		 */
-		getArray: function(name) {
-			var val = this.get(name);
-			if (_.isUndefined(val) || val === null || val === '')  {
-				return null;
-			}
-
-			val = _.map(val.split(','), utils.trim);
-			if (!val.length) {
-				return null;
-			}
-			
-			return val;
-		},
-		
-		/**
-		 * Returns comma and colon-separated preference value as dictionary
-		 * @param {String} name
-		 * @returns {Object}
-		 */
-		getDict: function(name) {
-			var result = {};
-			_.each(this.getArray(name), function(val) {
-				var parts = val.split(':');
-				result[parts[0]] = parts[1];
-			});
-			
-			return result;
-		},
-		
-		/**
-		 * Returns description of preference item
-		 * @param {String} name Preference name
-		 * @returns {Object}
-		 */
-		description: function(name) {
-			return name in defaults ? defaults[name].description : void 0;
-		},
-		
-		/**
-		 * Completely removes specified preference(s)
-		 * @param {String} name Preference name (or array of names)
-		 */
-		remove: function(name) {
-			if (!_.isArray(name))
-				name = [name];
-			
-			_.each(name, function(key) {
-				if (key in preferences)
-					delete preferences[key];
-				
-				if (key in defaults)
-					delete defaults[key];
-			});
-		},
-		
-		/**
-		 * Returns sorted list of all available properties
-		 * @returns {Array}
-		 */
-		list: function() {
-			return _.map(_.keys(defaults).sort(), function(key) {
-				return {
-					name: key,
-					value: this.get(key),
-					type: typeof defaults[key].value,
-					description: defaults[key].description
-				};
-			}, this);
-		},
-		
-		/**
-		 * Loads user-defined preferences from JSON
-		 * @param {Object} json
-		 * @returns
-		 */
-		load: function(json) {
-			_.each(json, function(value, key) {
-				this.set(key, value);
-			}, this);
-		},
-
-		/**
-		 * Returns hash of user-modified preferences
-		 * @returns {Object}
-		 */
-		exportModified: function() {
-			return _.clone(preferences);
-		},
-		
-		/**
-		 * Reset to defaults
-		 * @returns
-		 */
-		reset: function() {
-			preferences = {};
-		},
-		
-		/**
-		 * For unit testing: use empty storage
-		 */
-		_startTest: function() {
-			_dbgDefaults = defaults;
-			_dbgPreferences = preferences;
-			defaults = {};
-			preferences = {};
-		},
-		
-		/**
-		 * For unit testing: restore original storage
-		 */
-		_stopTest: function() {
-			defaults = _dbgDefaults;
-			preferences = _dbgPreferences;
 		}
 	};
 });
@@ -11514,10 +15834,11 @@ if (typeof module === 'object' && typeof define !== 'function') {
 	};
 }
 
-define('filter/comment',['require','exports','module','lodash','../assets/preferences','../utils/common','../utils/abbreviation','./main'],function(require, exports, module) {
+define('filter/comment',['require','exports','module','lodash','../assets/preferences','../utils/common','../utils/template','../utils/abbreviation','./main'],function(require, exports, module) {
 	var _ = require('lodash');
 	var prefs = require('../assets/preferences');
 	var utils = require('../utils/common');
+	var template = require('../utils/template');
 	var abbrUtils = require('../utils/abbreviation');
 	var filterCore = require('./main');
 	
@@ -11607,8 +15928,8 @@ define('filter/comment',['require','exports','module','lodash','../assets/prefer
 	}
 
 	return function(tree) {
-		var templateBefore = _.template(prefs.get('filter.commentBefore'));
-		var templateAfter = _.template(prefs.get('filter.commentAfter'));
+		var templateBefore = template(prefs.get('filter.commentBefore'));
+		var templateAfter = template(prefs.get('filter.commentAfter'));
 		
 		return process(tree, templateBefore, templateAfter);
 	};
@@ -13586,1483 +17907,6 @@ define('parser/abbreviation',['require','exports','module','lodash','../assets/t
 	};
 });
 /**
- * HTML matcher: takes string and searches for HTML tag pairs for given position 
- * 
- * Unlike “classic” matchers, it parses content from the specified 
- * position, not from the start, so it may work even outside HTML documents
- * (for example, inside strings of programming languages like JavaScript, Python 
- * etc.)
- */
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('assets/htmlMatcher',['require','exports','module','./range'],function(require, exports, module) {
-	var range = require('./range');
-
-	// Regular Expressions for parsing tags and attributes
-	var reOpenTag = /^<([\w\:\-]+)((?:\s+[\w\-:]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/;
-	var reCloseTag = /^<\/([\w\:\-]+)[^>]*>/;
-
-	function openTag(i, match) {
-		return {
-			name: match[1],
-			selfClose: !!match[3],
-			/** @type Range */
-			range: range(i, match[0]),
-			type: 'open'
-		};
-	}
-	
-	function closeTag(i, match) {
-		return {
-			name: match[1],
-			/** @type Range */
-			range: range(i, match[0]),
-			type: 'close'
-		};
-	}
-	
-	function comment(i, match) {
-		return {
-			/** @type Range */
-			range: range(i, typeof match == 'number' ? match - i : match[0]),
-			type: 'comment'
-		};
-	}
-	
-	/**
-	 * Creates new tag matcher session
-	 * @param {String} text
-	 */
-	function createMatcher(text) {
-		var memo = {}, m;
-		return {
-			/**
-			 * Test if given position matches opening tag
-			 * @param {Number} i
-			 * @returns {Object} Matched tag object
-			 */
-			open: function(i) {
-				var m = this.matches(i);
-				return m && m.type == 'open' ? m : null;
-			},
-			
-			/**
-			 * Test if given position matches closing tag
-			 * @param {Number} i
-			 * @returns {Object} Matched tag object
-			 */
-			close: function(i) {
-				var m = this.matches(i);
-				return m && m.type == 'close' ? m : null;
-			},
-			
-			/**
-			 * Matches either opening or closing tag for given position
-			 * @param i
-			 * @returns
-			 */
-			matches: function(i) {
-				var key = 'p' + i;
-				
-				if (!(key in memo)) {
-					memo[key] = false;
-					if (text.charAt(i) == '<') {
-						var substr = text.slice(i);
-						if ((m = substr.match(reOpenTag))) {
-							memo[key] = openTag(i, m);
-						} else if ((m = substr.match(reCloseTag))) {
-							memo[key] = closeTag(i, m);
-						}
-					}
-				}
-				
-				return memo[key];
-			},
-			
-			/**
-			 * Returns original text
-			 * @returns {String}
-			 */
-			text: function() {
-				return text;
-			},
-
-			clean: function() {
-				memo = text = m = null;
-			}
-		};
-	}
-	
-	function matches(text, pos, pattern) {
-		return text.substring(pos, pos + pattern.length) == pattern;
-	}
-	
-	/**
-	 * Search for closing pair of opening tag
-	 * @param {Object} open Open tag instance
-	 * @param {Object} matcher Matcher instance
-	 */
-	function findClosingPair(open, matcher) {
-		var stack = [], tag = null;
-		var text = matcher.text();
-		
-		for (var pos = open.range.end, len = text.length; pos < len; pos++) {
-			if (matches(text, pos, '<!--')) {
-				// skip to end of comment
-				for (var j = pos; j < len; j++) {
-					if (matches(text, j, '-->')) {
-						pos = j + 3;
-						break;
-					}
-				}
-			}
-			
-			if ((tag = matcher.matches(pos))) {
-				if (tag.type == 'open' && !tag.selfClose) {
-					stack.push(tag.name);
-				} else if (tag.type == 'close') {
-					if (!stack.length) { // found valid pair?
-						return tag.name == open.name ? tag : null;
-					}
-					
-					// check if current closing tag matches previously opened one
-					if (stack[stack.length - 1] == tag.name) {
-						stack.pop();
-					} else {
-						var found = false;
-						while (stack.length && !found) {
-							var last = stack.pop();
-							if (last == tag.name) {
-								found = true;
-							}
-						}
-						
-						if (!stack.length && !found) {
-							return tag.name == open.name ? tag : null;
-						}
-					}
-				}
-
-				pos = tag.range.end - 1;
-			}
-		}
-	}
-	
-	return {
-		/**
-		 * Main function: search for tag pair in <code>text</code> for given 
-		 * position
-		 * @memberOf htmlMatcher
-		 * @param {String} text 
-		 * @param {Number} pos
-		 * @returns {Object}
-		 */
-		find: function(text, pos) {
-			var matcher = createMatcher(text); 
-			var open = null, close = null;
-			var j, jl;
-			
-			for (var i = pos; i >= 0; i--) {
-				if ((open = matcher.open(i))) {
-					// found opening tag
-					if (open.selfClose) {
-						if (open.range.cmp(pos, 'lt', 'gt')) {
-							// inside self-closing tag, found match
-							break;
-						}
-						
-						// outside self-closing tag, continue
-						continue;
-					}
-					
-					close = findClosingPair(open, matcher);
-					if (close) {
-						// found closing tag.
-						var r = range.create2(open.range.start, close.range.end);
-						if (r.contains(pos)) {
-							break;
-						}
-					} else if (open.range.contains(pos)) {
-						// we inside empty HTML tag like <br>
-						break;
-					}
-					
-					open = null;
-				} else if (matches(text, i, '-->')) {
-					// skip back to comment start
-					for (j = i - 1; j >= 0; j--) {
-						if (matches(text, j, '-->')) {
-							// found another comment end, do nothing
-							break;
-						} else if (matches(text, j, '<!--')) {
-							i = j;
-							break;
-						}
-					}
-				} else if (matches(text, i, '<!--')) {
-					// we're inside comment, match it
-					for (j = i + 4, jl = text.length; j < jl; j++) {
-						if (matches(text, j, '-->')) {
-							j += 3;
-							break;
-						}
-					}
-					
-					open = comment(i, j);
-					break;
-				}
-			}
-			
-			matcher.clean();
-
-			if (open) {
-				var outerRange = null;
-				var innerRange = null;
-				
-				if (close) {
-					outerRange = range.create2(open.range.start, close.range.end);
-					innerRange = range.create2(open.range.end, close.range.start);
-				} else {
-					outerRange = innerRange = range.create2(open.range.start, open.range.end);
-				}
-				
-				if (open.type == 'comment') {
-					// adjust positions of inner range for comment
-					var _c = outerRange.substring(text);
-					innerRange.start += _c.length - _c.replace(/^<\!--\s*/, '').length;
-					innerRange.end -= _c.length - _c.replace(/\s*-->$/, '').length;
-				}
-				
-				return {
-					open: open,
-					close: close,
-					type: open.type == 'comment' ? 'comment' : 'tag',
-					innerRange: innerRange,
-					innerContent: function() {
-						return this.innerRange.substring(text);
-					},
-					outerRange: outerRange,
-					outerContent: function() {
-						return this.outerRange.substring(text);
-					},
-					range: !innerRange.length() || !innerRange.cmp(pos, 'lte', 'gte') ? outerRange : innerRange,
-					content: function() {
-						return this.range.substring(text);
-					},
-					source: text
-				};
-			}
-		},
-		
-		/**
-		 * The same as <code>find()</code> method, but restricts matched result 
-		 * to <code>tag</code> type
-		 * @param {String} text 
-		 * @param {Number} pos
-		 * @returns {Object}
-		 */
-		tag: function(text, pos) {
-			var result = this.find(text, pos);
-			if (result && result.type == 'tag') {
-				return result;
-			}
-		}
-	};
-});
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('vendor/klass',['require','exports','module','lodash'],function(require, exports, module) {
-	var _ = require('lodash');
-
-	/**
-	 * Shared empty constructor function to aid in prototype-chain creation.
-	 */
-	var ctor = function(){};
-
-	/**
-	 * Helper function to correctly set up the prototype chain, for subclasses.
-	 * Similar to `goog.inherits`, but uses a hash of prototype properties and
-	 * class properties to be extended.
-	 * Took it from Backbone.
-	 * @param {Object} parent
-	 * @param {Object} protoProps
-	 * @param {Object} staticProps
-	 * @returns {Object}
-	 */
-	function inherits(parent, protoProps, staticProps) {
-		var child;
-
-		// The constructor function for the new subclass is either defined by
-		// you (the "constructor" property in your `extend` definition), or
-		// defaulted by us to simply call the parent's constructor.
-		if (protoProps && protoProps.hasOwnProperty('constructor')) {
-			child = protoProps.constructor;
-		} else {
-			child = function() {
-				parent.apply(this, arguments);
-			};
-		}
-
-		// Inherit class (static) properties from parent.
-		_.extend(child, parent);
-
-		// Set the prototype chain to inherit from `parent`, without calling
-		// `parent`'s constructor function.
-		ctor.prototype = parent.prototype;
-		child.prototype = new ctor();
-
-		// Add prototype properties (instance properties) to the subclass,
-		// if supplied.
-		if (protoProps)
-			_.extend(child.prototype, protoProps);
-
-		// Add static properties to the constructor function, if supplied.
-		if (staticProps)
-			_.extend(child, staticProps);
-
-		// Correctly set child's `prototype.constructor`.
-		child.prototype.constructor = child;
-
-		// Set a convenience property in case the parent's prototype is needed
-		// later.
-		child.__super__ = parent.prototype;
-
-		return child;
-	}
-
-	return {
-		/**
-		 * The self-propagating extend function for classes.
-		 * Took it from Backbone 
-		 * @param {Object} protoProps
-		 * @param {Object} classProps
-		 * @returns {Object}
-		 */
-		extend: function(protoProps, classProps) {
-			var child = inherits(this, protoProps, classProps);
-			child.extend = this.extend;
-			// a hack required to WSH inherit `toString` method
-			if (protoProps.hasOwnProperty('toString'))
-				child.prototype.toString = protoProps.toString;
-			return child;
-		}
-	};
-});
-/**
- * Abstract implementation of edit tree interface.
- * Edit tree is a named container of editable “name-value” child elements, 
- * parsed from <code>source</code>. This container provides convenient methods
- * for editing/adding/removing child elements. All these update actions are
- * instantly reflected in the <code>source</code> code with respect of formatting.
- * <br><br>
- * For example, developer can create an edit tree from CSS rule and add or 
- * remove properties from it–all changes will be immediately reflected in the 
- * original source.
- * <br><br>
- * All classes defined in this module should be extended the same way as in
- * Backbone framework: using <code>extend</code> method to create new class and 
- * <code>initialize</code> method to define custom class constructor.
- * 
- * @example
- * <pre><code>
- * var MyClass = require('editTree/base').EditElement.extend({
- *     initialize: function() {
- *     // constructor code here
- *   }
- * });
- * 
- * var elem = new MyClass(); 
- * </code></pre>
- */
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('editTree/base',['require','exports','module','lodash','../assets/range','../utils/common','../vendor/klass'],function(require, exports, module) {
-	var _ = require('lodash');
-	var range = require('../assets/range');
-	var utils = require('../utils/common');
-	var klass = require('../vendor/klass');
-	
-	/**
-	 * Named container of edited source
-	 * @type EditContainer
-	 * @param {String} source
-	 * @param {Object} options
-	 */
-	function EditContainer(source, options) {
-		this.options = _.extend({offset: 0}, options);
-		/**
-		 * Source code of edited structure. All changes in the structure are 
-		 * immediately reflected into this property
-		 */
-		this.source = source;
-		
-		/** 
-		 * List of all editable children
-		 * @private 
-		 */
-		this._children = [];
-		
-		/**
-		 * Hash of all positions of container
-		 * @private
-		 */
-		this._positions = {
-			name: 0
-		};
-		
-		this.initialize.apply(this, arguments);
-	}
-	
-	/**
-	 * The self-propagating extend function for classes.
-	 * @type Function
-	 */
-	EditContainer.extend = klass.extend;
-	
-	EditContainer.prototype = {
-		type: 'container',
-		/**
-		 * Child class constructor
-		 */
-		initialize: function() {},
-
-		/**
-		 * Make position absolute
-		 * @private
-		 * @param {Number} num
-		 * @param {Boolean} isAbsolute
-		 * @returns {Boolean}
-		 */
-		_pos: function(num, isAbsolute) {
-			return num + (isAbsolute ? this.options.offset : 0);
-		},
-		
-		/**
-		 * Replace substring of tag's source
-		 * @param {String} value
-		 * @param {Number} start
-		 * @param {Number} end
-		 * @private
-		 */
-		_updateSource: function(value, start, end) {
-			// create modification range
-			var r = range.create(start, _.isUndefined(end) ? 0 : end - start);
-			var delta = value.length - r.length();
-			
-			var update = function(obj) {
-				_.each(obj, function(v, k) {
-					if (v >= r.end)
-						obj[k] += delta;
-				});
-			};
-			
-			// update affected positions of current container
-			update(this._positions);
-			
-			// update affected positions of children
-			var recursiveUpdate = function(items) {
-				_.each(items, function(item) {
-					update(item._positions);
-					if (item.type == 'container') {
-						recursiveUpdate(item.list());
-					}
-				});
-			};
-
-			recursiveUpdate(this.list());
-			this.source = utils.replaceSubstring(this.source, value, r);
-		},
-			
-			
-		/**
-		 * Adds new attribute 
-		 * @param {String} name Property name
-		 * @param {String} value Property value
-		 * @param {Number} pos Position at which to insert new property. By 
-		 * default the property is inserted at the end of rule 
-		 * @returns {EditElement} Newly created element
-		 */
-		add: function(name, value, pos) {
-			// this is abstract implementation
-			var item = new EditElement(name, value);
-			this._children.push(item);
-			return item;
-		},
-		
-		/**
-		 * Returns attribute object
-		 * @param {String} name Attribute name or its index
-		 * @returns {EditElement}
-		 */
-		get: function(name) {
-			if (_.isNumber(name))
-				return this.list()[name];
-			
-			if (_.isString(name))
-				return _.find(this.list(), function(prop) {
-					return prop.name() === name;
-				});
-			
-			return name;
-		},
-		
-		/**
-		 * Returns all children by name or indexes
-		 * @param {Object} name Element name(s) or indexes (<code>String</code>,
-		 * <code>Array</code>, <code>Number</code>)
-		 * @returns {Array}
-		 */
-		getAll: function(name) {
-			if (!_.isArray(name))
-				name = [name];
-			
-			// split names and indexes
-			var names = [], indexes = [];
-			_.each(name, function(item) {
-				if (_.isString(item))
-					names.push(item);
-				else if (_.isNumber(item))
-					indexes.push(item);
-			});
-			
-			return _.filter(this.list(), function(attribute, i) {
-				return _.include(indexes, i) || _.include(names, attribute.name());
-			});
-		},
-
-		/**
-		 * Returns list of all editable child elements
-		 * @returns {Array}
-		 */
-		list: function() {
-			return this._children;
-		},
-
-		/**
-		 * Remove child element
-		 * @param {String} name Property name or its index
-		 */
-		remove: function(name) {
-			var element = this.get(name);
-			if (element) {
-				this._updateSource('', element.fullRange());
-				this._children = _.without(this._children, element);
-			}
-		},
-		
-		/**
-		 * Returns index of editble child in list
-		 * @param {Object} item
-		 * @returns {Number}
-		 */
-		indexOf: function(item) {
-			return _.indexOf(this.list(), this.get(item));
-		},
-		
-		/**
-		 * Returns or updates element value. If such element doesn't exists,
-		 * it will be created automatically and added at the end of child list.
-		 * @param {String} name Element name or its index
-		 * @param {String} value New element value
-		 * @returns {String}
-		 */
-		value: function(name, value, pos) {
-			var element = this.get(name);
-			if (element)
-				return element.value(value);
-			
-			if (!_.isUndefined(value)) {
-				// no such element — create it
-				return this.add(name, value, pos);
-			}
-		},
-		
-		/**
-		 * Returns all values of child elements found by <code>getAll()</code>
-		 * method
-		 * @param {Object} name Element name(s) or indexes (<code>String</code>,
-		 * <code>Array</code>, <code>Number</code>)
-		 * @returns {Array}
-		 */
-		values: function(name) {
-			return _.map(this.getAll(name), function(element) {
-				return element.value();
-			});
-		},
-		
-		/**
-		 * Sets or gets container name
-		 * @param {String} val New name. If not passed, current 
-		 * name is returned
-		 * @return {String}
-		 */
-		name: function(val) {
-			if (!_.isUndefined(val) && this._name !== (val = String(val))) {
-				this._updateSource(val, this._positions.name, this._positions.name + this._name.length);
-				this._name = val;
-			}
-			
-			return this._name;
-		},
-		
-		/**
-		 * Returns name range object
-		 * @param {Boolean} isAbsolute Return absolute range (with respect of 
-		 * rule offset)
-		 * @returns {Range}
-		 */
-		nameRange: function(isAbsolute) {
-			return range.create(this._positions.name + (isAbsolute ? this.options.offset : 0), this.name());
-		},
-
-		/**
-		 * Returns range of current source
-		 * @param {Boolean} isAbsolute
-		 */
-		range: function(isAbsolute) {
-			return range.create(isAbsolute ? this.options.offset : 0, this.valueOf());
-		},
-		
-		/**
-		 * Returns element that belongs to specified position
-		 * @param {Number} pos
-		 * @param {Boolean} isAbsolute
-		 * @returns {EditElement}
-		 */
-		itemFromPosition: function(pos, isAbsolute) {
-			return _.find(this.list(), function(elem) {
-				return elem.range(isAbsolute).inside(pos);
-			});
-		},
-		
-		/**
-		 * Returns source code of current container 
-		 * @returns {String}
-		 */
-		toString: function() {
-			return this.valueOf();
-		},
-
-		valueOf: function() {
-			return this.source;
-		}
-	};
-	
-	/**
-	 * @param {EditContainer} parent
-	 * @param {Object} nameToken
-	 * @param {Object} valueToken
-	 */
-	function EditElement(parent, nameToken, valueToken) {
-		/** @type EditContainer */
-		this.parent = parent;
-		
-		this._name = nameToken.value;
-		this._value = valueToken ? valueToken.value : '';
-		
-		this._positions = {
-			name: nameToken.start,
-			value: valueToken ? valueToken.start : -1
-		};
-		
-		this.initialize.apply(this, arguments);
-	}
-	
-	/**
-	 * The self-propagating extend function for classes.
-	 * @type Function
-	 */
-	EditElement.extend = klass.extend;
-	
-	EditElement.prototype = {
-		type: 'element',
-
-		/**
-		 * Child class constructor
-		 */
-		initialize: function() {},
-		
-		/**
-		 * Make position absolute
-		 * @private
-		 * @param {Number} num
-		 * @param {Boolean} isAbsolute
-		 * @returns {Boolean}
-		 */
-		_pos: function(num, isAbsolute) {
-			return num + (isAbsolute ? this.parent.options.offset : 0);
-		},
-			
-		/**
-		 * Sets of gets element value
-		 * @param {String} val New element value. If not passed, current 
-		 * value is returned
-		 * @returns {String}
-		 */
-		value: function(val) {
-			if (!_.isUndefined(val) && this._value !== (val = String(val))) {
-				this.parent._updateSource(val, this.valueRange());
-				this._value = val;
-			}
-			
-			return this._value;
-		},
-		
-		/**
-		 * Sets of gets element name
-		 * @param {String} val New element name. If not passed, current 
-		 * name is returned
-		 * @returns {String}
-		 */
-		name: function(val) {
-			if (!_.isUndefined(val) && this._name !== (val = String(val))) {
-				this.parent._updateSource(val, this.nameRange());
-				this._name = val;
-			}
-			
-			return this._name;
-		},
-		
-		/**
-		 * Returns position of element name token
-		 * @param {Boolean} isAbsolute Return absolute position
-		 * @returns {Number}
-		 */
-		namePosition: function(isAbsolute) {
-			return this._pos(this._positions.name, isAbsolute);
-		},
-		
-		/**
-		 * Returns position of element value token
-		 * @param {Boolean} isAbsolute Return absolute position
-		 * @returns {Number}
-		 */
-		valuePosition: function(isAbsolute) {
-			return this._pos(this._positions.value, isAbsolute);
-		},
-		
-		/**
-		 * Returns element name
-		 * @param {Boolean} isAbsolute Return absolute range 
-		 * @returns {Range}
-		 */
-		range: function(isAbsolute) {
-			return range.create(this.namePosition(isAbsolute), this.valueOf());
-		},
-		
-		/**
-		 * Returns full element range, including possible indentation
-		 * @param {Boolean} isAbsolute Return absolute range
-		 * @returns {Range}
-		 */
-		fullRange: function(isAbsolute) {
-			return this.range(isAbsolute);
-		},
-		
-		/**
-		 * Returns element name range
-		 * @param {Boolean} isAbsolute Return absolute range
-		 * @returns {Range}
-		 */
-		nameRange: function(isAbsolute) {
-			return range.create(this.namePosition(isAbsolute), this.name());
-		},
-		
-		/**
-		 * Returns element value range
-		 * @param {Boolean} isAbsolute Return absolute range
-		 * @returns {Range}
-		 */
-		valueRange: function(isAbsolute) {
-			return range.create(this.valuePosition(isAbsolute), this.value());
-		},
-		
-		/**
-		 * Returns current element string representation
-		 * @returns {String}
-		 */
-		toString: function() {
-			return this.valueOf();
-		},
-		
-		valueOf: function() {
-			return this.name() + this.value();
-		}
-	};
-	
-	return {
-		EditContainer: EditContainer,
-		EditElement: EditElement,
-		
-		/**
-		 * Creates token that can be fed to <code>EditElement</code>
-		 * @param {Number} start
-		 * @param {String} value
-		 * @param {String} type
-		 * @returns
-		 */
-		createToken: function(start, value, type) {
-			var obj = {
-				start: start || 0,
-				value: value || '',
-				type: type
-			};
-			
-			obj.end = obj.start + obj.value.length;
-			return obj;
-		}
-	};
-});
-/**
- * HTML tokenizer by Marijn Haverbeke
- * http://codemirror.net/
- * @constructor
- * @memberOf __xmlParseDefine
- * @param {Function} require
- * @param {Underscore} _
- */
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('parser/xml',['require','exports','module','lodash','../assets/stringStream'],function(require, exports, module) {
-	var _ = require('lodash');
-	var stringStream = require('../assets/stringStream');
-
-	var Kludges = {
-		autoSelfClosers : {},
-		implicitlyClosed : {},
-		contextGrabbers : {},
-		doNotIndent : {},
-		allowUnquoted : true,
-		allowMissing : true
-	};
-
-	// Return variables for tokenizers
-	var tagName = null, type = null;
-
-	function inText(stream, state) {
-		function chain(parser) {
-			state.tokenize = parser;
-			return parser(stream, state);
-		}
-
-		var ch = stream.next();
-		if (ch == "<") {
-			if (stream.eat("!")) {
-				if (stream.eat("[")) {
-					if (stream.match("CDATA["))
-						return chain(inBlock("atom", "]]>"));
-					else
-						return null;
-				} else if (stream.match("--"))
-					return chain(inBlock("comment", "-->"));
-				else if (stream.match("DOCTYPE", true, true)) {
-					stream.eatWhile(/[\w\._\-]/);
-					return chain(doctype(1));
-				} else
-					return null;
-			} else if (stream.eat("?")) {
-				stream.eatWhile(/[\w\._\-]/);
-				state.tokenize = inBlock("meta", "?>");
-				return "meta";
-			} else {
-				type = stream.eat("/") ? "closeTag" : "openTag";
-				stream.eatSpace();
-				tagName = "";
-				var c;
-				while ((c = stream.eat(/[^\s\u00a0=<>\"\'\/?]/)))
-					tagName += c;
-				state.tokenize = inTag;
-				return "tag";
-			}
-		} else if (ch == "&") {
-			var ok;
-			if (stream.eat("#")) {
-				if (stream.eat("x")) {
-					ok = stream.eatWhile(/[a-fA-F\d]/) && stream.eat(";");
-				} else {
-					ok = stream.eatWhile(/[\d]/) && stream.eat(";");
-				}
-			} else {
-				ok = stream.eatWhile(/[\w\.\-:]/) && stream.eat(";");
-			}
-			return ok ? "atom" : "error";
-		} else {
-			stream.eatWhile(/[^&<]/);
-			return "text";
-		}
-	}
-
-	function inTag(stream, state) {
-		var ch = stream.next();
-		if (ch == ">" || (ch == "/" && stream.eat(">"))) {
-			state.tokenize = inText;
-			type = ch == ">" ? "endTag" : "selfcloseTag";
-			return "tag";
-		} else if (ch == "=") {
-			type = "equals";
-			return null;
-		} else if (/[\'\"]/.test(ch)) {
-			state.tokenize = inAttribute(ch);
-			return state.tokenize(stream, state);
-		} else {
-			stream.eatWhile(/[^\s\u00a0=<>\"\'\/?]/);
-			return "word";
-		}
-	}
-
-	function inAttribute(quote) {
-		return function(stream, state) {
-			while (!stream.eol()) {
-				if (stream.next() == quote) {
-					state.tokenize = inTag;
-					break;
-				}
-			}
-			return "string";
-		};
-	}
-
-	function inBlock(style, terminator) {
-		return function(stream, state) {
-			while (!stream.eol()) {
-				if (stream.match(terminator)) {
-					state.tokenize = inText;
-					break;
-				}
-				stream.next();
-			}
-			return style;
-		};
-	}
-	
-	function doctype(depth) {
-		return function(stream, state) {
-			var ch;
-			while ((ch = stream.next()) !== null) {
-				if (ch == "<") {
-					state.tokenize = doctype(depth + 1);
-					return state.tokenize(stream, state);
-				} else if (ch == ">") {
-					if (depth == 1) {
-						state.tokenize = inText;
-						break;
-					} else {
-						state.tokenize = doctype(depth - 1);
-						return state.tokenize(stream, state);
-					}
-				}
-			}
-			return "meta";
-		};
-	}
-
-	var curState = null, setStyle;
-	function pass() {
-		for (var i = arguments.length - 1; i >= 0; i--)
-			curState.cc.push(arguments[i]);
-	}
-	
-	function cont() {
-		pass.apply(null, arguments);
-		return true;
-	}
-
-	function pushContext(tagName, startOfLine) {
-		var noIndent = Kludges.doNotIndent.hasOwnProperty(tagName) 
-			|| (curState.context && curState.context.noIndent);
-		curState.context = {
-			prev : curState.context,
-			tagName : tagName,
-			indent : curState.indented,
-			startOfLine : startOfLine,
-			noIndent : noIndent
-		};
-	}
-	
-	function popContext() {
-		if (curState.context)
-			curState.context = curState.context.prev;
-	}
-
-	function element(type) {
-		if (type == "openTag") {
-			curState.tagName = tagName;
-			return cont(attributes, endtag(curState.startOfLine));
-		} else if (type == "closeTag") {
-			var err = false;
-			if (curState.context) {
-				if (curState.context.tagName != tagName) {
-					if (Kludges.implicitlyClosed.hasOwnProperty(curState.context.tagName.toLowerCase())) {
-						popContext();
-					}
-					err = !curState.context || curState.context.tagName != tagName;
-				}
-			} else {
-				err = true;
-			}
-			
-			if (err)
-				setStyle = "error";
-			return cont(endclosetag(err));
-		}
-		return cont();
-	}
-	
-	function endtag(startOfLine) {
-		return function(type) {
-			if (type == "selfcloseTag"
-					|| (type == "endTag" && Kludges.autoSelfClosers
-							.hasOwnProperty(curState.tagName
-									.toLowerCase()))) {
-				maybePopContext(curState.tagName.toLowerCase());
-				return cont();
-			}
-			if (type == "endTag") {
-				maybePopContext(curState.tagName.toLowerCase());
-				pushContext(curState.tagName, startOfLine);
-				return cont();
-			}
-			return cont();
-		};
-	}
-	
-	function endclosetag(err) {
-		return function(type) {
-			if (err)
-				setStyle = "error";
-			if (type == "endTag") {
-				popContext();
-				return cont();
-			}
-			setStyle = "error";
-			return cont(arguments.callee);
-		};
-	}
-	
-	function maybePopContext(nextTagName) {
-		var parentTagName;
-		while (true) {
-			if (!curState.context) {
-				return;
-			}
-			parentTagName = curState.context.tagName.toLowerCase();
-			if (!Kludges.contextGrabbers.hasOwnProperty(parentTagName)
-					|| !Kludges.contextGrabbers[parentTagName].hasOwnProperty(nextTagName)) {
-				return;
-			}
-			popContext();
-		}
-	}
-
-	function attributes(type) {
-		if (type == "word") {
-			setStyle = "attribute";
-			return cont(attribute, attributes);
-		}
-		if (type == "endTag" || type == "selfcloseTag")
-			return pass();
-		setStyle = "error";
-		return cont(attributes);
-	}
-	
-	function attribute(type) {
-		if (type == "equals")
-			return cont(attvalue, attributes);
-		if (!Kludges.allowMissing)
-			setStyle = "error";
-		return (type == "endTag" || type == "selfcloseTag") ? pass()
-				: cont();
-	}
-	
-	function attvalue(type) {
-		if (type == "string")
-			return cont(attvaluemaybe);
-		if (type == "word" && Kludges.allowUnquoted) {
-			setStyle = "string";
-			return cont();
-		}
-		setStyle = "error";
-		return (type == "endTag" || type == "selfCloseTag") ? pass()
-				: cont();
-	}
-	
-	function attvaluemaybe(type) {
-		if (type == "string")
-			return cont(attvaluemaybe);
-		else
-			return pass();
-	}
-	
-	function startState() {
-		return {
-			tokenize : inText,
-			cc : [],
-			indented : 0,
-			startOfLine : true,
-			tagName : null,
-			context : null
-		};
-	}
-	
-	function token(stream, state) {
-		if (stream.sol()) {
-			state.startOfLine = true;
-			state.indented = 0;
-		}
-		
-		if (stream.eatSpace())
-			return null;
-
-		setStyle = type = tagName = null;
-		var style = state.tokenize(stream, state);
-		state.type = type;
-		if ((style || type) && style != "comment") {
-			curState = state;
-			while (true) {
-				var comb = state.cc.pop() || element;
-				if (comb(type || style))
-					break;
-			}
-		}
-		state.startOfLine = false;
-		return setStyle || style;
-	}
-
-	return {
-		/**
-		 * @memberOf emmet.xmlParser
-		 * @returns
-		 */
-		parse: function(data, offset) {
-			offset = offset || 0;
-			var state = startState();
-			var stream = stringStream.create(data);
-			var tokens = [];
-			while (!stream.eol()) {
-				tokens.push({
-					type: token(stream, state),
-					start: stream.start + offset,
-					end: stream.pos + offset
-				});
-				stream.start = stream.pos;
-			}
-			
-			return tokens;
-		}		
-	};
-});
-
-/**
- * XML EditTree is a module that can parse an XML/HTML element into a tree with 
- * convenient methods for adding, modifying and removing attributes. These 
- * changes can be written back to string with respect of code formatting.
- * 
- * @memberOf __xmlEditTreeDefine
- * @constructor
- * @param {Function} require
- * @param {Underscore} _ 
- */
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('editTree/xml',['require','exports','module','lodash','./base','../parser/xml','../assets/range','../utils/common'],function(require, exports, module) {
-	var _ = require('lodash');
-	var editTree = require('./base');
-	var xmlParser = require('../parser/xml');
-	var range = require('../assets/range');
-	var utils = require('../utils/common');
-
-	var defaultOptions = {
-		styleBefore: ' ',
-		styleSeparator: '=',
-		styleQuote: '"',
-		offset: 0
-	};
-	
-	var startTag = /^<([\w\:\-]+)((?:\s+[\w\-:]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/m;
-	
-	var XMLEditContainer = editTree.EditContainer.extend({
-		initialize: function(source, options) {
-			_.defaults(this.options, defaultOptions);
-			this._positions.name = 1;
-			
-			var attrToken = null;
-			var tokens = xmlParser.parse(source);
-			
-			_.each(tokens, function(token) {
-				token.value = range.create(token).substring(source);
-				switch (token.type) {
-					case 'tag':
-						if (/^<[^\/]+/.test(token.value)) {
-							this._name = token.value.substring(1);
-						}
-						break;
-						
-					case 'attribute':
-						// add empty attribute
-						if (attrToken) {
-							this._children.push(new XMLEditElement(this, attrToken));
-						}
-						
-						attrToken = token;
-						break;
-						
-					case 'string':
-						this._children.push(new XMLEditElement(this, attrToken, token));
-						attrToken = null;
-						break;
-				}
-			}, this);
-			
-			if (attrToken) {
-				this._children.push(new XMLEditElement(this, attrToken));
-			}
-			
-			this._saveStyle();
-		},
-		
-		/**
-		 * Remembers all styles of properties
-		 * @private
-		 */
-		_saveStyle: function() {
-			var start = this.nameRange().end;
-			var source = this.source;
-			
-			_.each(this.list(), /** @param {EditElement} p */ function(p) {
-				p.styleBefore = source.substring(start, p.namePosition());
-				
-				if (p.valuePosition() !== -1) {
-					p.styleSeparator = source.substring(p.namePosition() + p.name().length, p.valuePosition() - p.styleQuote.length);
-				}
-				
-				start = p.range().end;
-			});
-		},
-		
-		/**
-		 * Adds new attribute 
-		 * @param {String} name Property name
-		 * @param {String} value Property value
-		 * @param {Number} pos Position at which to insert new property. By 
-		 * default the property is inserted at the end of rule 
-		 */
-		add: function(name, value, pos) {
-			var list = this.list();
-			var start = this.nameRange().end;
-			var styles = _.pick(this.options, 'styleBefore', 'styleSeparator', 'styleQuote');
-			
-			if (_.isUndefined(pos))
-				pos = list.length;
-			
-			
-			/** @type XMLEditAttribute */
-			var donor = list[pos];
-			if (donor) {
-				start = donor.fullRange().start;
-			} else if ((donor = list[pos - 1])) {
-				start = donor.range().end;
-			}
-			
-			if (donor) {
-				styles = _.pick(donor, 'styleBefore', 'styleSeparator', 'styleQuote');
-			}
-			
-			value = styles.styleQuote + value + styles.styleQuote;
-			
-			var attribute = new XMLEditElement(this, 
-					editTree.createToken(start + styles.styleBefore.length, name),
-					editTree.createToken(start + styles.styleBefore.length + name.length 
-							+ styles.styleSeparator.length, value)
-					);
-			
-			_.extend(attribute, styles);
-			
-			// write new attribute into the source
-			this._updateSource(attribute.styleBefore + attribute.toString(), start);
-			
-			// insert new attribute
-			this._children.splice(pos, 0, attribute);
-			return attribute;
-		},
-
-		/**
-		 * A special case of attribute editing: adds class value to existing
-		 * `class` attribute
-		 * @param {String} value
-		 */
-		addClass: function(value) {
-			var attr = this.get('class');
-			value = utils.trim(value);
-			if (!attr) {
-				return this.add('class', value);
-			}
-
-			var classVal = attr.value();
-			var classList = ' ' + classVal.replace(/\n/g, ' ') + ' ';
-			if (!~classList.indexOf(' ' + value + ' ')) {
-				attr.value(classVal + ' ' + value);
-			}
-		},
-
-		/**
-		 * A special case of attribute editing: removes class value from existing
-		 * `class` attribute
-		 * @param {String} value
-		 */
-		removeClass: function(value) {
-			var attr = this.get('class');
-			value = utils.trim(value);
-			if (!attr) {
-				return;
-			}
-
-			var reClass = new RegExp('(^|\\s+)' + utils.escapeForRegexp(value));
-			var classVal = attr.value().replace(reClass, '');
-			if (!utils.trim(classVal)) {
-				this.remove('class');
-			} else {
-				attr.value(classVal);
-			}
-		}
-	});
-	
-	var XMLEditElement = editTree.EditElement.extend({
-		initialize: function(parent, nameToken, valueToken) {
-			this.styleBefore = parent.options.styleBefore;
-			this.styleSeparator = parent.options.styleSeparator;
-			
-			var value = '', quote = parent.options.styleQuote;
-			if (valueToken) {
-				value = valueToken.value;
-				quote = value.charAt(0);
-				if (quote == '"' || quote == "'") {
-					value = value.substring(1);
-				} else {
-					quote = '';
-				}
-				
-				if (quote && value.charAt(value.length - 1) == quote) {
-					value = value.substring(0, value.length - 1);
-				}
-			}
-			
-			this.styleQuote = quote;
-			
-			this._value = value;
-			this._positions.value = valueToken ? valueToken.start + quote.length : -1;
-		},
-		
-		/**
-		 * Returns full rule range, with indentation
-		 * @param {Boolean} isAbsolute Return absolute range (with respect of
-		 * rule offset)
-		 * @returns {Range}
-		 */
-		fullRange: function(isAbsolute) {
-			var r = this.range(isAbsolute);
-			r.start -= this.styleBefore.length;
-			return r;
-		},
-		
-		valueOf: function() {
-			return this.name() + this.styleSeparator
-				+ this.styleQuote + this.value() + this.styleQuote;
-		}
-	});
-	
-	return {
-		/**
-		 * Parses HTML element into editable tree
-		 * @param {String} source
-		 * @param {Object} options
-		 * @memberOf emmet.htmlEditTree
-		 * @returns {EditContainer}
-		 */
-		parse: function(source, options) {
-			return new XMLEditContainer(source, options);
-		},
-		
-		/**
-		 * Extract and parse HTML from specified position in <code>content</code> 
-		 * @param {String} content CSS source code
-		 * @param {Number} pos Character position where to start source code extraction
-		 * @returns {XMLEditElement}
-		 */
-		parseFromPosition: function(content, pos, isBackward) {
-			var bounds = this.extractTag(content, pos, isBackward);
-			if (!bounds || !bounds.inside(pos))
-				// no matching HTML tag or caret outside tag bounds
-				return null;
-			
-			return this.parse(bounds.substring(content), {
-				offset: bounds.start
-			});
-		},
-		
-		/**
-		 * Extracts nearest HTML tag range from <code>content</code>, starting at 
-		 * <code>pos</code> position
-		 * @param {String} content
-		 * @param {Number} pos
-		 * @param {Boolean} isBackward
-		 * @returns {Range}
-		 */
-		extractTag: function(content, pos, isBackward) {
-			var len = content.length, i;
-			
-			// max extraction length. I don't think there may be tags larger 
-			// than 2000 characters length
-			var maxLen = Math.min(2000, len);
-			
-			/** @type Range */
-			var r = null;
-			
-			var match = function(pos) {
-				var m;
-				if (content.charAt(pos) == '<' && (m = content.substr(pos, maxLen).match(startTag)))
-					return range.create(pos, m[0]);
-			};
-			
-			// lookup backward, in case we are inside tag already
-			for (i = pos; i >= 0; i--) {
-				if ((r = match(i))) break;
-			}
-			
-			if (r && (r.inside(pos) || isBackward))
-				return r;
-			
-			if (!r && isBackward)
-				return null;
-			
-			// search forward
-			for (i = pos; i < len; i++) {
-				if ((r = match(i)))
-					return r;
-			}
-		}
-	};
-});
-/**
  * Utility methods for Emmet actions
  * @author Sergey Chikuyonok (serge.che@gmail.com) <http://chikuyonok.ru>
  */
@@ -15072,9 +17916,10 @@ if (typeof module === 'object' && typeof define !== 'function') {
 	};
 }
 
-define('utils/action',['require','exports','module','lodash','./common','../parser/abbreviation','../assets/htmlMatcher','../editTree/xml','../assets/range','../assets/resources'],function(require, exports, module) {
+define('utils/action',['require','exports','module','lodash','./common','./cssSections','../parser/abbreviation','../assets/htmlMatcher','../editTree/xml','../assets/range','../assets/resources'],function(require, exports, module) {
 	var _ = require('lodash');
 	var utils = require('./common');
+	var cssSections = require('./cssSections');
 	var abbreviationParser = require('../parser/abbreviation');
 	var htmlMatcher = require('../assets/htmlMatcher');
 	var xmlEditTree = require('../editTree/xml');
@@ -15371,18 +18216,14 @@ define('utils/action',['require','exports','module','lodash','./common','../pars
 		isXHTML: function(editor) {
 			return editor.getContent().search(/<!DOCTYPE[^>]+XHTML/i) != -1;
 		},
-		
+
 		/**
 		 * Check if current caret position is inside &lt;style&gt; tag
 		 * @param {IEmmetEditor} editor
-		 * @returns
+		 * @returns {Range} Inner range of &lt;style&gt; tag
 		 */
 		isStyle: function(editor) {
-			var content = String(editor.getContent());
-			var caretPos = editor.getCaretPos();
-			var tag = htmlMatcher.tag(content, caretPos);
-			return tag && tag.open.name.toLowerCase() == 'style' 
-				&& tag.innerRange.cmp(caretPos, 'lte', 'gte');
+			return !!cssSections.styleTagRange(editor.getContent(), editor.getCaretPos());
 		},
 
 		/**
@@ -15398,19 +18239,10 @@ define('utils/action',['require','exports','module','lodash','./common','../pars
 		 * Check if current caret position is inside "style" attribute of HTML
 		 * element
 		 * @param {IEmmetEditor} editor
-		 * @returns {Boolean}
+		 * @returns {Range} Inner range of style attribute
 		 */
 		isInlineCSS: function(editor) {
-			var content = String(editor.getContent());
-			var caretPos = editor.getCaretPos();
-			var tree = xmlEditTree.parseFromPosition(content, caretPos, true);
-			if (tree) {
-				var attr = tree.itemFromPosition(caretPos, true);
-				return attr && attr.name().toLowerCase() == 'style' 
-					&& attr.valueRange(true).cmp(caretPos, 'lte', 'gte');
-			}
-            
-            return false;
+			return !!cssSections.styleAttrRange(editor.getContent(), editor.getCaretPos());
 		}
 	};
 });
@@ -15788,6 +18620,918 @@ define('action/editPoints',['require','exports','module'],function(require, expo
 		}
 	};
 });
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define('utils/math',['require','exports','module'],function(require, exports, module) {
+	/*
+	 Source: https://github.com/silentmatt/js-expression-eval
+
+	 Based on ndef.parser, by Raphael Graf(r@undefined.ch)
+	 http://www.undefined.ch/mparser/index.html
+
+	 Ported to JavaScript and modified by Matthew Crumley (email@matthewcrumley.com, http://silentmatt.com/)
+
+	 You are free to use and modify this code in anyway you find useful. Please leave this comment in the code
+	 to acknowledge its original source. If you feel like it, I enjoy hearing about projects that use my code,
+	 but don't feel like you have to let me know or ask permission.
+	*/
+
+	function object(o) {
+		function F() {}
+		F.prototype = o;
+		return new F();
+	}
+
+	var TNUMBER = 0;
+	var TOP1 = 1;
+	var TOP2 = 2;
+	var TVAR = 3;
+	var TFUNCALL = 4;
+
+	function Token(type_, index_, prio_, number_) {
+		this.type_ = type_;
+		this.index_ = index_ || 0;
+		this.prio_ = prio_ || 0;
+		this.number_ = (number_ !== undefined && number_ !== null) ? number_ : 0;
+		this.toString = function () {
+			switch (this.type_) {
+			case TNUMBER:
+				return this.number_;
+			case TOP1:
+			case TOP2:
+			case TVAR:
+				return this.index_;
+			case TFUNCALL:
+				return "CALL";
+			default:
+				return "Invalid Token";
+			}
+		};
+	}
+
+	function Expression(tokens, ops1, ops2, functions) {
+		this.tokens = tokens;
+		this.ops1 = ops1;
+		this.ops2 = ops2;
+		this.functions = functions;
+	}
+
+	// Based on http://www.json.org/json2.js
+    var cx = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,
+        escapable = /[\\\'\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,
+        meta = {    // table of character substitutions
+            '\b': '\\b',
+            '\t': '\\t',
+            '\n': '\\n',
+            '\f': '\\f',
+            '\r': '\\r',
+            "'" : "\\'",
+            '\\': '\\\\'
+        };
+
+	function escapeValue(v) {
+		if (typeof v === "string") {
+			escapable.lastIndex = 0;
+	        return escapable.test(v) ?
+	            "'" + v.replace(escapable, function (a) {
+	                var c = meta[a];
+	                return typeof c === 'string' ? c :
+	                    '\\u' + ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
+	            }) + "'" :
+	            "'" + v + "'";
+		}
+		return v;
+	}
+
+	Expression.prototype = {
+		simplify: function (values) {
+			values = values || {};
+			var nstack = [];
+			var newexpression = [];
+			var n1;
+			var n2;
+			var f;
+			var L = this.tokens.length;
+			var item;
+			var i = 0;
+			for (i = 0; i < L; i++) {
+				item = this.tokens[i];
+				var type_ = item.type_;
+				if (type_ === TNUMBER) {
+					nstack.push(item);
+				}
+				else if (type_ === TVAR && (item.index_ in values)) {
+					item = new Token(TNUMBER, 0, 0, values[item.index_]);
+					nstack.push(item);
+				}
+				else if (type_ === TOP2 && nstack.length > 1) {
+					n2 = nstack.pop();
+					n1 = nstack.pop();
+					f = this.ops2[item.index_];
+					item = new Token(TNUMBER, 0, 0, f(n1.number_, n2.number_));
+					nstack.push(item);
+				}
+				else if (type_ === TOP1 && nstack.length > 0) {
+					n1 = nstack.pop();
+					f = this.ops1[item.index_];
+					item = new Token(TNUMBER, 0, 0, f(n1.number_));
+					nstack.push(item);
+				}
+				else {
+					while (nstack.length > 0) {
+						newexpression.push(nstack.shift());
+					}
+					newexpression.push(item);
+				}
+			}
+			while (nstack.length > 0) {
+				newexpression.push(nstack.shift());
+			}
+
+			return new Expression(newexpression, object(this.ops1), object(this.ops2), object(this.functions));
+		},
+
+		substitute: function (variable, expr) {
+			if (!(expr instanceof Expression)) {
+				expr = new Parser().parse(String(expr));
+			}
+			var newexpression = [];
+			var L = this.tokens.length;
+			var item;
+			var i = 0;
+			for (i = 0; i < L; i++) {
+				item = this.tokens[i];
+				var type_ = item.type_;
+				if (type_ === TVAR && item.index_ === variable) {
+					for (var j = 0; j < expr.tokens.length; j++) {
+						var expritem = expr.tokens[j];
+						var replitem = new Token(expritem.type_, expritem.index_, expritem.prio_, expritem.number_);
+						newexpression.push(replitem);
+					}
+				}
+				else {
+					newexpression.push(item);
+				}
+			}
+
+			var ret = new Expression(newexpression, object(this.ops1), object(this.ops2), object(this.functions));
+			return ret;
+		},
+
+		evaluate: function (values) {
+			values = values || {};
+			var nstack = [];
+			var n1;
+			var n2;
+			var f;
+			var L = this.tokens.length;
+			var item;
+			var i = 0;
+			for (i = 0; i < L; i++) {
+				item = this.tokens[i];
+				var type_ = item.type_;
+				if (type_ === TNUMBER) {
+					nstack.push(item.number_);
+				}
+				else if (type_ === TOP2) {
+					n2 = nstack.pop();
+					n1 = nstack.pop();
+					f = this.ops2[item.index_];
+					nstack.push(f(n1, n2));
+				}
+				else if (type_ === TVAR) {
+					if (item.index_ in values) {
+						nstack.push(values[item.index_]);
+					}
+					else if (item.index_ in this.functions) {
+						nstack.push(this.functions[item.index_]);
+					}
+					else {
+						throw new Error("undefined variable: " + item.index_);
+					}
+				}
+				else if (type_ === TOP1) {
+					n1 = nstack.pop();
+					f = this.ops1[item.index_];
+					nstack.push(f(n1));
+				}
+				else if (type_ === TFUNCALL) {
+					n1 = nstack.pop();
+					f = nstack.pop();
+					if (f.apply && f.call) {
+						if (Object.prototype.toString.call(n1) == "[object Array]") {
+							nstack.push(f.apply(undefined, n1));
+						}
+						else {
+							nstack.push(f.call(undefined, n1));
+						}
+					}
+					else {
+						throw new Error(f + " is not a function");
+					}
+				}
+				else {
+					throw new Error("invalid Expression");
+				}
+			}
+			if (nstack.length > 1) {
+				throw new Error("invalid Expression (parity)");
+			}
+			return nstack[0];
+		},
+
+		toString: function (toJS) {
+			var nstack = [];
+			var n1;
+			var n2;
+			var f;
+			var L = this.tokens.length;
+			var item;
+			var i = 0;
+			for (i = 0; i < L; i++) {
+				item = this.tokens[i];
+				var type_ = item.type_;
+				if (type_ === TNUMBER) {
+					nstack.push(escapeValue(item.number_));
+				}
+				else if (type_ === TOP2) {
+					n2 = nstack.pop();
+					n1 = nstack.pop();
+					f = item.index_;
+					if (toJS && f == "^") {
+						nstack.push("Math.pow(" + n1 + "," + n2 + ")");
+					}
+					else {
+						nstack.push("(" + n1 + f + n2 + ")");
+					}
+				}
+				else if (type_ === TVAR) {
+					nstack.push(item.index_);
+				}
+				else if (type_ === TOP1) {
+					n1 = nstack.pop();
+					f = item.index_;
+					if (f === "-") {
+						nstack.push("(" + f + n1 + ")");
+					}
+					else {
+						nstack.push(f + "(" + n1 + ")");
+					}
+				}
+				else if (type_ === TFUNCALL) {
+					n1 = nstack.pop();
+					f = nstack.pop();
+					nstack.push(f + "(" + n1 + ")");
+				}
+				else {
+					throw new Error("invalid Expression");
+				}
+			}
+			if (nstack.length > 1) {
+				throw new Error("invalid Expression (parity)");
+			}
+			return nstack[0];
+		},
+
+		variables: function () {
+			var L = this.tokens.length;
+			var vars = [];
+			for (var i = 0; i < L; i++) {
+				var item = this.tokens[i];
+				if (item.type_ === TVAR && (vars.indexOf(item.index_) == -1)) {
+					vars.push(item.index_);
+				}
+			}
+
+			return vars;
+		},
+
+		toJSFunction: function (param, variables) {
+			var f = new Function(param, "with(Parser.values) { return " + this.simplify(variables).toString(true) + "; }");
+			return f;
+		}
+	};
+
+	function add(a, b) {
+		return Number(a) + Number(b);
+	}
+	function sub(a, b) {
+		return a - b; 
+	}
+	function mul(a, b) {
+		return a * b;
+	}
+	function div(a, b) {
+		return a / b;
+	}
+	function mod(a, b) {
+		return a % b;
+	}
+	function concat(a, b) {
+		return "" + a + b;
+	}
+
+	function neg(a) {
+		return -a;
+	}
+
+	function random(a) {
+		return Math.random() * (a || 1);
+	}
+	function fac(a) { //a!
+		a = Math.floor(a);
+		var b = a;
+		while (a > 1) {
+			b = b * (--a);
+		}
+		return b;
+	}
+
+	// TODO: use hypot that doesn't overflow
+	function pyt(a, b) {
+		return Math.sqrt(a * a + b * b);
+	}
+
+	function append(a, b) {
+		if (Object.prototype.toString.call(a) != "[object Array]") {
+			return [a, b];
+		}
+		a = a.slice();
+		a.push(b);
+		return a;
+	}
+
+	function Parser() {
+		this.success = false;
+		this.errormsg = "";
+		this.expression = "";
+
+		this.pos = 0;
+
+		this.tokennumber = 0;
+		this.tokenprio = 0;
+		this.tokenindex = 0;
+		this.tmpprio = 0;
+
+		this.ops1 = {
+			"sin": Math.sin,
+			"cos": Math.cos,
+			"tan": Math.tan,
+			"asin": Math.asin,
+			"acos": Math.acos,
+			"atan": Math.atan,
+			"sqrt": Math.sqrt,
+			"log": Math.log,
+			"abs": Math.abs,
+			"ceil": Math.ceil,
+			"floor": Math.floor,
+			"round": Math.round,
+			"-": neg,
+			"exp": Math.exp
+		};
+
+		this.ops2 = {
+			"+": add,
+			"-": sub,
+			"*": mul,
+			"/": div,
+			"%": mod,
+			"^": Math.pow,
+			",": append,
+			"||": concat
+		};
+
+		this.functions = {
+			"random": random,
+			"fac": fac,
+			"min": Math.min,
+			"max": Math.max,
+			"pyt": pyt,
+			"pow": Math.pow,
+			"atan2": Math.atan2
+		};
+
+		this.consts = {
+			"E": Math.E,
+			"PI": Math.PI
+		};
+	}
+
+	Parser.parse = function (expr) {
+		return new Parser().parse(expr);
+	};
+
+	Parser.evaluate = function (expr, variables) {
+		return Parser.parse(expr).evaluate(variables);
+	};
+
+	Parser.Expression = Expression;
+
+	Parser.values = {
+		sin: Math.sin,
+		cos: Math.cos,
+		tan: Math.tan,
+		asin: Math.asin,
+		acos: Math.acos,
+		atan: Math.atan,
+		sqrt: Math.sqrt,
+		log: Math.log,
+		abs: Math.abs,
+		ceil: Math.ceil,
+		floor: Math.floor,
+		round: Math.round,
+		random: random,
+		fac: fac,
+		exp: Math.exp,
+		min: Math.min,
+		max: Math.max,
+		pyt: pyt,
+		pow: Math.pow,
+		atan2: Math.atan2,
+		E: Math.E,
+		PI: Math.PI
+	};
+
+	var PRIMARY      = 1 << 0;
+	var OPERATOR     = 1 << 1;
+	var FUNCTION     = 1 << 2;
+	var LPAREN       = 1 << 3;
+	var RPAREN       = 1 << 4;
+	var COMMA        = 1 << 5;
+	var SIGN         = 1 << 6;
+	var CALL         = 1 << 7;
+	var NULLARY_CALL = 1 << 8;
+
+	Parser.prototype = {
+		parse: function (expr) {
+			this.errormsg = "";
+			this.success = true;
+			var operstack = [];
+			var tokenstack = [];
+			this.tmpprio = 0;
+			var expected = (PRIMARY | LPAREN | FUNCTION | SIGN);
+			var noperators = 0;
+			this.expression = expr;
+			this.pos = 0;
+
+			while (this.pos < this.expression.length) {
+				if (this.isOperator()) {
+					if (this.isSign() && (expected & SIGN)) {
+						if (this.isNegativeSign()) {
+							this.tokenprio = 2;
+							this.tokenindex = "-";
+							noperators++;
+							this.addfunc(tokenstack, operstack, TOP1);
+						}
+						expected = (PRIMARY | LPAREN | FUNCTION | SIGN);
+					}
+					else if (this.isComment()) {
+
+					}
+					else {
+						if ((expected & OPERATOR) === 0) {
+							this.error_parsing(this.pos, "unexpected operator");
+						}
+						noperators += 2;
+						this.addfunc(tokenstack, operstack, TOP2);
+						expected = (PRIMARY | LPAREN | FUNCTION | SIGN);
+					}
+				}
+				else if (this.isNumber()) {
+					if ((expected & PRIMARY) === 0) {
+						this.error_parsing(this.pos, "unexpected number");
+					}
+					var token = new Token(TNUMBER, 0, 0, this.tokennumber);
+					tokenstack.push(token);
+
+					expected = (OPERATOR | RPAREN | COMMA);
+				}
+				else if (this.isString()) {
+					if ((expected & PRIMARY) === 0) {
+						this.error_parsing(this.pos, "unexpected string");
+					}
+					var token = new Token(TNUMBER, 0, 0, this.tokennumber);
+					tokenstack.push(token);
+
+					expected = (OPERATOR | RPAREN | COMMA);
+				}
+				else if (this.isLeftParenth()) {
+					if ((expected & LPAREN) === 0) {
+						this.error_parsing(this.pos, "unexpected \"(\"");
+					}
+
+					if (expected & CALL) {
+						noperators += 2;
+						this.tokenprio = -2;
+						this.tokenindex = -1;
+						this.addfunc(tokenstack, operstack, TFUNCALL);
+					}
+
+					expected = (PRIMARY | LPAREN | FUNCTION | SIGN | NULLARY_CALL);
+				}
+				else if (this.isRightParenth()) {
+				    if (expected & NULLARY_CALL) {
+						var token = new Token(TNUMBER, 0, 0, []);
+						tokenstack.push(token);
+					}
+					else if ((expected & RPAREN) === 0) {
+						this.error_parsing(this.pos, "unexpected \")\"");
+					}
+
+					expected = (OPERATOR | RPAREN | COMMA | LPAREN | CALL);
+				}
+				else if (this.isComma()) {
+					if ((expected & COMMA) === 0) {
+						this.error_parsing(this.pos, "unexpected \",\"");
+					}
+					this.addfunc(tokenstack, operstack, TOP2);
+					noperators += 2;
+					expected = (PRIMARY | LPAREN | FUNCTION | SIGN);
+				}
+				else if (this.isConst()) {
+					if ((expected & PRIMARY) === 0) {
+						this.error_parsing(this.pos, "unexpected constant");
+					}
+					var consttoken = new Token(TNUMBER, 0, 0, this.tokennumber);
+					tokenstack.push(consttoken);
+					expected = (OPERATOR | RPAREN | COMMA);
+				}
+				else if (this.isOp2()) {
+					if ((expected & FUNCTION) === 0) {
+						this.error_parsing(this.pos, "unexpected function");
+					}
+					this.addfunc(tokenstack, operstack, TOP2);
+					noperators += 2;
+					expected = (LPAREN);
+				}
+				else if (this.isOp1()) {
+					if ((expected & FUNCTION) === 0) {
+						this.error_parsing(this.pos, "unexpected function");
+					}
+					this.addfunc(tokenstack, operstack, TOP1);
+					noperators++;
+					expected = (LPAREN);
+				}
+				else if (this.isVar()) {
+					if ((expected & PRIMARY) === 0) {
+						this.error_parsing(this.pos, "unexpected variable");
+					}
+					var vartoken = new Token(TVAR, this.tokenindex, 0, 0);
+					tokenstack.push(vartoken);
+
+					expected = (OPERATOR | RPAREN | COMMA | LPAREN | CALL);
+				}
+				else if (this.isWhite()) {
+				}
+				else {
+					if (this.errormsg === "") {
+						this.error_parsing(this.pos, "unknown character");
+					}
+					else {
+						this.error_parsing(this.pos, this.errormsg);
+					}
+				}
+			}
+			if (this.tmpprio < 0 || this.tmpprio >= 10) {
+				this.error_parsing(this.pos, "unmatched \"()\"");
+			}
+			while (operstack.length > 0) {
+				var tmp = operstack.pop();
+				tokenstack.push(tmp);
+			}
+			if (noperators + 1 !== tokenstack.length) {
+				//print(noperators + 1);
+				//print(tokenstack);
+				this.error_parsing(this.pos, "parity");
+			}
+
+			return new Expression(tokenstack, object(this.ops1), object(this.ops2), object(this.functions));
+		},
+
+		evaluate: function (expr, variables) {
+			return this.parse(expr).evaluate(variables);
+		},
+
+		error_parsing: function (column, msg) {
+			this.success = false;
+			this.errormsg = "parse error [column " + (column) + "]: " + msg;
+			throw new Error(this.errormsg);
+		},
+
+//\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+
+		addfunc: function (tokenstack, operstack, type_) {
+			var operator = new Token(type_, this.tokenindex, this.tokenprio + this.tmpprio, 0);
+			while (operstack.length > 0) {
+				if (operator.prio_ <= operstack[operstack.length - 1].prio_) {
+					tokenstack.push(operstack.pop());
+				}
+				else {
+					break;
+				}
+			}
+			operstack.push(operator);
+		},
+
+		isNumber: function () {
+			var r = false;
+			var str = "";
+			while (this.pos < this.expression.length) {
+				var code = this.expression.charCodeAt(this.pos);
+				if ((code >= 48 && code <= 57) || code === 46) {
+					str += this.expression.charAt(this.pos);
+					this.pos++;
+					this.tokennumber = parseFloat(str);
+					r = true;
+				}
+				else {
+					break;
+				}
+			}
+			return r;
+		},
+
+		// Ported from the yajjl JSON parser at http://code.google.com/p/yajjl/
+		unescape: function(v, pos) {
+			var buffer = [];
+			var escaping = false;
+
+			for (var i = 0; i < v.length; i++) {
+				var c = v.charAt(i);
+	
+				if (escaping) {
+					switch (c) {
+					case "'":
+						buffer.push("'");
+						break;
+					case '\\':
+						buffer.push('\\');
+						break;
+					case '/':
+						buffer.push('/');
+						break;
+					case 'b':
+						buffer.push('\b');
+						break;
+					case 'f':
+						buffer.push('\f');
+						break;
+					case 'n':
+						buffer.push('\n');
+						break;
+					case 'r':
+						buffer.push('\r');
+						break;
+					case 't':
+						buffer.push('\t');
+						break;
+					case 'u':
+						// interpret the following 4 characters as the hex of the unicode code point
+						var codePoint = parseInt(v.substring(i + 1, i + 5), 16);
+						buffer.push(String.fromCharCode(codePoint));
+						i += 4;
+						break;
+					default:
+						throw this.error_parsing(pos + i, "Illegal escape sequence: '\\" + c + "'");
+					}
+					escaping = false;
+				} else {
+					if (c == '\\') {
+						escaping = true;
+					} else {
+						buffer.push(c);
+					}
+				}
+			}
+	
+			return buffer.join('');
+		},
+
+		isString: function () {
+			var r = false;
+			var str = "";
+			var startpos = this.pos;
+			if (this.pos < this.expression.length && this.expression.charAt(this.pos) == "'") {
+				this.pos++;
+				while (this.pos < this.expression.length) {
+					var code = this.expression.charAt(this.pos);
+					if (code != "'" || str.slice(-1) == "\\") {
+						str += this.expression.charAt(this.pos);
+						this.pos++;
+					}
+					else {
+						this.pos++;
+						this.tokennumber = this.unescape(str, startpos);
+						r = true;
+						break;
+					}
+				}
+			}
+			return r;
+		},
+
+		isConst: function () {
+			var str;
+			for (var i in this.consts) {
+				if (true) {
+					var L = i.length;
+					str = this.expression.substr(this.pos, L);
+					if (i === str) {
+						this.tokennumber = this.consts[i];
+						this.pos += L;
+						return true;
+					}
+				}
+			}
+			return false;
+		},
+
+		isOperator: function () {
+			var code = this.expression.charCodeAt(this.pos);
+			if (code === 43) { // +
+				this.tokenprio = 0;
+				this.tokenindex = "+";
+			}
+			else if (code === 45) { // -
+				this.tokenprio = 0;
+				this.tokenindex = "-";
+			}
+			else if (code === 124) { // |
+				if (this.expression.charCodeAt(this.pos + 1) === 124) {
+					this.pos++;
+					this.tokenprio = 0;
+					this.tokenindex = "||";
+				}
+				else {
+					return false;
+				}
+			}
+			else if (code === 42) { // *
+				this.tokenprio = 1;
+				this.tokenindex = "*";
+			}
+			else if (code === 47) { // /
+				this.tokenprio = 2;
+				this.tokenindex = "/";
+			}
+			else if (code === 37) { // %
+				this.tokenprio = 2;
+				this.tokenindex = "%";
+			}
+			else if (code === 94) { // ^
+				this.tokenprio = 3;
+				this.tokenindex = "^";
+			}
+			else {
+				return false;
+			}
+			this.pos++;
+			return true;
+		},
+
+		isSign: function () {
+			var code = this.expression.charCodeAt(this.pos - 1);
+			if (code === 45 || code === 43) { // -
+				return true;
+			}
+			return false;
+		},
+
+		isPositiveSign: function () {
+			var code = this.expression.charCodeAt(this.pos - 1);
+			if (code === 43) { // -
+				return true;
+			}
+			return false;
+		},
+
+		isNegativeSign: function () {
+			var code = this.expression.charCodeAt(this.pos - 1);
+			if (code === 45) { // -
+				return true;
+			}
+			return false;
+		},
+
+		isLeftParenth: function () {
+			var code = this.expression.charCodeAt(this.pos);
+			if (code === 40) { // (
+				this.pos++;
+				this.tmpprio += 10;
+				return true;
+			}
+			return false;
+		},
+
+		isRightParenth: function () {
+			var code = this.expression.charCodeAt(this.pos);
+			if (code === 41) { // )
+				this.pos++;
+				this.tmpprio -= 10;
+				return true;
+			}
+			return false;
+		},
+
+		isComma: function () {
+			var code = this.expression.charCodeAt(this.pos);
+			if (code === 44) { // ,
+				this.pos++;
+				this.tokenprio = -1;
+				this.tokenindex = ",";
+				return true;
+			}
+			return false;
+		},
+
+		isWhite: function () {
+			var code = this.expression.charCodeAt(this.pos);
+			if (code === 32 || code === 9 || code === 10 || code === 13) {
+				this.pos++;
+				return true;
+			}
+			return false;
+		},
+
+		isOp1: function () {
+			var str = "";
+			for (var i = this.pos; i < this.expression.length; i++) {
+				var c = this.expression.charAt(i);
+				if (c.toUpperCase() === c.toLowerCase()) {
+					if (i === this.pos || (c != '_' && (c < '0' || c > '9'))) {
+						break;
+					}
+				}
+				str += c;
+			}
+			if (str.length > 0 && (str in this.ops1)) {
+				this.tokenindex = str;
+				this.tokenprio = 5;
+				this.pos += str.length;
+				return true;
+			}
+			return false;
+		},
+
+		isOp2: function () {
+			var str = "";
+			for (var i = this.pos; i < this.expression.length; i++) {
+				var c = this.expression.charAt(i);
+				if (c.toUpperCase() === c.toLowerCase()) {
+					if (i === this.pos || (c != '_' && (c < '0' || c > '9'))) {
+						break;
+					}
+				}
+				str += c;
+			}
+			if (str.length > 0 && (str in this.ops2)) {
+				this.tokenindex = str;
+				this.tokenprio = 5;
+				this.pos += str.length;
+				return true;
+			}
+			return false;
+		},
+
+		isVar: function () {
+			var str = "";
+			for (var i = this.pos; i < this.expression.length; i++) {
+				var c = this.expression.charAt(i);
+				if (c.toUpperCase() === c.toLowerCase()) {
+					if (i === this.pos || (c != '_' && (c < '0' || c > '9'))) {
+						break;
+					}
+				}
+				str += c;
+			}
+			if (str.length > 0) {
+				this.tokenindex = str;
+				this.tokenprio = 4;
+				this.pos += str.length;
+				return true;
+			}
+			return false;
+		},
+
+		isComment: function () {
+			var code = this.expression.charCodeAt(this.pos - 1);
+			if (code === 47 && this.expression.charCodeAt(this.pos) === 42) {
+				this.pos = this.expression.indexOf("*/", this.pos) + 2;
+				if (this.pos === 1) {
+					this.pos = this.expression.length;
+				}
+				return true;
+			}
+			return false;
+		}
+	};
+
+	return Parser;
+});
 /**
  * Evaluates simple math expression under caret
  */
@@ -15797,9 +19541,10 @@ if (typeof module === 'object' && typeof define !== 'function') {
 	};
 }
 
-define('action/evaluateMath',['require','exports','module','../utils/action','../utils/common','../assets/range'],function(require, exports, module) {
+define('action/evaluateMath',['require','exports','module','../utils/action','../utils/common','../utils/math','../assets/range'],function(require, exports, module) {
 	var actionUtils = require('../utils/action');
 	var utils = require('../utils/common');
+	var math = require('../utils/math');
 	var range = require('../assets/range');
 
 	return {
@@ -15809,7 +19554,7 @@ define('action/evaluateMath',['require','exports','module','../utils/action','..
 		 * @return {Boolean}
 		 */
 		evaluateMathAction: function(editor) {
-			var content = String(editor.getContent());
+			var content = editor.getContent();
 			var chars = '.+-*/\\';
 			
 			/** @type Range */
@@ -15824,10 +19569,10 @@ define('action/evaluateMath',['require','exports','module','../utils/action','..
 				var expr = sel.substring(content);
 				
 				// replace integral division: 11\2 => Math.round(11/2) 
-				expr = expr.replace(/([\d\.\-]+)\\([\d\.\-]+)/g, 'Math.round($1/$2)');
+				expr = expr.replace(/([\d\.\-]+)\\([\d\.\-]+)/g, 'round($1/$2)');
 				
 				try {
-					var result = utils.prettifyNumber(new Function('return ' + expr)());
+					var result = utils.prettifyNumber(math.evaluate(expr));
 					editor.replaceContent(result, sel.start, sel.end);
 					editor.setCaretPos(sel.start + result.length);
 					return true;
@@ -15839,2757 +19584,6 @@ define('action/evaluateMath',['require','exports','module','../utils/action','..
 	};
 });
 
-/**
- * Parsed resources (snippets, abbreviations, variables, etc.) for Emmet.
- * Contains convenient method to get access for snippets with respect of 
- * inheritance. Also provides ability to store data in different vocabularies
- * ('system' and 'user') for fast and safe resource update
- * @author Sergey Chikuyonok (serge.che@gmail.com)
- * @link http://chikuyonok.ru
- */
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('assets/caniuse',['require','exports','module','lodash','./preferences','fs','path'],function(require, exports, module) {
-	var _ = require('lodash');
-	var prefs = require('./preferences');
-
-	prefs.define('caniuse.enabled', true, 'Enable support of Can I Use database. When enabled,\
-		CSS abbreviation resolver will look at Can I Use database first before detecting\
-		CSS properties that should be resolved');
-	
-	prefs.define('caniuse.vendors', 'all', 'A comma-separated list vendor identifiers\
-		(as described in Can I Use database) that should be supported\
-		when resolving vendor-prefixed properties. Set value to <code>all</code>\
-		to support all available properties');
-	
-	prefs.define('caniuse.era', 'e-2', 'Browser era, as defined in Can I Use database.\
-		Examples: <code>e0</code> (current version), <code>e1</code> (near future)\
-		<code>e-2</code> (2 versions back) and so on.');
-	
-	var cssSections = {
-		'border-image': ['border-image'],
-		'css-boxshadow': ['box-shadow'],
-		'css3-boxsizing': ['box-sizing'],
-		'multicolumn': ['column-width', 'column-count', 'columns', 'column-gap', 'column-rule-color', 'column-rule-style', 'column-rule-width', 'column-rule', 'column-span', 'column-fill'],
-		'border-radius': ['border-radius', 'border-top-left-radius', 'border-top-right-radius', 'border-bottom-right-radius', 'border-bottom-left-radius'],
-		'transforms2d': ['transform'],
-		'css-hyphens': ['hyphens'],
-		'css-transitions': ['transition', 'transition-property', 'transition-duration', 'transition-timing-function', 'transition-delay'],
-		'font-feature': ['font-feature-settings'],
-		'css-animation': ['animation', 'animation-name', 'animation-duration', 'animation-timing-function', 'animation-iteration-count', 'animation-direction', 'animation-play-state', 'animation-delay', 'animation-fill-mode', '@keyframes'],
-		'css-gradients': ['linear-gradient'],
-		'css-masks': ['mask-image', 'mask-source-type', 'mask-repeat', 'mask-position', 'mask-clip', 'mask-origin', 'mask-size', 'mask', 'mask-type', 'mask-box-image-source', 'mask-box-image-slice', 'mask-box-image-width', 'mask-box-image-outset', 'mask-box-image-repeat', 'mask-box-image', 'clip-path', 'clip-rule'],
-		'css-featurequeries': ['@supports'],
-		'flexbox': ['flex', 'inline-flex', 'flex-direction', 'flex-wrap', 'flex-flow', 'order', 'flex'],
-		'calc': ['calc'],
-		'object-fit': ['object-fit', 'object-position'],
-		'css-grid': ['grid', 'inline-grid', 'grid-template-rows', 'grid-template-columns', 'grid-template-areas', 'grid-template', 'grid-auto-rows', 'grid-auto-columns', ' grid-auto-flow', 'grid-auto-position', 'grid', ' grid-row-start', 'grid-column-start', 'grid-row-end', 'grid-column-end', 'grid-column', 'grid-row', 'grid-area', 'justify-self', 'justify-items', 'align-self', 'align-items'],
-		'css-repeating-gradients': ['repeating-linear-gradient'],
-		'css-filters': ['filter'],
-		'user-select-none': ['user-select'],
-		'intrinsic-width': ['min-content', 'max-content', 'fit-content', 'fill-available'],
-		'css3-tabsize': ['tab-size']
-	};
-
-	/** @type {Object} The Can I Use database for CSS */
-	var cssDB = null;
-	/** @type {Object} A list of available vendors (browsers) and their prefixes */
-	var vendorsDB = null;
-	var erasDB = null;
-
-	/**
-	 * Parses raw Can I Use database for better lookups
-	 * @param  {String} data Raw database
-	 * @return {Object}
-	 */
-	function parseDB(data) {
-		if (typeof data == 'string') {
-			data = JSON.parse(data);
-		}
-
-		vendorsDB = parseVendors(data);
-		cssDB = parseCSS(data);
-		erasDB = parseEra(data);
-	}
-
-	/**
-	 * Parses vendor data
-	 * @param  {Object} data
-	 * @return {Object}
-	 */
-	function parseVendors(data) {
-		var out = {};
-		_.each(data.agents, function(agent, name) {
-			out[name] = {
-				prefix: agent.prefix,
-				versions: agent.versions
-			};
-		});
-		return out;
-	}
-
-	/**
-	 * Parses CSS data from Can I Use raw database
-	 * @param  {Object} data
-	 * @return {Object}
-	 */
-	function parseCSS(data) {
-		var out = {};
-		var cssCategories = data.cats.CSS;
-		
-		_.each(data.data, function(section, name) {
-			if (name in cssSections) {
-				_.each(cssSections[name], function(kw) {
-					out[kw] = section.stats;
-				});
-			}
-		});
-
-		return out;
-	}
-
-	/**
-	 * Parses era data from Can I Use raw database
-	 * @param  {Object} data
-	 * @return {Array}
-	 */
-	function parseEra(data) {
-		// some runtimes (like Mozilla Rhino) does not preserves
-		// key order so we have to sort values manually
-		return _.keys(data.eras).sort(function(a, b) {
-			return parseInt(a.substr(1)) - parseInt(b.substr(1));
-		});
-	}
-	
-	/**
-	 * Returs list of supported vendors, depending on user preferences
-	 * @return {Array}
-	 */
-	function getVendorsList() {
-		var allVendors = _.keys(vendorsDB);
-		var vendors = prefs.getArray('caniuse.vendors');
-		if (!vendors || vendors[0] == 'all') {
-			return allVendors;
-		}
-
-		return _.intersection(allVendors, vendors);
-	}
-
-	/**
-	 * Returns size of version slice as defined by era identifier
-	 * @return {Number}
-	 */
-	function getVersionSlice() {
-		var era = prefs.get('caniuse.era');
-		var ix = _.indexOf(erasDB, era);
-		if (!~ix) {
-			ix = _.indexOf(erasDB, 'e-2');
-		}
-
-		return ix;
-	}
-
-	// try to load caniuse database
-	var db = null;
-	try {
-		var fs = require('fs');
-		var path = require('path');
-
-		db = fs.readFileSync(path.join(__dirname, '../caniuse.json'), {encoding: 'utf8'});
-		
-	} catch(e) {}
-
-	if (db) {
-		parseDB(db);
-	}
-
-	return {
-		load: parseDB,
-		/**
-		 * Resolves prefixes for given property
-		 * @param {String} property A property to resolve. It can start with `@` symbol
-		 * (CSS section, like `@keyframes`) or `:` (CSS value, like `flex`)
-		 * @return {Array} Array of resolved prefixes or <code>null</code>
-		 * if prefixes can't be resolved. Empty array means property has no vendor
-		 * prefixes
-		 */
-		resolvePrefixes: function(property) {
-			if (!prefs.get('caniuse.enabled') || !cssDB || !(property in cssDB)) {
-				return null;
-			}
-
-			var prefixes = [];
-			var propStats = cssDB[property];
-			var versions = getVersionSlice();
-
-			_.each(getVendorsList(), function(vendor) {
-				var vendorVesions = vendorsDB[vendor].versions.slice(versions);
-				for (var i = 0, v; i < vendorVesions.length; i++) {
-					v = vendorVesions[i];
-					if (!v) {
-						continue;
-					}
-
-					if (~propStats[vendor][v].indexOf('x')) {
-						prefixes.push(vendorsDB[vendor].prefix);
-						break;
-					}
-				}
-			});
-
-			return _.unique(prefixes).sort(function(a, b) {
-				return b.length - a.length;
-			});
-		}
-	};
-});
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('parser/css',['require','exports','module'],function(require, exports, module) {
-	var session = {tokens: null};
-	
-	// walks around the source
-	var walker = {
-		init: function (source) {
-			// this.source = source.replace(/\r\n?/g, '\n');
-			this.source = source;
-			this.ch = '';
-			this.chnum = -1;
-		
-			// advance
-			this.nextChar();
-		},
-		nextChar: function () {
-			return this.ch = this.source.charAt(++this.chnum);
-		},
-		peek: function() {
-			return this.source.charAt(this.chnum + 1);
-		}
-	};
-
-	// utility helpers
-	function isNameChar(c, cc) {
-		cc = cc || c.charCodeAt(0);
-		return (
-			(cc >= 97 && cc <= 122 /* a-z */) || 
-			(cc >= 65 && cc <= 90 /* A-Z */) || 
-			/* 
-			Experimental: include cyrillic ranges 
-			since some letters, similar to latin ones, can 
-			accidentally appear in CSS tokens
-			*/
-			(cc >= 1024 && cc <= 1279) || 
-			c === '&' || /* selector placeholder (LESS, SCSS) */
-			c === '_' || 
-			c === '<' || /* comparisons (LESS, SCSS) */
-			c === '>' || 
-			c === '=' || 
-			c === '-'
-		);
-	}
-
-	function isDigit(c, cc) {
-		cc = cc || c.charCodeAt(0);
-		return (cc >= 48 && cc <= 57);
-	}
-
-	var isOp = (function () {
-		var opsa = "{}[]()+*=.,;:>~|\\%$#@^!".split(''),
-			opsmatcha = "*^|$~".split(''),
-			ops = {},
-			opsmatch = {},
-			i = 0;
-		for (; i < opsa.length; i += 1) {
-			ops[opsa[i]] = true;
-		}
-		for (i = 0; i < opsmatcha.length; i += 1) {
-			opsmatch[opsmatcha[i]] = true;
-		}
-		return function (ch, matchattr) {
-			if (matchattr) {
-				return ch in opsmatch;
-			}
-			return ch in ops;
-		};
-	}());
-	
-	// creates token objects and pushes them to a list
-	function tokener(value, type) {
-		session.tokens.push({
-			value: value,
-			type:  type || value,
-			start: null,
-			end:   null
-		});
-	}
-
-	function getPosInfo(w) {
-		var errPos = w.chnum;
-		var source = w.source.replace(/\r\n?/g, '\n');
-		var part = w.source.substring(0, errPos + 1).replace(/\r\n?/g, '\n');
-		var lines = part.split('\n');
-		var ch = (lines[lines.length - 1] || '').length;
-		var fullLine = source.split('\n')[lines.length - 1] || '';
-		
-		var chunkSize = 100;
-		var offset = Math.max(0, ch - chunkSize);
-		var formattedLine = fullLine.substr(offset, chunkSize * 2) + '\n';
-		for (var i = 0; i < ch - offset - 1; i++) {
-			formattedLine += '-';
-		}
-		formattedLine += '^';
-
-		return {
-			line: lines.length,
-			ch: ch,
-			text: fullLine,
-			hint: formattedLine
-		};
-	}
-
-	function raiseError(message) {
-		var err = error(message);
-		var errObj = new Error(err.message, '', err.line);
-		errObj.line = err.line;
-		errObj.ch = err.ch;
-		errObj.name = err.name;
-		errObj.hint = err.hint;
-
-		throw errObj;
-	}
-	
-	// oops
-	function error(m) { 
-		var w = walker;
-		var info = getPosInfo(walker);
-		var tokens = session.tokens;
-		session.tokens = null;
-
-		var message = 'CSS parsing error at line ' + info.line + ', char ' + info.ch + ': ' + m;
-		message += '\n' +  info.hint;
-		return {
-			name: "ParseError",
-			message: message,
-			hint: info.hint,
-			line: info.line,
-			ch: info.ch
-		};
-	}
-
-
-	// token handlers follow for:
-	// white space, comment, string, identifier, number, operator
-	function white() {
-		var c = walker.ch,
-			token = '';
-	
-		while (c === " " || c === "\t") {
-			token += c;
-			c = walker.nextChar();
-		}
-	
-		tokener(token, 'white');
-	
-	}
-
-	function comment() {
-		var w = walker,
-			c = w.ch,
-			token = c,
-			cnext;
-	 
-		cnext = w.nextChar();
-
-		if (cnext === '/') {
-			// inline comment in SCSS and LESS
-			while (c && !(cnext === "\n" || cnext === "\r")) {
-				token += cnext;
-				c = cnext;
-				cnext = w.nextChar();
-			}
-		} else if (cnext === '*') {
-			// multiline CSS commment
-			while (c && !(c === "*" && cnext === "/")) {
-				token += cnext;
-				c = cnext;
-				cnext = w.nextChar();
-			}
-		} else {
-			// oops, not a comment, just a /
-			return tokener(token, token);
-		}
-		
-		token += cnext;
-		w.nextChar();
-		tokener(token, 'comment');
-	}
-
-	function str() {
-		var w = walker,
-			c = w.ch,
-			q = c,
-			token = c,
-			cnext;
-	
-		c = w.nextChar();
-	
-		while (c !== q) {
-			
-			if (c === '\n') {
-				cnext = w.nextChar();
-				if (cnext === "\\") {
-					token += c + cnext;
-				} else {
-					// end of line with no \ escape = bad
-					raiseError("Unterminated string");
-				}
-			} else {
-				if (c === "\\") {
-					token += c + w.nextChar();
-				} else {
-					token += c;
-				}
-			}
-		
-			c = w.nextChar();
-		
-		}
-		token += c;
-		w.nextChar();
-		tokener(token, 'string');
-	}
-	
-	function brace() {
-		var w = walker,
-			c = w.ch,
-			depth = 0,
-			token = c;
-	
-		c = w.nextChar();
-	
-		while (c !== ')' && !depth) {
-			if (c === '(') {
-				depth++;
-			} else if (c === ')') {
-				depth--;
-			} else if (c === '') {
-				raiseError("Unterminated brace");
-			}
-			
-			token += c;
-			c = w.nextChar();
-		}
-		
-		token += c;
-		w.nextChar();
-		tokener(token, 'brace');
-	}
-
-	function identifier(pre) {
-		var c = walker.ch;
-		var token = pre ? pre + c : c;
-			
-		c = walker.nextChar();
-		var cc = c.charCodeAt(0);
-		while (isNameChar(c, cc) || isDigit(c, cc)) {
-			token += c;
-			c = walker.nextChar();
-			cc = c.charCodeAt(0);
-		}
-	
-		tokener(token, 'identifier');    
-	}
-
-	function num() {
-		var w = walker,
-			c = w.ch,
-			token = c,
-			point = token === '.',
-			nondigit;
-		
-		c = w.nextChar();
-		nondigit = !isDigit(c);
-	
-		// .2px or .classname?
-		if (point && nondigit) {
-			// meh, NaN, could be a class name, so it's an operator for now
-			return tokener(token, '.');    
-		}
-		
-		// -2px or -moz-something
-		if (token === '-' && nondigit) {
-			return identifier('-');
-		}
-	
-		while (c !== '' && (isDigit(c) || (!point && c === '.'))) { // not end of source && digit or first instance of .
-			if (c === '.') {
-				point = true;
-			}
-			token += c;
-			c = w.nextChar();
-		}
-
-		tokener(token, 'number');    
-	
-	}
-
-	function op() {
-		var w = walker,
-			c = w.ch,
-			token = c,
-			next = w.nextChar();
-			
-		if (next === "=" && isOp(token, true)) {
-			token += next;
-			tokener(token, 'match');
-			w.nextChar();
-			return;
-		} 
-		
-		tokener(token, token);
-	}
-
-
-	// call the appropriate handler based on the first character in a token suspect
-	function tokenize() {
-		var ch = walker.ch;
-	
-		if (ch === " " || ch === "\t") {
-			return white();
-		}
-
-		if (ch === '/') {
-			return comment();
-		} 
-
-		if (ch === '"' || ch === "'") {
-			return str();
-		}
-		
-		if (ch === '(') {
-			return brace();
-		}
-	
-		if (ch === '-' || ch === '.' || isDigit(ch)) { // tricky - char: minus (-1px) or dash (-moz-stuff)
-			return num();
-		}
-	
-		if (isNameChar(ch)) {
-			return identifier();
-		}
-
-		if (isOp(ch)) {
-			return op();
-		}
-
-		if (ch === '\r') {
-			if (walker.peek() === '\n') {
-				ch += walker.nextChar();
-			}
-
-			tokener(ch, 'line');
-			walker.nextChar();
-			return;
-		}
-		
-		if (ch === '\n') {
-			tokener(ch, 'line');
-			walker.nextChar();
-			return;
-		}
-		
-		raiseError("Unrecognized character '" + ch + "'");
-	}
-
-	return {
-		/**
-		 * Sprits given source into tokens
-		 * @param {String} source
-		 * @returns {Array}
-		 */
-		lex: function (source) {
-			walker.init(source);
-			session.tokens = [];
-
-			// for empty source, return single space token
-			if (!source) {
-				session.tokens.push(this.white());
-			} else {
-				while (walker.ch !== '') {
-					tokenize();
-				}
-			}
-
-			var tokens = session.tokens;
-			session.tokens = null;
-			return tokens;
-		},
-		
-		/**
-		 * Tokenizes CSS source. It's like `lex()` method,
-		 * but also stores proper token indexes in source, 
-		 * so it's a bit slower
-		 * @param {String} source
-		 * @returns {Array}
-		 */
-		parse: function(source) {
-			// transform tokens
-			var tokens = this.lex(source), pos = 0, token;
-			for (var i = 0, il = tokens.length; i < il; i++) {
-				token = tokens[i];
-				token.start = pos;
-				token.end = (pos += token.value.length);
-			}
-			return tokens;
-		},
-
-		white: function() {
-			return {
-				value: '',
-				type:  'white',
-				start: 0,
-				end:   0
-			};
-		},
-		
-		toSource: function(toks) {
-			var i = 0, max = toks.length, src = '';
-			for (; i < max; i++) {
-				src += toks[i].value;
-			}
-			return src;
-		}
-	};
-});
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('utils/cssSections',['require','exports','module','lodash','./common','../assets/range','../assets/stringStream'],function(require, exports, module) {
-	var _ = require('lodash');
-	var utils = require('./common');
-	var range = require('../assets/range');
-	var stringStream = require('../assets/stringStream');
-
-	var reSpaceTrim = /^(\s*).+?(\s*)$/;
-	var reSpace = /\s/g;
-
-	function isQuote(ch) {
-		return ch == '"' || ch == "'";
-	}
-
-	/**
-	 * Replaces contents of given ranges inside `content`
-	 * with passed character
-	 * @param  {String} content
-	 * @param  {Array} ranges
-	 * @return {String}
-	 */
-	function replaceWith(content, ranges, ch) {
-		if (ranges.length) {
-			var offset = 0, fragments = [];
-			_.each(ranges, function(r) {
-				var spaces = utils.repeatString(ch, r[1] - r[0]);
-				fragments.push(content.substring(offset, r[0]), spaces);
-				offset = r[1];
-			});
-
-			content = fragments.join('') + content.substring(offset);
-		}
-
-		return content;
-	}
-
-	/**
-	 * @param {Range} range Full selector range with additional
-	 * properties for matching name and content (@see findAllRules())
-	 * @param {String} source CSS source
-	 */
-	function CSSSection(rng, source) {
-		/** @type {CSSSection} */
-		this.parent = null;
-		/** @type {CSSSection} */
-		this.nextSibling = null;
-		/** @type {CSSSection} */
-		this.previousSibling = null;
-		this._source = source;
-
-		if (!rng && source) {
-			rng = range(0, source);
-		}
-
-		this.range = rng;
-		this.children = [];
-	}
-
-	CSSSection.prototype = {
-		addChild: function(section) {
-			if (!(section instanceof CSSSection)) {
-				section = new CSSSection(section);
-			}
-
-			var lastChild = _.last(this.children);
-			if (lastChild) {
-				lastChild.nextSibling = section;
-				section.previousSibling = lastChild;
-			}
-			section.parent = this;
-
-			this.children.push(section);
-			return section;
-		},
-
-		/**
-		 * Returns root node
-		 * @return {CSSSection}
-		 */
-		root: function() {
-			var root = this;
-			do {
-				if (!root.parent) {
-					return root;
-				}
-			} while(root = root.parent);
-
-			return root;
-		},
-
-		/**
-		 * Returns currect CSS source
-		 * @return {String}
-		 */
-		source: function() {
-			return this._source || this.root()._source;
-		},
-
-		/**
-		 * Returns section name
-		 * @return {String}
-		 */
-		name: function() {
-			var range = this.nameRange();
-			if (range) {
-				return range.substring(this.source());
-			}
-		},
-
-		/**
-		 * Returns section name range
-		 * @return {[type]} [description]
-		 */
-		nameRange: function() {
-			if (this.range && '_selectorEnd' in this.range) {
-				return range.create2(this.range.start, this.range._selectorEnd);
-			}
-		},
-
-		/**
-		 * Returns deepest child of current section (or section itself) 
-		 * which includes given position.
-		 * @param  {Number} pos
-		 * @return {CSSSection}
-		 */
-		matchDeep: function(pos) {
-			if (!this.range.inside(pos)) {
-				return null;
-			}
-
-			for (var i = 0, il = this.children.length, m; i < il; i++) {
-				m = this.children[i].matchDeep(pos);
-				if (m) {
-					return m;
-				}
-			};
-
-			return this.parent ? this : null;
-		},
-
-		/**
-		 * Returns current and all nested sections ranges
-		 * @return {Array}
-		 */
-		allRanges: function() {
-			var out = [];
-			if (this.parent) {
-				// add current range if it is not root node
-				out.push(this.range);
-			}
-
-			_.each(this.children, function(child) {
-				out = out.concat(child.allRanges());
-			});
-
-			return out;
-		},
-
-		stringify: function(indent) {
-			indent = indent || '';
-			var out = '';
-			_.each(this.children, function(item) {
-				out += indent + item.name().replace(/\n/g, '\\n') + '\n';
-				out += item.stringify(indent + '--');
-			});
-
-			return out;
-		}
-	};
-
-	return {
-		/**
-		 * Finds all CSS rules‘ ranges in given CSS source
-		 * @param  {String} content CSS source
-		 * @return {Array} Array of ranges
-		 */
-		findAllRules: function(content) {
-			content = this.sanitize(content);
-			var stream = stringStream(content);
-			var ranges = [], matchedRanges;
-
-			var saveRule = _.bind(function(r) {
-				var selRange = this.extractSelector(content, r.start);
-				var rule = range.create2(selRange.start, r.end);
-				rule._selectorEnd = selRange.end;
-				rule._contentStart = r.start;
-				ranges.push(rule);
-			}, this);
-
-			try {
-				var ch;
-				while (ch = stream.next()) {
-					if (isQuote(ch)) {
-						if (!stream.skipString(ch)) {
-							throw 'Unterminated string';
-						}
-
-						continue;
-					}
-
-					if (ch == '{') {
-						matchedRanges = this.matchBracesRanges(content, stream.pos - 1);
-						_.each(matchedRanges, saveRule);
-
-						if (matchedRanges.length) {
-							stream.pos = _.last(matchedRanges).end;
-							continue;
-						} 
-					}
-				}
-			} catch(e) {}
-			
-			return ranges.sort(function(a, b) {
-				return a.start - b.start;
-			});
-		},
-
-		/**
-		 * Replaces all comments in given CSS source with spaces,
-		 * which allows more reliable (and faster) token search
-		 * in CSS content
-		 * @param  {String} content CSS content
-		 * @return {String}
-		 */
-		stripComments: function(content) {
-			var stream = stringStream(content);
-			var replaceRanges = [];
-			var ch, ch2;
-
-			while ((ch = stream.next())) {
-				if (isQuote(ch)) {
-					// skip string
-					stream.skipString(ch)
-					continue;
-				} else if (ch === '/') {
-					ch2 = stream.peek();
-					if (ch2 === '*') { // multiline CSS comment
-						stream.start = stream.pos - 1;
-
-						if (stream.skipTo('*/')) {
-							stream.pos += 2;
-						} else {
-							// unclosed comment
-							stream.skipToEnd();
-						}
-
-						replaceRanges.push([stream.start, stream.pos]);
-					} else if (ch2 === '/') {
-						// preprocessor’s single line comments
-						stream.start = stream.pos - 1;
-						while ((ch2 = stream.next())) {
-							if (ch2 === '\n' || ch2 == '\r') {
-								break
-							}
-						}
-
-						replaceRanges.push([stream.start, stream.pos]);
-					}
-				}
-			}
-
-			return replaceWith(content, replaceRanges, ' ');
-		},
-
-		/**
-		 * Matches curly braces content right after given position
-		 * @param  {String} content CSS content. Must not contain comments!
-		 * @param  {Number} pos     Search start position
-		 * @return {Range}
-		 */
-		matchBracesRanges: function(content, pos, sanitize) {
-			if (sanitize) {
-				content = this.sanitize(content);
-			}
-
-			var stream = stringStream(content);
-			stream.start = stream.pos = pos;
-			var stack = [], ranges = [];
-			var ch;
-			while (ch = stream.next()) {
-				if (isQuote(ch)) {
-					stream.skipString(ch);
-					continue;
-				}
-				if (ch == '{') {
-					stack.push(stream.pos - 1);
-				} else if (ch == '}') {
-					if (!stack.length) {
-						throw 'Invalid source structure (check for curly braces)';
-					}
-					ranges.push(range.create2(stack.pop(), stream.pos));
-					if (!stack.length) {
-						return ranges;
-					}
-				}
-			}
-
-			return ranges;
-		},
-
-		/**
-		 * Extracts CSS selector from CSS document from
-		 * given position. The selector is located by moving backward
-		 * from given position which means that passed position
-		 * must point to the end of selector 
-		 * @param  {String}  content CSS source
-		 * @param  {Number}  pos     Search position
-		 * @param  {Boolean} sanitize Sanitize CSS source before processing.
-		 * Off by default and assumes that CSS must be comment-free already
-		 * (for performance)
-		 * @return {Range}
-		 */
-		extractSelector: function(content, pos, sanitize) {
-			if (sanitize) {
-				content = this.sanitize(content);
-			}
-
-			var skipString = function() {
-				var quote = content.charAt(pos);
-				if (quote == '"' || quote == "'") {
-					while (--pos >= 0) {
-						if (content.charAt(pos) == quote && content.charAt(pos - 1) != '\\') {
-							break;
-						}
-					}
-					return true;
-				}
-
-				return false;
-			};
-
-			// find CSS selector
-			var ch;
-			var endPos = pos;
-			while (--pos >= 0) {
-				if (skipString()) continue;
-
-				ch = content.charAt(pos);
-				if (ch == ')') {
-					// looks like it’s a preprocessor thing,
-					// most likely a mixin arguments list, e.g.
-					// .mixin (@arg1; @arg2) {...}
-					while (--pos >= 0) {
-						if (skipString()) continue;
-
-						if (content.charAt(pos) == '(') {
-							break;
-						}
-					}
-					continue;
-				}
-
-				if (ch == '{' || ch == '}' || ch == ';') {
-					pos++;
-					break;
-				}
-			}
-
-			if (pos < 0) {
-				pos = 0;
-			}
-			
-			var selector = content.substring(pos, endPos);
-
-			// trim whitespace from matched selector
-			var m = selector.replace(reSpace, ' ').match(reSpaceTrim);
-			if (m) {
-				pos += m[1].length;
-				endPos -= m[2].length;
-			}
-
-			return range.create2(pos, endPos);
-		},
-
-		/**
-		 * Search for nearest CSS rule/section that contains
-		 * given position
-		 * @param  {String} content CSS content or matched CSS rules (array of ranges)
-		 * @param  {Number} pos     Search position
-		 * @return {Range}
-		 */
-		matchEnclosingRule: function(content, pos) {
-			if (_.isString(content)) {
-				content = this.findAllRules(content);
-			}
-
-			var rules = _.filter(content, function(r) {
-				return r.inside(pos);
-			});
-
-			return _.last(rules);
-		},
-
-		/**
-		 * Locates CSS rule next or before given position
-		 * @param  {String}  content    CSS content
-		 * @param  {Number}  pos        Search start position
-		 * @param  {Boolean} isBackward Search backward (find previous rule insteaf of next one)
-		 * @return {Range}
-		 */
-		locateRule: function(content, pos, isBackward) {
-			var rules = this.findAllRules(content);
-			var ctxRule = this.matchEnclosingRule(rules, pos);
-
-			if (ctxRule) {
-				return ctxRule;
-
-				// XXX why did I did this? Have to figure out
-				// 
-				// we have a context rule but it may contain nested rules
-				// rules = _.filter(rules, function(r) {
-				// 	return ctxRule.contains(r);
-				// });
-
-				// console.log('Nested rules', rules);
-
-
-				// // no nested rules
-				// if (!rules.length) {
-				// 	return ctxRule;
-				// }
-			}
-
-			for (var i = 0, il = rules.length; i < il; i++) {
-				if (rules[i].start > pos) {
-					return rules[isBackward ? i - 1 : i];
-				}
-			}
-		},
-
-		/**
-		 * Sanitizes given CSS content: replaces content that may 
-		 * interfere with parsing (comments, interpolations, etc.)
-		 * with spaces. Sanitized content MUST NOT be used for
-		 * editing or outputting, it just simplifies searching
-		 * @param  {String} content CSS content
-		 * @return {String}
-		 */
-		sanitize: function(content) {
-			content = this.stripComments(content);
-
-			// remove preprocessor string interpolations like #{var}
-			var stream = stringStream(content);
-			var replaceRanges = [];
-			var ch, ch2;
-
-			while ((ch = stream.next())) {
-				if (isQuote(ch)) {
-					// skip string
-					stream.skipString(ch)
-					continue;
-				} else if (ch === '#' || ch === '@') {
-					ch2 = stream.peek();
-					if (ch2 === '{') { // string interpolation
-						stream.start = stream.pos - 1;
-
-						if (stream.skipTo('}')) {
-							stream.pos += 1;
-						} else {
-							throw 'Invalid string interpolation at ' + stream.start;
-						}
-
-						replaceRanges.push([stream.start, stream.pos]);
-					}
-				}
-			}
-
-			return replaceWith(content, replaceRanges, 'a');
-		},
-
-		/**
-		 * Parses and returns all sections in given CSS
-		 * as tree-like structure, e.g. provides nesting
-		 * info
-		 * @param  {String} content CSS content
-		 * @return {CSSSection}
-		 */
-		sectionTree: function(content) {
-			var root = new CSSSection(null, content);
-			var rules = this.findAllRules(content);
-
-			// rules are sorted in order they appear in CSS source
-			// so we can optimize their nesting routine
-			var insert = function(range, ctx) {
-				while (ctx && ctx.range) {
-					if (ctx.range.contains(range)) {
-						return ctx.addChild(range);
-					}
-
-					ctx = ctx.parent;
-				}
-
-				// if we are here then given range is a top-level section
-				return root.addChild(range);
-			};
-
-			var ctx = root;
-			_.each(rules, function(r) {
-				ctx = insert(r, ctx);
-			});
-
-			return root;
-		},
-
-		/**
-		 * Returns ranges for all nested sections, available in
-		 * given CSS rule
-		 * @param  {CSSEditContainer} rule
-		 * @return {Array}
-		 */
-		nestedSectionsInRule: function(rule) {
-			var offset = rule.valueRange(true).start;
-			var nestedSections = this.findAllRules(rule.valueRange().substring(rule.source));
-			_.each(nestedSections, function(section) {
-				section.start += offset;
-				section.end += offset;
-				section._selectorEnd += offset;
-				section._contentStart += offset;
-			});
-			return nestedSections;
-		},
-
-		CSSSection: CSSSection
-	};
-});
-/**
- * Helper class for convenient token iteration
- */
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('assets/tokenIterator',['require','exports','module'],function(require, exports, module) {
-	/**
-	 * @type TokenIterator
-	 * @param {Array} tokens
-	 * @type TokenIterator
-	 * @constructor
-	 */
-	function TokenIterator(tokens) {
-		/** @type Array */
-		this.tokens = tokens;
-		this._position = 0;
-		this.reset();
-	}
-	
-	TokenIterator.prototype = {
-		next: function() {
-			if (this.hasNext()) {
-				var token = this.tokens[++this._i];
-				this._position = token.start;
-				return token;
-			} else {
-				this._i = this._il;
-			}
-			
-			return null;
-		},
-		
-		current: function() {
-			return this.tokens[this._i];
-		},
-
-		peek: function() {
-			return this.tokens[this._i + i];
-		},
-		
-		position: function() {
-			return this._position;
-		},
-		
-		hasNext: function() {
-			return this._i < this._il - 1;
-		},
-		
-		reset: function() {
-			this._i = 0;
-			this._il = this.tokens.length;
-		},
-		
-		item: function() {
-			return this.tokens[this._i];
-		},
-		
-		itemNext: function() {
-			return this.tokens[this._i + 1];
-		},
-		
-		itemPrev: function() {
-			return this.tokens[this._i - 1];
-		},
-		
-		nextUntil: function(type, callback) {
-			var token;
-			var test = typeof type == 'string' 
-				? function(t){return t.type == type;} 
-				: type;
-			
-			while ((token = this.next())) {
-				if (callback)
-					callback.call(this, token);
-				if (test.call(this, token))
-					break;
-			}
-		}
-	};
-	
-	return {
-		create: function(tokens) {
-			return new TokenIterator(tokens);
-		}
-	};
-});
-/**
- * CSS EditTree is a module that can parse a CSS rule into a tree with 
- * convenient methods for adding, modifying and removing CSS properties. These 
- * changes can be written back to string with respect of code formatting.
- */
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('editTree/css',['require','exports','module','lodash','../utils/common','./base','../parser/css','../utils/cssSections','../assets/range','../assets/stringStream','../assets/tokenIterator'],function(require, exports, module) {
-	var _ = require('lodash');
-	var utils = require('../utils/common');
-	var editTree = require('./base');
-	var cssParser = require('../parser/css');
-	var cssSections = require('../utils/cssSections');
-	var range = require('../assets/range');
-	var stringStream = require('../assets/stringStream');
-	var tokenIterator = require('../assets/tokenIterator');
-
-	var defaultOptions = {
-		styleBefore: '\n\t',
-		styleSeparator: ': ',
-		offset: 0
-	};
-	
-	var reSpaceStart = /^\s+/;
-	var reSpaceEnd = /\s+$/;
-	var WHITESPACE_REMOVE_FROM_START = 1;
-	var WHITESPACE_REMOVE_FROM_END   = 2;
-	
-	/**
-	 * Modifies given range to remove whitespace from beginning
-	 * and/or from the end
-	 * @param  {Range} rng Range to modify
-	 * @param  {String} text  Text that range belongs to
-	 * @param  {Number} mask  Mask indicating from which end 
-	 * whitespace should be removed
-	 * @return {Range}
-	 */
-	function trimWhitespaceInRange(rng, text, mask) {
-		mask = mask || (WHITESPACE_REMOVE_FROM_START | WHITESPACE_REMOVE_FROM_END);
-		text = rng.substring(text);
-		var m;
-		if ((mask & WHITESPACE_REMOVE_FROM_START) && (m = text.match(reSpaceStart))) {
-			rng.start += m[0].length;
-		}
-
-		if ((mask & WHITESPACE_REMOVE_FROM_END) && (m = text.match(reSpaceEnd))) {
-			rng.end -= m[0].length;
-		}
-
-		// in case given range is just a whatespace
-		if (rng.end < rng.start) {
-			rng.end = rng.start;
-		}
-
-		return rng;
-	}
-
-	/**
-	 * Consumes CSS property and value from current token
-	 * iterator state. Offsets iterator pointer into token
-	 * that can be used for next value consmption
-	 * @param  {TokenIterator} it
-	 * @param  {String} text
-	 * @return {Object}    Object with `name` and `value` properties 
-	 * ar ranges. Value range can be zero-length.
-	 */
-	function consumeSingleProperty(it, text) {
-		var name, value, end;
-		var token = it.current();
-
-		if (!token) {
-			return null;
-		}
-
-		// skip whitespace
-		var ws = {'white': 1, 'line': 1, 'comment': 1};
-		while ((token = it.current())) {
-			if (!(token.type in ws)) {
-				break;
-			}
-			it.next();
-		}
-
-		if (!it.hasNext()) {
-			return null;
-		}
-
-		// consume property name
-		token = it.current();
-		name = range(token.start, token.value);
-		while (token = it.next()) {
-			name.end = token.end;
-			if (token.type == ':') {
-				name.end = token.start;
-				it.next();
-				break;
-			} else if (token.type == ';' || token.type == 'line') {
-				// there’s no value, looks like a mixin
-				// or a special use case:
-				// user is writing a new property or abbreviation
-				name.end = token.start;
-				value = range(token.start, 0);
-				it.next();
-				break;
-			}
-		}
-
-		token = it.current();
-		if (!value && token) {
-			if (token.type == 'line') {
-				lastNewline = token;
-			}
-			// consume value
-			value = range(token.start, token.value);
-			var lastNewline;
-			while ((token = it.next())) {
-				value.end = token.end;
-				if (token.type == 'line') {
-					lastNewline = token;
-				} else if (token.type == '}' || token.type == ';') {
-					value.end = token.start;
-					if (token.type == ';') {
-						end = range(token.start, token.value);
-					}
-					it.next();
-					break;
-				} else if (token.type == ':' && lastNewline) {
-					// A special case: 
-					// user is writing a value before existing
-					// property, but didn’t inserted closing semi-colon.
-					// In this case, limit value range to previous
-					// newline
-					value.end = lastNewline.start;
-					it._i = _.indexOf(it.tokens, lastNewline);
-					break;
-				}
-			}
-		}
-
-		if (!value) {
-			value = range(name.end, 0);
-		}
-
-		return {
-			name: trimWhitespaceInRange(name, text),
-			value: trimWhitespaceInRange(value, text, WHITESPACE_REMOVE_FROM_START | (end ? WHITESPACE_REMOVE_FROM_END : 0)),
-			end: end || range(value.end, 0)
-		};
-	}
-
-	/**
-	 * Finds parts of complex CSS value
-	 * @param {String} str
-	 * @returns {Array} Returns list of <code>Range</code>'s
-	 */
-	function findParts(str) {
-		/** @type StringStream */
-		var stream = stringStream.create(str);
-		var ch;
-		var result = [];
-		var sep = /[\s\u00a0,;]/;
-		
-		var add = function() {
-			stream.next();
-			result.push(range(stream.start, stream.current()));
-			stream.start = stream.pos;
-		};
-		
-		// skip whitespace
-		stream.eatSpace();
-		stream.start = stream.pos;
-		
-		while ((ch = stream.next())) {
-			if (ch == '"' || ch == "'") {
-				stream.next();
-				if (!stream.skipTo(ch)) break;
-				add();
-			} else if (ch == '(') {
-				// function found, may have nested function
-				stream.backUp(1);
-				if (!stream.skipToPair('(', ')')) break;
-				stream.backUp(1);
-				add();
-			} else {
-				if (sep.test(ch)) {
-					result.push(range(stream.start, stream.current().length - 1));
-					stream.eatWhile(sep);
-					stream.start = stream.pos;
-				}
-			}
-		}
-		
-		add();
-		
-		return _.chain(result)
-			.filter(function(item) {
-				return !!item.length();
-			})
-			.uniq(false, function(item) {
-				return item.toString();
-			})
-			.value();
-	}
-	
-	/**
-	 * Parses CSS properties from given CSS source
-	 * and adds them to CSSEditContainsd node
-	 * @param  {CSSEditContainer} node
-	 * @param  {String} source CSS source
-	 * @param {Number} offset Offset of properties subset from original source
-	 */
-	function consumeProperties(node, source, offset) {
-		offset = offset || 0;
-		source = source.replace(reSpaceEnd, '');
-
-		if (!source) {
-			return;
-		}
-
-		var tokens = cssParser.parse(source);
-		var it = tokenIterator.create(tokens);
-		var property;
-
-		while ((property = consumeSingleProperty(it, source))) {
-			node._children.push(new CSSEditElement(node,
-				editTree.createToken(property.name.start + offset, property.name.substring(source)),
-				editTree.createToken(property.value.start + offset, property.value.substring(source)),
-				editTree.createToken(property.end.start + offset, property.end.substring(source))
-				));
-		}
-	}
-	
-	/**
-	 * @class
-	 * @extends EditContainer
-	 */
-	var CSSEditContainer = editTree.EditContainer.extend({
-		initialize: function(source, options) {
-			_.extend(this.options, defaultOptions, options);
-			
-			if (_.isArray(source)) {
-				source = cssParser.toSource(source);
-			}
-
-			var allRules = cssSections.findAllRules(source);
-			var currentRule = allRules.shift();
-
-			// keep top-level rules only since they will
-			// be parsed by nested CSSEditContainer call
-			var topLevelRules = [];
-			_.each(allRules, function(r) {
-				var isTopLevel = !_.find(topLevelRules, function(tr) {
-					return tr.contains(r);
-				});
-
-				if (isTopLevel) {
-					topLevelRules.push(r);
-				}
-			});
-
-
-			var selectorRange = range.create2(currentRule.start, currentRule._selectorEnd);
-			this._name = selectorRange.substring(source);
-			this._positions.name = selectorRange.start;
-			this._positions.contentStart = currentRule._contentStart + 1;
-
-			var sectionOffset = currentRule._contentStart + 1;
-			var sectionEnd = currentRule.end - 1;
-
-			// parse properties between nested rules
-			// and add nested rules as children
-			var that = this;
-			_.each(topLevelRules, function(r) {
-				consumeProperties(that, source.substring(sectionOffset, r.start), sectionOffset);
-				var opt = _.extend({}, that.options, {offset: r.start + that.options.offset});
-				// XXX I think I don’t need nested containers here
-				// They should be handled separately
-				// that._children.push(new CSSEditContainer(r.substring(source), opt));
-				sectionOffset = r.end;
-			});
-
-			// consume the rest of data
-			consumeProperties(this, source.substring(sectionOffset, currentRule.end - 1), sectionOffset);
-			this._saveStyle();
-		},
-		
-		/**
-		 * Remembers all styles of properties
-		 * @private
-		 */
-		_saveStyle: function() {
-			var start = this._positions.contentStart;
-			var source = this.source;
-			
-			_.each(this.list(), /** @param {CSSEditProperty} p */ function(p) {
-				if (p.type == 'container') {
-					return;
-				}
-
-				p.styleBefore = source.substring(start, p.namePosition());
-				// a small hack here:
-				// Sometimes users add empty lines before properties to logically
-				// separate groups of properties. In this case, a blind copy of
-				// characters between rules may lead to undesired behavior,
-				// especially when current rule is duplicated or used as a donor
-				// to create new rule.
-				// To solve this issue, we‘ll take only last newline indentation
-				var lines = utils.splitByLines(p.styleBefore);
-				if (lines.length > 1) {
-					p.styleBefore = '\n' + _.last(lines);
-				}
-				
-				p.styleSeparator = source.substring(p.nameRange().end, p.valuePosition());
-				
-				// graceful and naive comments removal 
-				p.styleBefore = _.last(p.styleBefore.split('*/'));
-				p.styleSeparator = p.styleSeparator.replace(/\/\*.*?\*\//g, '');
-				
-				start = p.range().end;
-			});
-		},
-
-		/**
-		 * Returns position of element name token
-		 * @param {Boolean} isAbsolute Return absolute position
-		 * @returns {Number}
-		 */
-		namePosition: function(isAbsolute) {
-			return this._pos(this._positions.name, isAbsolute);
-		},
-		
-		/**
-		 * Returns position of element value token
-		 * @param {Boolean} isAbsolute Return absolute position
-		 * @returns {Number}
-		 */
-		valuePosition: function(isAbsolute) {
-			return this._pos(this._positions.contentStart, isAbsolute);
-		},
-
-		/**
-		 * Returns element value range
-		 * @param {Boolean} isAbsolute Return absolute range
-		 * @returns {Range}
-		 */
-		valueRange: function(isAbsolute) {
-			return range.create2(this.valuePosition(isAbsolute), this._pos(this.valueOf().length, isAbsolute) - 1);
-		},
-		
-		/**
-		 * Adds new CSS property 
-		 * @param {String} name Property name
-		 * @param {String} value Property value
-		 * @param {Number} pos Position at which to insert new property. By 
-		 * default the property is inserted at the end of rule 
-		 * @returns {CSSEditProperty}
-		 */
-		add: function(name, value, pos) {
-			var list = this.list();
-			var start = this._positions.contentStart;
-			var styles = _.pick(this.options, 'styleBefore', 'styleSeparator');
-			
-			if (_.isUndefined(pos))
-				pos = list.length;
-			
-			/** @type CSSEditProperty */
-			var donor = list[pos];
-			if (donor) {
-				start = donor.fullRange().start;
-			} else if ((donor = list[pos - 1])) {
-				// make sure that donor has terminating semicolon
-				donor.end(';');
-				start = donor.range().end;
-			}
-			
-			if (donor) {
-				styles = _.pick(donor, 'styleBefore', 'styleSeparator');
-			}
-			
-			var nameToken = editTree.createToken(start + styles.styleBefore.length, name);
-			var valueToken = editTree.createToken(nameToken.end + styles.styleSeparator.length, value);
-			
-			var property = new CSSEditElement(this, nameToken, valueToken,
-					editTree.createToken(valueToken.end, ';'));
-			
-			_.extend(property, styles);
-			
-			// write new property into the source
-			this._updateSource(property.styleBefore + property.toString(), start);
-			
-			// insert new property
-			this._children.splice(pos, 0, property);
-			return property;
-		}
-	});
-	
-	/**
-	 * @class
-	 * @type CSSEditElement
-	 * @constructor
-	 */
-	var CSSEditElement = editTree.EditElement.extend({
-		initialize: function(rule, name, value, end) {
-			this.styleBefore = rule.options.styleBefore;
-			this.styleSeparator = rule.options.styleSeparator;
-			
-			this._end = end.value;
-			this._positions.end = end.start;
-		},
-		
-		/**
-		 * Returns ranges of complex value parts
-		 * @returns {Array} Returns <code>null</code> if value is not complex
-		 */
-		valueParts: function(isAbsolute) {
-			var parts = findParts(this.value());
-			if (isAbsolute) {
-				var offset = this.valuePosition(true);
-				_.each(parts, function(p) {
-					p.shift(offset);
-				});
-			}
-			
-			return parts;
-		},
-
-		/**
-		 * Sets of gets element value. 
-		 * When setting value, this implementation will ensure that your have 
-		 * proper name-value separator
-		 * @param {String} val New element value. If not passed, current 
-		 * value is returned
-		 * @returns {String}
-		 */
-		value: function(val) {
-			var isUpdating = !_.isUndefined(val);
-			var allItems = this.parent.list();
-			if (isUpdating && this.isIncomplete()) {
-				var self = this;
-				var donor = _.find(allItems, function(item) {
-					return item !== self && !item.isIncomplete();
-				});
-
-				this.styleSeparator = donor 
-					? donor.styleSeparator 
-					: this.parent.options.styleSeparator;
-				this.parent._updateSource(this.styleSeparator, range(this.valueRange().start, 0));
-			}
-
-			var value = this.constructor.__super__.value.apply(this, arguments);
-			if (isUpdating) {
-				// make sure current property has terminating semi-colon
-				// if it’s not the last one
-				var ix = _.indexOf(allItems, this);
-				if (ix !== allItems.length - 1 && !this.end()) {
-					this.end(';');
-				}
-			}
-			return value;
-		},
-
-		/**
-		 * Test if current element is incomplete, e.g. has no explicit
-		 * name-value separator
-		 * @return {Boolean} [description]
-		 */
-		isIncomplete: function() {
-			return this.nameRange().end === this.valueRange().start;
-		},
-		
-		/**
-		 * Sets of gets property end value (basically, it's a semicolon)
-		 * @param {String} val New end value. If not passed, current 
-		 * value is returned
-		 */
-		end: function(val) {
-			if (!_.isUndefined(val) && this._end !== val) {
-				this.parent._updateSource(val, this._positions.end, this._positions.end + this._end.length);
-				this._end = val;
-			}
-			
-			return this._end;
-		},
-		
-		/**
-		 * Returns full rule range, with indentation
-		 * @param {Boolean} isAbsolute Return absolute range (with respect of
-		 * rule offset)
-		 * @returns {Range}
-		 */
-		fullRange: function(isAbsolute) {
-			var r = this.range(isAbsolute);
-			r.start -= this.styleBefore.length;
-			return r;
-		},
-		
-		/**
-		 * Returns item string representation
-		 * @returns {String}
-		 */
-		valueOf: function() {
-			return this.name() + this.styleSeparator + this.value() + this.end();
-		}
-	});
-	
-	return {
-		/**
-		 * Parses CSS rule into editable tree
-		 * @param {String} source
-		 * @param {Object} options
-		 * @memberOf emmet.cssEditTree
-		 * @returns {EditContainer}
-		 */
-		parse: function(source, options) {
-			return new CSSEditContainer(source, options);
-		},
-		
-		/**
-		 * Extract and parse CSS rule from specified position in <code>content</code> 
-		 * @param {String} content CSS source code
-		 * @param {Number} pos Character position where to start source code extraction
-		 * @returns {EditContainer}
-		 */
-		parseFromPosition: function(content, pos, isBackward) {
-			var bounds = cssSections.locateRule(content, pos, isBackward);
-			if (!bounds || !bounds.inside(pos)) {
-				// no matching CSS rule or caret outside rule bounds
-				return null;
-			}
-			
-			return this.parse(bounds.substring(content), {
-				offset: bounds.start
-			});
-		},
-
-		/**
-		 * Locates CSS property in given CSS code fragment under specified character position
-		 * @param  {String} css CSS code or parsed CSSEditContainer
-		 * @param  {Number} pos Character position where to search CSS property
-		 * @return {CSSEditElement}
-		 */
-		propertyFromPosition: function(css, pos) {
-			var cssProp = null;
-			/** @type EditContainer */
-			var cssRule = _.isString(css) ? this.parseFromPosition(css, pos, true) : css;
-			if (cssRule) {
-				cssProp = cssRule.itemFromPosition(pos, true);
-				if (!cssProp) {
-					// in case user just started writing CSS property
-					// and didn't include semicolon–try another approach
-					cssProp = _.find(cssRule.list(), function(elem) {
-						return elem.range(true).end == pos;
-					});
-				}
-			}
-
-			return cssProp;
-		},
-		
-		/**
-		 * Removes vendor prefix from CSS property
-		 * @param {String} name CSS property
-		 * @return {String}
-		 */
-		baseName: function(name) {
-			return name.replace(/^\s*\-\w+\-/, '');
-		},
-		
-		/**
-		 * Finds parts of complex CSS value
-		 * @param {String} str
-		 * @returns {Array}
-		 */
-		findParts: findParts
-	};
-});
-/**
- * Resolver for fast CSS typing. Handles abbreviations with the following 
- * notation:<br>
- * 
- * <code>(-vendor prefix)?property(value)*(!)?</code>
- * 
- * <br><br>
- * <b>Abbreviation handling</b><br>
- * 
- * By default, Emmet searches for matching snippet definition for provided abbreviation.
- * If snippet wasn't found, Emmet automatically generates element with 
- * abbreviation's name. For example, <code>foo</code> abbreviation will generate
- * <code>&lt;foo&gt;&lt;/foo&gt;</code> output.
- * <br><br>
- * This module will capture all expanded properties and upgrade them with values, 
- * vendor prefixes and !important declarations. All unmatched abbreviations will 
- * be automatically transformed into <code>property-name: ${1}</code> snippets. 
- * 
- * <b>Vendor prefixes<b><br>
- * 
- * If CSS-property is preceded with dash, resolver should output property with
- * all <i>known</i> vendor prefixes. For example, if <code>brad</code> 
- * abbreviation generates <code>border-radius: ${value};</code> snippet,
- * the <code>-brad</code> abbreviation should generate:
- * <pre><code>
- * -webkit-border-radius: ${value};
- * -moz-border-radius: ${value};
- * border-radius: ${value};
- * </code></pre>
- * Note that <i>o</i> and <i>ms</i> prefixes are omitted since Opera and IE 
- * supports unprefixed property.<br><br>
- * 
- * Users can also provide an explicit list of one-character prefixes for any
- * CSS property. For example, <code>-wm-float</code> will produce
- * 
- * <pre><code>
- * -webkit-float: ${1};
- * -moz-float: ${1};
- * float: ${1};
- * </code></pre>
- * 
- * Although this example looks pointless, users can use this feature to write
- * cutting-edge properties implemented by browser vendors recently.  
- */
-if (typeof module === 'object' && typeof define !== 'function') {
-	var define = function (factory) {
-		module.exports = factory(require, exports, module);
-	};
-}
-
-define('resolver/css',['require','exports','module','lodash','../assets/preferences','../assets/resources','../assets/stringStream','../assets/caniuse','../utils/common','../editTree/css'],function(require, exports, module) {
-	var _ = require('lodash');
-	var prefs = require('../assets/preferences');
-	var resources = require('../assets/resources');
-	var stringStream = require('../assets/stringStream');
-	var ciu = require('../assets/caniuse');
-	var utils = require('../utils/common');
-	var cssEditTree = require('../editTree/css');
-
-	var prefixObj = {
-		/** Real vendor prefix name */
-		prefix: 'emmet',
-		
-		/** 
-		 * Indicates this prefix is obsolete and should't be used when user 
-		 * wants to generate all-prefixed properties
-		 */
-		obsolete: false,
-		
-		/**
-		 * Returns prefixed CSS property name
-		 * @param {String} name Unprefixed CSS property
-		 */
-		transformName: function(name) {
-			return '-' + this.prefix + '-' + name;
-		},
-		
-		/**
-		 * List of unprefixed CSS properties that supported by 
-		 * current prefix. This list is used to generate all-prefixed property
-		 * @returns {Array} 
-		 */
-		properties: function() {
-			return getProperties('css.' + this.prefix + 'Properties') || [];
-		},
-		
-		/**
-		 * Check if given property is supported by current prefix
-		 * @param name
-		 */
-		supports: function(name) {
-			return _.include(this.properties(), name);
-		}
-	};
-	
-	
-	/** 
-	 * List of registered one-character prefixes. Key is a one-character prefix, 
-	 * value is an <code>prefixObj</code> object
-	 */
-	var vendorPrefixes = {};
-	
-	var defaultValue = '${1};';
-	
-	// XXX module preferences
-	prefs.define('css.valueSeparator', ': ',
-			'Defines a symbol that should be placed between CSS property and ' 
-			+ 'value when expanding CSS abbreviations.');
-	prefs.define('css.propertyEnd', ';',
-			'Defines a symbol that should be placed at the end of CSS property  ' 
-			+ 'when expanding CSS abbreviations.');
-	
-	prefs.define('stylus.valueSeparator', ' ',
-			'Defines a symbol that should be placed between CSS property and ' 
-			+ 'value when expanding CSS abbreviations in Stylus dialect.');
-	prefs.define('stylus.propertyEnd', '',
-			'Defines a symbol that should be placed at the end of CSS property  ' 
-			+ 'when expanding CSS abbreviations in Stylus dialect.');
-	
-	prefs.define('sass.propertyEnd', '',
-			'Defines a symbol that should be placed at the end of CSS property  ' 
-			+ 'when expanding CSS abbreviations in SASS dialect.');
-
-	prefs.define('css.syntaxes', 'css, less, sass, scss, stylus, styl',
-			'List of syntaxes that should be treated as CSS dialects.');
-	
-	prefs.define('css.autoInsertVendorPrefixes', true,
-			'Automatically generate vendor-prefixed copies of expanded CSS ' 
-			+ 'property. By default, Emmet will generate vendor-prefixed '
-			+ 'properties only when you put dash before abbreviation ' 
-			+ '(e.g. <code>-bxsh</code>). With this option enabled, you don’t ' 
-			+ 'need dashes before abbreviations: Emmet will produce ' 
-			+ 'vendor-prefixed properties for you.');
-	
-	var descTemplate = _.template('A comma-separated list of CSS properties that may have ' 
-		+ '<code><%= vendor %></code> vendor prefix. This list is used to generate '
-		+ 'a list of prefixed properties when expanding <code>-property</code> '
-		+ 'abbreviations. Empty list means that all possible CSS values may ' 
-		+ 'have <code><%= vendor %></code> prefix.');
-	
-	var descAddonTemplate = _.template('A comma-separated list of <em>additional</em> CSS properties ' 
-			+ 'for <code>css.<%= vendor %>Preperties</code> preference. ' 
-			+ 'You should use this list if you want to add or remove a few CSS ' 
-			+ 'properties to original set. To add a new property, simply write its name, '
-			+ 'to remove it, precede property with hyphen.<br>'
-			+ 'For example, to add <em>foo</em> property and remove <em>border-radius</em> one, '
-			+ 'the preference value will look like this: <code>foo, -border-radius</code>.');
-	
-	// properties list is created from cssFeatures.html file
-	var props = {
-		'webkit': 'animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-clip, background-composite, background-origin, background-size, border-fit, border-horizontal-spacing, border-image, border-vertical-spacing, box-align, box-direction, box-flex, box-flex-group, box-lines, box-ordinal-group, box-orient, box-pack, box-reflect, box-shadow, color-correction, column-break-after, column-break-before, column-break-inside, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-span, column-width, dashboard-region, font-smoothing, highlight, hyphenate-character, hyphenate-limit-after, hyphenate-limit-before, hyphens, line-box-contain, line-break, line-clamp, locale, margin-before-collapse, margin-after-collapse, marquee-direction, marquee-increment, marquee-repetition, marquee-style, mask-attachment, mask-box-image, mask-box-image-outset, mask-box-image-repeat, mask-box-image-slice, mask-box-image-source, mask-box-image-width, mask-clip, mask-composite, mask-image, mask-origin, mask-position, mask-repeat, mask-size, nbsp-mode, perspective, perspective-origin, rtl-ordering, text-combine, text-decorations-in-effect, text-emphasis-color, text-emphasis-position, text-emphasis-style, text-fill-color, text-orientation, text-security, text-stroke-color, text-stroke-width, transform, transition, transform-origin, transform-style, transition-delay, transition-duration, transition-property, transition-timing-function, user-drag, user-modify, user-select, writing-mode, svg-shadow, box-sizing, border-radius',
-		'moz': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-inline-policy, binding, border-bottom-colors, border-image, border-left-colors, border-right-colors, border-top-colors, box-align, box-direction, box-flex, box-ordinal-group, box-orient, box-pack, box-shadow, box-sizing, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-width, float-edge, font-feature-settings, font-language-override, force-broken-image-icon, hyphens, image-region, orient, outline-radius-bottomleft, outline-radius-bottomright, outline-radius-topleft, outline-radius-topright, perspective, perspective-origin, stack-sizing, tab-size, text-blink, text-decoration-color, text-decoration-line, text-decoration-style, text-size-adjust, transform, transform-origin, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-focus, user-input, user-modify, user-select, window-shadow, background-clip, border-radius',
-		'ms': 'accelerator, backface-visibility, background-position-x, background-position-y, behavior, block-progression, box-align, box-direction, box-flex, box-line-progression, box-lines, box-ordinal-group, box-orient, box-pack, content-zoom-boundary, content-zoom-boundary-max, content-zoom-boundary-min, content-zoom-chaining, content-zoom-snap, content-zoom-snap-points, content-zoom-snap-type, content-zooming, filter, flow-from, flow-into, font-feature-settings, grid-column, grid-column-align, grid-column-span, grid-columns, grid-layer, grid-row, grid-row-align, grid-row-span, grid-rows, high-contrast-adjust, hyphenate-limit-chars, hyphenate-limit-lines, hyphenate-limit-zone, hyphens, ime-mode, interpolation-mode, layout-flow, layout-grid, layout-grid-char, layout-grid-line, layout-grid-mode, layout-grid-type, line-break, overflow-style, perspective, perspective-origin, perspective-origin-x, perspective-origin-y, scroll-boundary, scroll-boundary-bottom, scroll-boundary-left, scroll-boundary-right, scroll-boundary-top, scroll-chaining, scroll-rails, scroll-snap-points-x, scroll-snap-points-y, scroll-snap-type, scroll-snap-x, scroll-snap-y, scrollbar-arrow-color, scrollbar-base-color, scrollbar-darkshadow-color, scrollbar-face-color, scrollbar-highlight-color, scrollbar-shadow-color, scrollbar-track-color, text-align-last, text-autospace, text-justify, text-kashida-space, text-overflow, text-size-adjust, text-underline-position, touch-action, transform, transform-origin, transform-origin-x, transform-origin-y, transform-origin-z, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-select, word-break, wrap-flow, wrap-margin, wrap-through, writing-mode',
-		'o': 'dashboard-region, animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, border-image, link, link-source, object-fit, object-position, tab-size, table-baseline, transform, transform-origin, transition, transition-delay, transition-duration, transition-property, transition-timing-function, accesskey, input-format, input-required, marquee-dir, marquee-loop, marquee-speed, marquee-style'
-	};
-	
-	_.each(props, function(v, k) {
-		prefs.define('css.' + k + 'Properties', v, descTemplate({vendor: k}));
-		prefs.define('css.' + k + 'PropertiesAddon', '', descAddonTemplate({vendor: k}));
-	});
-	
-	prefs.define('css.unitlessProperties', 'z-index, line-height, opacity, font-weight, zoom', 
-			'The list of properties whose values ​​must not contain units.');
-	
-	prefs.define('css.intUnit', 'px', 'Default unit for integer values');
-	prefs.define('css.floatUnit', 'em', 'Default unit for float values');
-	
-	prefs.define('css.keywords', 'auto, inherit, all', 
-			'A comma-separated list of valid keywords that can be used in CSS abbreviations.');
-	
-	prefs.define('css.keywordAliases', 'a:auto, i:inherit, s:solid, da:dashed, do:dotted, t:transparent', 
-			'A comma-separated list of keyword aliases, used in CSS abbreviation. '
-			+ 'Each alias should be defined as <code>alias:keyword_name</code>.');
-	
-	prefs.define('css.unitAliases', 'e:em, p:%, x:ex, r:rem', 
-			'A comma-separated list of unit aliases, used in CSS abbreviation. '
-			+ 'Each alias should be defined as <code>alias:unit_value</code>.');
-	
-	prefs.define('css.color.short', true, 
-			'Should color values like <code>#ffffff</code> be shortened to '
-			+ '<code>#fff</code> after abbreviation with color was expanded.');
-	
-	prefs.define('css.color.case', 'keep', 
-			'Letter case of color values generated by abbreviations with color '
-			+ '(like <code>c#0</code>). Possible values are <code>upper</code>, '
-			+ '<code>lower</code> and <code>keep</code>.');
-	
-	prefs.define('css.fuzzySearch', true, 
-			'Enable fuzzy search among CSS snippet names. When enabled, every ' 
-			+ '<em>unknown</em> snippet will be scored against available snippet '
-			+ 'names (not values or CSS properties!). The match with best score '
-			+ 'will be used to resolve snippet value. For example, with this ' 
-			+ 'preference enabled, the following abbreviations are equal: '
-			+ '<code>ov:h</code> == <code>ov-h</code> == <code>o-h</code> == '
-			+ '<code>oh</code>');
-	
-	prefs.define('css.fuzzySearchMinScore', 0.3, 
-			'The minium score (from 0 to 1) that fuzzy-matched abbreviation should ' 
-			+ 'achive. Lower values may produce many false-positive matches, '
-			+ 'higher values may reduce possible matches.');
-	
-	prefs.define('css.alignVendor', false, 
-			'If set to <code>true</code>, all generated vendor-prefixed properties ' 
-			+ 'will be aligned by real property name.');
-	
-	
-	function isNumeric(ch) {
-		var code = ch && ch.charCodeAt(0);
-		return (ch && ch == '.' || (code > 47 && code < 58));
-	}
-	
-	/**
-	 * Check if provided snippet contains only one CSS property and value.
-	 * @param {String} snippet
-	 * @returns {Boolean}
-	 */
-	function isSingleProperty(snippet) {
-		snippet = utils.trim(snippet);
-		
-		// check if it doesn't contain a comment and a newline
-		if (/\/\*|\n|\r/.test(snippet)) {
-			return false;
-		}
-		
-		// check if it's a valid snippet definition
-		if (!/^[a-z0-9\-]+\s*\:/i.test(snippet)) {
-			return false;
-		}
-		
-		return snippet.replace(/\$\{.+?\}/g, '').split(':').length == 2;
-	}
-	
-	/**
-	 * Normalizes abbreviated value to final CSS one
-	 * @param {String} value
-	 * @returns {String}
-	 */
-	function normalizeValue(value) {
-		if (value.charAt(0) == '-' && !/^\-[\.\d]/.test(value)) {
-			value = value.replace(/^\-+/, '');
-		}
-		
-		var ch = value.charAt(0);
-		if (ch == '#') {
-			return normalizeHexColor(value);
-		}
-
-		if (ch == '$') {
-			return utils.escapeText(value);
-		}
-
-		return getKeyword(value);
-	}
-	
-	function normalizeHexColor(value) {
-		var hex = value.replace(/^#+/, '') || '0';
-		if (hex.toLowerCase() == 't') {
-			return 'transparent';
-		}
-
-		var opacity = '';
-		hex = hex.replace(/\.(\d+)$/, function(str) {
-			opacity = '0' + str;
-			return '';
-		});
-		
-		var repeat = utils.repeatString;
-		var color = null;
-		switch (hex.length) {
-			case 1:
-				color = repeat(hex, 6);
-				break;
-			case 2:
-				color = repeat(hex, 3);
-				break;
-			case 3:
-				color = hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
-				break;
-			case 4:
-				color = hex + hex.substr(0, 2);
-				break;
-			case 5:
-				color = hex + hex.charAt(0);
-				break;
-			default:
-				color = hex.substr(0, 6);
-		}
-
-		if (opacity) {
-			return toRgba(color, opacity);
-		}
-		
-		// color must be shortened?
-		if (prefs.get('css.color.short')) {
-			var p = color.split('');
-			if (p[0] == p[1] && p[2] == p[3] && p[4] == p[5]) {
-				color = p[0] + p[2] + p[4];
-			}
-		}
-		
-		// should transform case?
-		switch (prefs.get('css.color.case')) {
-			case 'upper':
-				color = color.toUpperCase();
-				break;
-			case 'lower':
-				color = color.toLowerCase();
-				break;
-		}
-		
-		return '#' + color;
-	}
-
-	/**
-	 * Transforms HEX color definition into RGBA one
-	 * @param  {String} color   HEX color, 6 characters
-	 * @param  {String} opacity Opacity value
-	 * @return {String}
-	 */
-	function toRgba(color, opacity) {
-		var r = parseInt(color.substr(0, 2), 16);
-		var g = parseInt(color.substr(2, 2), 16);
-		var b = parseInt(color.substr(4, 2), 16);
-
-		return 'rgba(' + [r, g, b, opacity].join(', ') + ')';
-	}
-	
-	function getKeyword(name) {
-		var aliases = prefs.getDict('css.keywordAliases');
-		return name in aliases ? aliases[name] : name;
-	}
-	
-	function getUnit(name) {
-		var aliases = prefs.getDict('css.unitAliases');
-		return name in aliases ? aliases[name] : name;
-	}
-	
-	function isValidKeyword(keyword) {
-		return _.include(prefs.getArray('css.keywords'), getKeyword(keyword));
-	}
-	
-	/**
-	 * Check if passed CSS property support specified vendor prefix 
-	 * @param {String} property
-	 * @param {String} prefix
-	 */
-	function hasPrefix(property, prefix) {
-		var info = vendorPrefixes[prefix];
-		
-		if (!info)
-			info = _.find(vendorPrefixes, function(data) {
-				return data.prefix == prefix;
-			});
-		
-		return info && info.supports(property);
-	}
-
-	/**
-	 * Finds available vendor prefixes for given CSS property.
-	 * Search is performed within Can I Use database and internal
-	 * property list
-	 * @param  {String} property CSS property name
-	 * @return {Array} Array of resolved prefixes or null if
-	 * prefixes are not available for this property at all.
-	 * Empty array means prefixes are not available for current
-	 * user-define era
-	 */
-	function findVendorPrefixes(property) {
-		var prefixes = ciu.resolvePrefixes(property);
-		if (!prefixes) {
-			// Can I Use database is disabled or prefixes are not
-			// available for this property
-			prefixes = [];
-			_.each(vendorPrefixes, function(obj, key) {
-				if (hasPrefix(property, key)) {
-					prefixes.push(obj.prefix);
-				}
-			});
-
-			if (!prefixes.length) {
-				prefixes = null;
-			}
-		}
-
-		return prefixes;
-	}
-	
-	/**
-	 * Search for a list of supported prefixes for CSS property. This list
-	 * is used to generate all-prefixed snippet
-	 * @param {String} property CSS property name
-	 * @returns {Array}
-	 */
-	function findInternalPrefixes(property, noAutofill) {
-		var result = [];
-		var prefixes = findVendorPrefixes(property);
-		
-		if (prefixes) {
-			var prefixMap = {};
-			_.each(vendorPrefixes, function(obj, name) {
-				prefixMap[obj.prefix] = name;
-			});
-
-			result = _.map(prefixes, function(prefix) {
-				return prefixMap[prefix];
-			});
-		}
-		
-		if (!result.length && !noAutofill) {
-			// add all non-obsolete prefixes
-			_.each(vendorPrefixes, function(obj, prefix) {
-				if (!obj.obsolete)
-					result.push(prefix);
-			});
-		}
-		
-		return result;
-	}
-	
-	function addPrefix(name, obj) {
-		if (_.isString(obj))
-			obj = {prefix: obj};
-		
-		vendorPrefixes[name] = _.extend({}, prefixObj, obj);
-	}
-	
-	function getSyntaxPreference(name, syntax) {
-		if (syntax) {
-			// hacky alias for Stylus dialect
-			if (syntax == 'styl') {
-				syntax = 'stylus';
-			}
-
-			var val = prefs.get(syntax + '.' + name);
-			if (!_.isUndefined(val))
-				return val;
-		}
-		
-		return prefs.get('css.' + name);
-	}
-	
-	/**
-	 * Format CSS property according to current syntax dialect
-	 * @param {String} property
-	 * @param {String} syntax
-	 * @returns {String}
-	 */
-	function formatProperty(property, syntax) {
-		var ix = property.indexOf(':');
-		property = property.substring(0, ix).replace(/\s+$/, '') 
-			+ getSyntaxPreference('valueSeparator', syntax)
-			+ utils.trim(property.substring(ix + 1));
-		
-		return property.replace(/\s*;\s*$/, getSyntaxPreference('propertyEnd', syntax));
-	}
-	
-	/**
-	 * Transforms snippet value if required. For example, this transformation
-	 * may add <i>!important</i> declaration to CSS property
-	 * @param {String} snippet
-	 * @param {Boolean} isImportant
-	 * @returns {String}
-	 */
-	function transformSnippet(snippet, isImportant, syntax) {
-		if (!_.isString(snippet))
-			snippet = snippet.data;
-		
-		if (!isSingleProperty(snippet))
-			return snippet;
-		
-		if (isImportant) {
-			if (~snippet.indexOf(';')) {
-				snippet = snippet.split(';').join(' !important;');
-			} else {
-				snippet += ' !important';
-			}
-		}
-		
-		return formatProperty(snippet, syntax);
-	}
-	
-	function getProperties(key) {
-		var list = prefs.getArray(key);
-		_.each(prefs.getArray(key + 'Addon'), function(prop) {
-			if (prop.charAt(0) == '-') {
-				list = _.without(list, prop.substr(1));
-			} else {
-				if (prop.charAt(0) == '+')
-					prop = prop.substr(1);
-				
-				list.push(prop);
-			}
-		});
-		
-		return list;
-	}
-
-	/**
-	 * Tries to produce properties with vendor-prefixed value
-	 * @param  {Object} snippetObj Parsed snippet object
-	 * @return {Array} Array of properties with prefixed values
-	 */
-	function resolvePrefixedValues(snippetObj, isImportant, syntax) {
-		var prefixes = [];
-		var lookup = {};
-
-		var parts = cssEditTree.findParts(snippetObj.value);
-		parts.reverse();
-		_.each(parts, function(p) {
-			var partValue = p.substring(snippetObj.value);
-			_.each(findVendorPrefixes(partValue), function(prefix) {
-				if (!lookup[prefix]) {
-					lookup[prefix] = snippetObj.value;
-					prefixes.push(prefix);
-				}
-
-				lookup[prefix] = utils.replaceSubstring(lookup[prefix], '-' + prefix + '-' + partValue, p);
-			});
-		});
-
-		return _.map(prefixes, function(prefix) {
-			return transformSnippet(snippetObj.name + ':' + lookup[prefix], isImportant, syntax);
-		});
-	}
-	
-	
-	// TODO refactor, this looks awkward now
-	addPrefix('w', {
-		prefix: 'webkit'
-	});
-	addPrefix('m', {
-		prefix: 'moz'
-	});
-	addPrefix('s', {
-		prefix: 'ms'
-	});
-	addPrefix('o', {
-		prefix: 'o'
-	});
-	
-	
-	module = module || {};
-	module.exports = {
-		/**
-		 * Adds vendor prefix
-		 * @param {String} name One-character prefix name
-		 * @param {Object} obj Object describing vendor prefix
-		 * @memberOf cssResolver
-		 */
-		addPrefix: addPrefix,
-		
-		/**
-		 * Check if passed CSS property supports specified vendor prefix
-		 * @param {String} property
-		 * @param {String} prefix
-		 */
-		supportsPrefix: hasPrefix,
-
-		resolve: function(node, syntax) {
-			var cssSyntaxes = prefs.getArray('css.syntaxes');
-			if (_.include(cssSyntaxes, syntax) && node.isElement()) {
-				return this.expandToSnippet(node.abbreviation, syntax);
-			}
-			
-			return null;
-		},
-
-		/**
-		 * Returns prefixed version of passed CSS property, only if this
-		 * property supports such prefix
-		 * @param {String} property
-		 * @param {String} prefix
-		 * @returns
-		 */
-		prefixed: function(property, prefix) {
-			return hasPrefix(property, prefix) 
-				? '-' + prefix + '-' + property 
-				: property;
-		},
-		
-		/**
-		 * Returns list of all registered vendor prefixes
-		 * @returns {Array}
-		 */
-		listPrefixes: function() {
-			return _.map(vendorPrefixes, function(obj) {
-				return obj.prefix;
-			});
-		},
-		
-		/**
-		 * Returns object describing vendor prefix
-		 * @param {String} name
-		 * @returns {Object}
-		 */
-		getPrefix: function(name) {
-			return vendorPrefixes[name];
-		},
-		
-		/**
-		 * Removes prefix object
-		 * @param {String} name
-		 */
-		removePrefix: function(name) {
-			if (name in vendorPrefixes)
-				delete vendorPrefixes[name];
-		},
-		
-		/**
-		 * Extract vendor prefixes from abbreviation
-		 * @param {String} abbr
-		 * @returns {Object} Object containing array of prefixes and clean 
-		 * abbreviation name
-		 */
-		extractPrefixes: function(abbr) {
-			if (abbr.charAt(0) != '-') {
-				return {
-					property: abbr,
-					prefixes: null
-				};
-			}
-			
-			// abbreviation may either contain sequence of one-character prefixes
-			// or just dash, meaning that user wants to produce all possible
-			// prefixed properties
-			var i = 1, il = abbr.length, ch;
-			var prefixes = [];
-			
-			while (i < il) {
-				ch = abbr.charAt(i);
-				if (ch == '-') {
-					// end-sequence character found, stop searching
-					i++;
-					break;
-				}
-				
-				if (ch in vendorPrefixes) {
-					prefixes.push(ch);
-				} else {
-					// no prefix found, meaning user want to produce all
-					// vendor-prefixed properties
-					prefixes.length = 0;
-					i = 1;
-					break;
-				}
-				
-				i++;
-			}
-			
-			// reached end of abbreviation and no property name left
-			if (i == il -1) {
-				i = 1;
-				prefixes.length = 1;
-			}
-			
-			return {
-				property: abbr.substring(i),
-				prefixes: prefixes.length ? prefixes : 'all'
-			};
-		},
-		
-		/**
-		 * Search for value substring in abbreviation
-		 * @param {String} abbr
-		 * @returns {String} Value substring
-		 */
-		findValuesInAbbreviation: function(abbr, syntax) {
-			syntax = syntax || 'css';
-			
-			var i = 0, il = abbr.length, value = '', ch;
-			while (i < il) {
-				ch = abbr.charAt(i);
-				if (isNumeric(ch) || ch == '#' || ch == '$' || (ch == '-' && isNumeric(abbr.charAt(i + 1)))) {
-					value = abbr.substring(i);
-					break;
-				}
-				
-				i++;
-			}
-			
-			// try to find keywords in abbreviation
-			var property = abbr.substring(0, abbr.length - value.length);
-			var keywords = [];
-			// try to extract some commonly-used properties
-			while (~property.indexOf('-') && !resources.findSnippet(syntax, property)) {
-				var parts = property.split('-');
-				var lastPart = parts.pop();
-				if (!isValidKeyword(lastPart)) {
-					break;
-				}
-				
-				keywords.unshift(lastPart);
-				property = parts.join('-');
-			}
-
-			return keywords.join('-') + value;
-		},
-		
-		parseValues: function(str) {
-			/** @type StringStream */
-			var stream = stringStream.create(str);
-			var values = [];
-			var ch = null;
-			
-			while ((ch = stream.next())) {
-				if (ch == '$') {
-					stream.match(/^[^\$]+/, true);
-					values.push(stream.current());
-				} else if (ch == '#') {
-					stream.match(/^t|[0-9a-f]+(\.\d+)?/i, true);
-					values.push(stream.current());
-				} else if (ch == '-') {
-					if (isValidKeyword(_.last(values)) || 
-							( stream.start && isNumeric(str.charAt(stream.start - 1)) )
-						) {
-						stream.start = stream.pos;
-					}
-					
-					stream.match(/^\-?[0-9]*(\.[0-9]+)?[a-z%\.]*/, true);
-					values.push(stream.current());
-				} else {
-					stream.match(/^[0-9]*(\.[0-9]*)?[a-z%]*/, true);
-					values.push(stream.current());
-				}
-				
-				stream.start = stream.pos;
-			}
-			
-			return _.map(_.compact(values), normalizeValue);
-		},
-		
-		/**
-		 * Extracts values from abbreviation
-		 * @param {String} abbr
-		 * @returns {Object} Object containing array of values and clean 
-		 * abbreviation name
-		 */
-		extractValues: function(abbr) {
-			// search for value start
-			var abbrValues = this.findValuesInAbbreviation(abbr);
-			if (!abbrValues) {
-				return {
-					property: abbr,
-					values: null
-				};
-			}
-			
-			return {
-				property: abbr.substring(0, abbr.length - abbrValues.length).replace(/-$/, ''),
-				values: this.parseValues(abbrValues)
-			};
-		},
-		
-		/**
-		 * Normalizes value, defined in abbreviation.
-		 * @param {String} value
-		 * @param {String} property
-		 * @returns {String}
-		 */
-		normalizeValue: function(value, property) {
-			property = (property || '').toLowerCase();
-			var unitlessProps = prefs.getArray('css.unitlessProperties');
-			return value.replace(/^(\-?[0-9\.]+)([a-z]*)$/, function(str, val, unit) {
-				if (!unit && (val == '0' || _.include(unitlessProps, property)))
-					return val;
-				
-				if (!unit)
-					return val.replace(/\.$/, '') + prefs.get(~val.indexOf('.') ? 'css.floatUnit' : 'css.intUnit');
-				
-				return val + getUnit(unit);
-			});
-		},
-		
-		/**
-		 * Expands abbreviation into a snippet
-		 * @param {String} abbr Abbreviation name to expand
-		 * @param {String} value Abbreviation value
-		 * @param {String} syntax Currect syntax or dialect. Default is 'css'
-		 * @returns {Object} Array of CSS properties and values or predefined
-		 * snippet (string or element)
-		 */
-		expand: function(abbr, value, syntax) {
-			syntax = syntax || 'css';
-			var autoInsertPrefixes = prefs.get('css.autoInsertVendorPrefixes');
-			
-			// check if snippet should be transformed to !important
-			var isImportant = /^(.+)\!$/.test(abbr);
-			if (isImportant) {
-				abbr = RegExp.$1;
-			}
-
-			// check if we have abbreviated resource
-			var snippet = resources.findSnippet(syntax, abbr);
-			if (snippet && !autoInsertPrefixes) {
-				return transformSnippet(snippet, isImportant, syntax);
-			}
-			
-			// no abbreviated resource, parse abbreviation
-			var prefixData = this.extractPrefixes(abbr);
-			var valuesData = this.extractValues(prefixData.property);
-			var abbrData = _.extend(prefixData, valuesData);
-
-			if (!snippet) {
-				snippet = resources.findSnippet(syntax, abbrData.property);
-			} else {
-				abbrData.values = null;
-			}
-			
-			if (!snippet && prefs.get('css.fuzzySearch')) {
-				// let’s try fuzzy search
-				snippet = resources.fuzzyFindSnippet(syntax, abbrData.property, parseFloat(prefs.get('css.fuzzySearchMinScore')));
-			}
-			
-			if (!snippet) {
-				if (!abbrData.property) {
-					return null;
-				}
-				snippet = abbrData.property + ':' + defaultValue;
-			} else if (!_.isString(snippet)) {
-				snippet = snippet.data;
-			}
-			
-			if (!isSingleProperty(snippet)) {
-				return snippet;
-			}
-			
-			var snippetObj = this.splitSnippet(snippet);
-			var result = [];
-			if (!value && abbrData.values) {
-				value = _.map(abbrData.values, function(val) {
-					return this.normalizeValue(val, snippetObj.name);
-				}, this).join(' ') + ';';
-			}
-			
-			snippetObj.value = value || snippetObj.value;
-
-			var prefixes = abbrData.prefixes == 'all' || (!abbrData.prefixes && autoInsertPrefixes) 
-				? findInternalPrefixes(snippetObj.name, autoInsertPrefixes && abbrData.prefixes != 'all')
-				: abbrData.prefixes;
-				
-				
-			var names = [], propName;
-			_.each(prefixes, function(p) {
-				if (p in vendorPrefixes) {
-					propName = vendorPrefixes[p].transformName(snippetObj.name);
-					names.push(propName);
-					result.push(transformSnippet(propName + ':' + snippetObj.value,
-							isImportant, syntax));
-				}
-			});
-			
-			// put the original property
-			result.push(transformSnippet(snippetObj.name + ':' + snippetObj.value, isImportant, syntax));
-			names.push(snippetObj.name);
-
-			result = resolvePrefixedValues(snippetObj, isImportant, syntax).concat(result);
-			
-			if (prefs.get('css.alignVendor')) {
-				var pads = utils.getStringsPads(names);
-				result = _.map(result, function(prop, i) {
-					return pads[i] + prop;
-				});
-			}
-			
-			return result;
-		},
-		
-		/**
-		 * Same as <code>expand</code> method but transforms output into 
-		 * Emmet snippet
-		 * @param {String} abbr
-		 * @param {String} syntax
-		 * @returns {String}
-		 */
-		expandToSnippet: function(abbr, syntax) {
-			var snippet = this.expand(abbr, null, syntax);
-			if (snippet === null) {
-				return null;
-			}
-
-			if (_.isArray(snippet)) {
-				return snippet.join('\n');
-			}
-			
-			if (!_.isString(snippet)) {
-				return snippet.data;
-			}
-			
-			return snippet + '';
-		},
-		
-		/**
-		 * Split snippet into a CSS property-value pair
-		 * @param {String} snippet
-		 */
-		splitSnippet: function(snippet) {
-			snippet = utils.trim(snippet);
-			if (snippet.indexOf(':') == -1) {
-				return {
-					name: snippet,
-					value: defaultValue
-				};
-			}
-			
-			var pair = snippet.split(':');
-			
-			return {
-				name: utils.trim(pair.shift()),
-				// replace ${0} tabstop to produce valid vendor-prefixed values
-				// where possible
-				value: utils.trim(pair.join(':')).replace(/^(\$\{0\}|\$0)(\s*;?)$/, '${1}$2')
-			};
-		},
-		
-		getSyntaxPreference: getSyntaxPreference,
-		transformSnippet: transformSnippet,
-		vendorPrefixes: findVendorPrefixes
-	};
-
-	return module.exports;
-});
 /**
  * CSS linear gradient definition
  */
@@ -20840,9 +21834,11 @@ define('action/selectItem',['require','exports','module','lodash','../assets/ran
 		}
 
 		// return range next to caret
-		r = _.find(ranges, function(item) {
-			return item.end > selRange.start;
-		});
+		var test = 
+		r = _.find(ranges, isBackward 
+			? function(item) {return item.end < selRange.start;}
+			: function(item) {return item.end > selRange.start;}
+		);
 
 		if (!r) {
 			// can’t find anything, just pick first one
@@ -21901,9 +22897,14 @@ define('emmet',['require','exports','module','lodash','./utils/common','./action
 			var payload = {};
 			var userSnippets = null;
 			var that = this;
-			
+
+			// make sure file list contians only valid extension files
+			fileList = _.filter(fileList, function(f) {
+				var ext = file.getExt(f);
+				return ext === 'json' || ext === 'js';
+			});
+
 			var reader = _.bind(file.readText || file.read, file);
-			
 			var next = function() {
 				if (fileList.length) {
 					var f = fileList.shift();
@@ -22064,6 +23065,8 @@ define('emmet',['require','exports','module','lodash','./utils/common','./action
 			_.each(utils.parseJSON(profiles), function(options, name) {
 				profile.create(name, normalizeProfile(options));
 			});
-		}
+		},
+
+		require: require
 	};
 });var _emmet = require("emmet");_emmet.require = require;_emmet.define = define;return _emmet;}));
