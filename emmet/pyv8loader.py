@@ -407,7 +407,7 @@ class CurlDownloader(CliDownloader):
 		if not self.curl:
 			return False
 		command = [self.curl, '-f', '--user-agent', 'Emmet PyV8 Loader',
-			'--connect-timeout', str(int(timeout)), '-sS']
+			'--connect-timeout', str(int(timeout)), '-sSL']
 
 		command.append(url)
 

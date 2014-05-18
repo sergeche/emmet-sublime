@@ -157,7 +157,7 @@ class SublimeLoaderDelegate(LoaderDelegate):
 
 		sublime.set_timeout(lambda: sublime.status_message('PyV8 binary successfully loaded'), 0)
 
-	def on_error(self, exit_code=-1, thread=None):
+	def on_error(self, exit_code=-1, progress=None):
 		self.state = 'error'
 		sublime.set_timeout(lambda: show_pyv8_error(exit_code), 0)
 
