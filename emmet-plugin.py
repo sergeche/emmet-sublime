@@ -91,9 +91,16 @@ def init():
 	# detect extensions path
 	ext_path = settings.get('extensions_path', None)
 	if ext_path:
-		ext_path = os.path.expanduser(ext_path)
-		if not os.path.isabs(ext_path):
-			ext_path = os.path.normpath(os.path.join(sublime.packages_path(), ext_path))
+		try:
+			if not is_python3:
+				ext_path = ext_path.decode('utf-8')
+			ext_path = os.path.expanduser(ext_path)
+			if not os.path.isabs(ext_path):
+				ext_path = os.path.normpath(os.path.join(sublime.packages_path(), ext_path))
+		except Exception as e:
+			print('Unable to normalize extension path for Emmet: %s' % e)
+			ext_path = None
+		
 
 	# create JS environment
 	delegate = SublimeLoaderDelegate()
