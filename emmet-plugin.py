@@ -88,25 +88,11 @@ def init():
 		'sublimeGetOption': settings.get
 	}
 
-	# detect extensions path
-	ext_path = settings.get('extensions_path', None)
-	if ext_path:
-		try:
-			if not is_python3:
-				ext_path = ext_path.decode('utf-8')
-			ext_path = os.path.expanduser(ext_path)
-			if not os.path.isabs(ext_path):
-				ext_path = os.path.normpath(os.path.join(sublime.packages_path(), ext_path))
-		except Exception as e:
-			print('Unable to normalize extension path for Emmet: %s' % e)
-			ext_path = None
-		
-
 	# create JS environment
 	delegate = SublimeLoaderDelegate()
 	globals()['ctx'] = Context(
 		files=['../editor.js'], 
-		ext_path=ext_path, 
+		ext_path=get_extensions_path(), 
 		contrib=contrib, 
 		logger=delegate.log,
 		reader=js_file_reader
@@ -121,6 +107,20 @@ def init():
 
 	if settings.get('remove_html_completions', False):
 		sublime.set_timeout(cmpl.remove_html_completions, 2000)
+
+def get_extensions_path():
+	ext_path = settings.get('extensions_path', None)
+	if ext_path:
+		try:
+			if not is_python3:
+				ext_path = ext_path.decode('utf-8')
+			ext_path = os.path.expanduser(ext_path)
+			if not os.path.isabs(ext_path):
+				ext_path = os.path.normpath(os.path.join(sublime.packages_path(), ext_path))
+		except Exception as e:
+			print('Unable to normalize extension path for Emmet: %s' % e)
+			ext_path = None
+	return ext_path
 
 class SublimeLoaderDelegate(LoaderDelegate):
 	def __init__(self, settings=None):
@@ -234,7 +234,7 @@ def get_line_padding(line):
 	return m and m.group(0) or ''
 
 def update_settings():
-	ctx.set_ext_path(settings.get('extensions_path', None))
+	ctx.set_ext_path(get_extensions_path())
 
 	keys = ['snippets', 'preferences', 'syntaxProfiles', 'profiles']
 	payload = {}
