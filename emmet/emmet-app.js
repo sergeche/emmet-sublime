@@ -12569,6 +12569,11 @@ define('resolver/css',['require','exports','module','lodash','../assets/preferen
 			+ '(e.g. <code>-bxsh</code>). With this option enabled, you don’t ' 
 			+ 'need dashes before abbreviations: Emmet will produce ' 
 			+ 'vendor-prefixed properties for you.');
+
+	prefs.define('less.autoInsertVendorPrefixes', false, 'Same as <code>css.autoInsertVendorPrefixes</code> but for LESS syntax');
+	prefs.define('scss.autoInsertVendorPrefixes', false, 'Same as <code>css.autoInsertVendorPrefixes</code> but for SCSS syntax');
+	prefs.define('sass.autoInsertVendorPrefixes', false, 'Same as <code>css.autoInsertVendorPrefixes</code> but for SASS syntax');
+	prefs.define('stylus.autoInsertVendorPrefixes', false, 'Same as <code>css.autoInsertVendorPrefixes</code> but for Stylus syntax');
 	
 	var descTemplate = template('A comma-separated list of CSS properties that may have ' 
 		+ '<code><%= vendor %></code> vendor prefix. This list is used to generate '
