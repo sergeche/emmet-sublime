@@ -424,7 +424,7 @@ class CurlDownloader(CliDownloader):
 				return self.execute(command)
 			except NonCleanExitError as e:
 				if e.returncode == 22:
-					code = re.sub('^.*?(\d+)\s*$', '\\1', e.output)
+					code = re.sub('^.*?(\d+)\s*$', '\\1', e.output.decode())
 					if code == '503':
 						# GitHub and BitBucket seem to rate limit via 503
 						print('%s: Downloading %s was rate limited, trying again' % (__name__, url))
