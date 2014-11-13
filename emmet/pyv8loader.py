@@ -519,7 +519,7 @@ class PyV8Loader(threading.Thread):
 		if (is_ssl and has_ssl) or not is_ssl:
 			downloader = UrlLib2Downloader(self.delegate.settings)
 		else:
-			for downloader_class in [CurlDownloader, WgetDownloader]:
+			for downloader_class in [WgetDownloader, CurlDownloader]:
 				try:
 					downloader = downloader_class(self.delegate.settings)
 					break
