@@ -1,25 +1,20 @@
-function require(name) {
-	return emmet.require(name);
-}
-
 var _completions = {};
 
 // some caching data used during action sessions
 // make sure to call pyResetCache() before each new function call
 var __cache = {};
 
-var _ = require('lodash');
-var editorUtils = require('utils/editor');
-var actionUtils = require('utils/action');
-var range = require('assets/range');
-var tabStops = require('assets/tabStops');
-var utils = require('utils/common');
-var htmlMatcher = require('assets/htmlMatcher');
-var resources = require('assets/resources');
-var cssResolver = require('resolver/css');
-var abbreviationParser = require('parser/abbreviation');
-var expandAbbreviationAction = require('action/expandAbbreviation');
-var updateTagAction = require('action/updateTag');
+var editorUtils = emmet.utils.editor;
+var actionUtils = emmet.utils.action;
+var range = emmet.require('assets/range.js');
+var tabStops = emmet.tabStops;
+var utils = emmet.utils.common;
+var htmlMatcher = emmet.htmlMatcher;
+var resources = emmet.resources;
+var cssResolver = emmet.require('resolver/css.js');
+var abbreviationParser = emmet.require('parser/abbreviation.js');
+var expandAbbreviationAction = emmet.require('action/expandAbbreviation.js');
+var updateTagAction = emmet.require('action/updateTag.js');
 
 function activeView() {
 	return sublime.active_window().active_view();
@@ -69,9 +64,9 @@ var editorProxy = {
 	},
 
 	replaceContent: function(value, start, end, noIndent) {
-		if (_.isUndefined(end))
-			end = _.isUndefined(start) ? this.getContent().length : start;
-		if (_.isUndefined(start)) start = 0;
+		if (typeof end === 'undefined')
+			end = typeof start === 'undefined' ? this.getContent().length : start;
+		if (typeof start === 'undefined') start = 0;
 
 		// update tabstops: make sure all caret placeholder are unique
 		// by default, abbreviation parser generates all unlinked (un-mirrored)
@@ -346,7 +341,8 @@ function pyGetCSSCompletions(dialect) {
 
 	if (!_completions[dialect]) {
 		var all = resources.getAllSnippets(dialect);
-		_completions[dialect] = _.map(all, function(v, k) {
+		_completions[dialect] = Object.keys(all).map(function(k) {
+			var v = all[k];
 			var snippetValue = typeof v.parsedValue == 'object' 
 				? v.parsedValue.data
 				: v.value;

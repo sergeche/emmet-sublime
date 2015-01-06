@@ -4,8 +4,21 @@ var console = {
 	}
 };
 
-if (typeof _ == 'undefined') {
-	_ = emmet.require('lodash');
+function _toArray(obj, ix) {
+	// Some array-like objects coming from Python
+	// cannot be converted with simple Array#slice call.
+	ix = ix || 0;
+	if ('length' in obj) {
+		return Array.prototype.slice.call(obj, ix);
+	}
+
+	// Convert object manually
+	var out = [];
+	var keys = Object.keys(obj);
+	for (var i = ix || 0, il = keys.length; i < il; i++) {
+		out.push(obj[keys[i]]);
+	}
+	return out;
 }
 
 /**
@@ -30,24 +43,22 @@ function pyLoadUserData(data) {
 }
 
 function pyLoadExtensions(fileList) {
-	fileList = _.toArray(fileList);
-	emmet.loadExtensions(fileList);
+	emmet.loadExtensions(_toArray(fileList));
 }
 
 function pyResetUserData() {
 	emmet.resetUserData();
 }
 
-emmet.require('plugin/file')({
+emmet.file({
 	_parseParams: function(args) {
 		var params = {
 			path: args[0],
 			size: -1
 		};
 
-		args = _.rest(args);
-		params.callback = _.last(args);
-		args = _.initial(args);
+		args = _toArray(args, 1);
+		params.callback = args.pop();
 		if (args.length) {
 			params.size = args[0];
 		}
@@ -64,7 +75,7 @@ emmet.require('plugin/file')({
 					return params.callback(err, content);
 				}
 
-				content = _.map(content || [], function(b) {
+				content = _toArray(content || []).map(function(b) {
 					return String.fromCharCode(b);
 				}).join('');
 				params.callback(null, content);

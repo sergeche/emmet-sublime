@@ -47,7 +47,7 @@ def set_global_context(ctx):
 
 ################################################
 
-core_files = ['emmet-app.js', 'python-wrapper.js']
+core_files = ['bootstrap.js', 'emmet-app.js', 'python-wrapper.js']
 
 def should_use_unicode():
 	"""
@@ -226,6 +226,11 @@ class Context():
 							self.lock = None
 
 			self._ctx = JSContext()
+
+			with self._ctx as ctx:
+				# expose some methods
+				ctx.locals.log = js_log
+				ctx.locals.pyFile = File()
 		
 			for f in self._core_files:
 				self.eval_js_file(f)
@@ -234,10 +239,6 @@ class Context():
 				# load default snippets
 				ctx.locals.pyLoadSystemSnippets(self.read_js_file(make_path('snippets.json')))
 				ctx.locals.pyLoadCIU(self.read_js_file(make_path('caniuse.json')))
-
-				# expose some methods
-				ctx.locals.log = js_log
-				ctx.locals.pyFile = File()
 
 				if self._contrib:
 					for k in self._contrib:
