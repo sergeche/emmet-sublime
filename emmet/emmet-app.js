@@ -3032,9 +3032,10 @@ define(function(require, exports, module) {
 		}
 		larger.forEach(function(item) {
 			if (~smaller.indexOf(item)) {
-				result.push(result);
+				result.push(item);
 			}
 		});
+		return result;
 	}
 
 	/**
