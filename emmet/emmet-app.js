@@ -272,6 +272,7 @@ define(function(require, exports, module) {
 		require: require,
 
 		// expose some useful data for plugin authors
+		actions: actions,
 		file: file,
 		preferences: preferences,
 		resources: resources,
@@ -8119,7 +8120,38 @@ define(function(require, exports, module) {
 		return tree;
 	};
 });
-},{"../assets/profile":"assets/profile.js","../assets/tabStops":"assets/tabStops.js","../utils/abbreviation":"utils/abbreviation.js","../utils/common":"utils/common.js","./format":"filter/format.js"}],"filter/main.js":[function(require,module,exports){
+},{"../assets/profile":"assets/profile.js","../assets/tabStops":"assets/tabStops.js","../utils/abbreviation":"utils/abbreviation.js","../utils/common":"utils/common.js","./format":"filter/format.js"}],"filter/jsx.js":[function(require,module,exports){
+/**
+ * A filter for React.js (JSX):
+ * ranames attributes like `class` and `for`
+ * for proper representation in JSX
+ */
+if (typeof module === 'object' && typeof define !== 'function') {
+	var define = function (factory) {
+		module.exports = factory(require, exports, module);
+	};
+}
+
+define(function(require, exports, module) {
+	var attrMap = {
+		'class': 'className',
+		'for': 'htmlFor'
+	};
+
+	return function process(tree) {
+		tree.children.forEach(function(item) {
+			item._attributes.forEach(function(attr) {
+				if (attr.name in attrMap) {
+					attr.name = attrMap[attr.name]
+				}
+			});
+			process(item);
+		});
+
+		return tree;
+	};
+});
+},{}],"filter/main.js":[function(require,module,exports){
 /**
  * Module for handling filters
  */
@@ -8139,6 +8171,7 @@ define(function(require, exports, module) {
 		html: require('./html'),
 		haml: require('./haml'),
 		jade: require('./jade'),
+		jsx: require('./jsx'),
 		slim: require('./slim'),
 		xsl: require('./xsl'),
 		css: require('./css'),
@@ -8243,7 +8276,7 @@ define(function(require, exports, module) {
 		}
 	};
 });
-},{"../assets/profile":"assets/profile.js","../assets/resources":"assets/resources.js","../utils/common":"utils/common.js","./bem":"filter/bem.js","./comment":"filter/comment.js","./css":"filter/css.js","./escape":"filter/escape.js","./haml":"filter/haml.js","./html":"filter/html.js","./jade":"filter/jade.js","./singleLine":"filter/singleLine.js","./slim":"filter/slim.js","./trim":"filter/trim.js","./xsl":"filter/xsl.js"}],"filter/singleLine.js":[function(require,module,exports){
+},{"../assets/profile":"assets/profile.js","../assets/resources":"assets/resources.js","../utils/common":"utils/common.js","./bem":"filter/bem.js","./comment":"filter/comment.js","./css":"filter/css.js","./escape":"filter/escape.js","./haml":"filter/haml.js","./html":"filter/html.js","./jade":"filter/jade.js","./jsx":"filter/jsx.js","./singleLine":"filter/singleLine.js","./slim":"filter/slim.js","./trim":"filter/trim.js","./xsl":"filter/xsl.js"}],"filter/singleLine.js":[function(require,module,exports){
 /**
  * Output abbreviation on a single line (i.e. no line breaks)
  */
@@ -15219,7 +15252,6 @@ define(function(require, exports, module) {
 				indentation: resources.getVariable('indentation')
 			}, options);
 
-			var reIndent = /^\t+/;
 			var indent = function(tabs) {
 				return utils.repeatString(options.indentation, tabs.length);
 			};
@@ -15229,7 +15261,9 @@ define(function(require, exports, module) {
 			// normailze indentation if it’s not tabs
 			if (options.indentation !== '\t') {
 				lines = lines.map(function(line) {
-					return line.replace(reIndent, indent);
+					return line.replace(/^\s+/, function(space) {
+						return space.replace(/\t/g, indent);
+					});
 				});
 			}
 

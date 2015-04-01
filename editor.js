@@ -371,6 +371,10 @@ function pyGetSyntax() {
 		return 'xsl';
 	}
 
+	if (!/\bstring\b/.test(scope) && /\bsource\.jsx?\b/.test(scope)) {
+		return 'jsx';
+	}
+
 	var syntax = 'html';
 
 	if (!/\bstring\b/.test(scope) && /\bsource\.([\w\-]+)/.test(scope) && resources.hasSyntax(RegExp.$1)) {
