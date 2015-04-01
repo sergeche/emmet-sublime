@@ -28,16 +28,6 @@ Manually:
 
 **WARNING**: When plugin is installed, it will automatically download required PyV8 binary so you have to wait a bit (see _Loading PyV8 binary_ message on status bar). If you experience issues with automatic PyV8 loader, try to [install it manually](https://github.com/emmetio/pyv8-binaries).
 
-## New features of Emmet (compared with old Zen Coding)
-
-* [Dynamic CSS abbreviations](http://docs.emmet.io/css-abbreviations/), automatic [vendor prefixes](http://docs.emmet.io/css-abbreviations/vendor-prefixes/) and [gradient generator](http://docs.emmet.io/css-abbreviations/gradients/).
-* [“Lorem Ipsum” generator](http://docs.emmet.io/abbreviations/lorem-ipsum/)
-* [Implicit tag names](http://docs.emmet.io/abbreviations/implicit-names/)
-* New [Yandex’s BEM filter](http://docs.emmet.io/filters/bem/)
-* [Extensions support](http://docs.emmet.io/customization/)
-* New [^ operator](http://docs.emmet.io/abbreviations/syntax/)
-* Various fixes and improvements
-
 ## Available actions ##
 
 * [Expand Abbreviation](http://docs.emmet.io/actions/expand-abbreviation/) – <kbd>Tab</kbd> or <kbd>Ctrl+E</kbd>
