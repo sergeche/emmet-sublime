@@ -162,3 +162,13 @@ To fine-tune Tab key handler, you can use the following settings in user’s `Em
 * `known_html_tags` — a space-separated list of all known HTML tags used for lookup as described above.
 
 If you’re unhappy with Emmet tab handler behavior, you can disable it: just add `"disable_tab_abbreviations": true` into user’s `Preferences.sublime-settings` file.
+
+## Disable automatic vendor prefixes insertion
+If your workflow already includes an automated task for CSS vendor prefixing (such as [Autoprefixer](https://github.com/postcss/autoprefixer)), you can disable Emmet's automatic vendor prefixes insertion adding this option to your user’s `Emmet.sublime-settings` file:
+```json
+{
+  "preferences": {
+    "css.autoInsertVendorPrefixes": false
+  }
+}
+```
