@@ -371,7 +371,7 @@ function pyGetSyntax() {
 		return 'xsl';
 	}
 
-	if (!/\bstring\b/.test(scope) && /\bsource\.jsx?\b/.test(scope)) {
+	if (!/\bstring\b/.test(scope) && /\bsource\..*\.?jsx\b/.test(scope)) {
 		return 'jsx';
 	}
 
