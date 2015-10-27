@@ -374,7 +374,7 @@
         "command": "expand_abbreviation_by_tab", 
         "context": [
             {
-                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, source.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string", 
+                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, source.jade, text.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string", 
                 "operator": "equal", 
                 "match_all": true, 
                 "key": "selector"
@@ -420,7 +420,7 @@
         "command": "expand_abbreviation_by_tab", 
         "context": [
             {
-                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, source.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string", 
+                "operand": "source.css, source.sass, source.less, source.scss, source.stylus, source.jade, text.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string", 
                 "operator": "equal", 
                 "match_all": true, 
                 "key": "selector"

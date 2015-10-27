@@ -2,7 +2,7 @@ import os.path
 import json
 import copy
 
-TAB_HANDLER_SCOPES = "source.css, source.sass, source.less, source.scss, source.stylus, source.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string"
+TAB_HANDLER_SCOPES = "source.css, source.sass, source.less, source.scss, source.stylus, source.jade, text.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string"
 
 keymap = {
 	"expand_abbreviation": "ctrl+e",
