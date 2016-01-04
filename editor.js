@@ -379,10 +379,14 @@ function pyGetSyntax() {
 
 	if (!/\bstring\b/.test(scope) && /\bsource\.([\w\-]+)/.test(scope) && resources.hasSyntax(RegExp.$1)) {
 		syntax = RegExp.$1;
-	} else if (/\b(less|scss|sass|css|stylus)\b/.test(scope)) {
-		// detect CSS-like syntaxes independently, 
+	} else if (/\b(less|scss|sass|css|stylus|postcss)\b/.test(scope)) {
+		// detect CSS-like syntaxes independently,
 		// since it may cause collisions with some highlighters
 		syntax = RegExp.$1;
+
+		if (syntax === 'postcss') {
+			syntax = 'css';
+		}
 	} else if (/\b(html|xml|haml|slim|jade)\b/.test(scope)) {
 		syntax = RegExp.$1;
 	}

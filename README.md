@@ -85,7 +85,7 @@ Not that if you disabled any action like so and you’re create your own keyboar
 
 ## How to expand abbreviations with Tab in other syntaxes
 
-Emmet expands abbreviations in limited syntaxes only: HTML, CSS, LESS, SCSS and Stylus. The reason to restrict Tab handler to a limited syntax list is because it breaks native Sublime Text snippets. 
+Emmet expands abbreviations in limited syntaxes only: HTML, CSS, LESS, SCSS, Stylus and PostCSS. The reason to restrict Tab handler to a limited syntax list is because it breaks native Sublime Text snippets. 
 
 If you want to abbreviation with Tab in other syntaxes (for example, JSX, HAML etc.) you have to tweak your [keyboard shorcuts settings](http://sublime-text-unofficial-documentation.readthedocs.org/en/sublime-text-2/reference/key_bindings.html): add `expand_abbreviation_by_tab` command for `tab` key for required syntax *scope selectors*. To get current syntax scope selector, press <kbd>⇧⌃P</kbd> (OSX) or <kbd>Ctrl+Alt+Shift+P</kbd>, it will be displayed in editor status bar.
 
@@ -144,7 +144,7 @@ Go to `Preferences` > `Key Bindings — User` and insert the following JSON snip
 
 Emmet plugin allows you to expand abbreviations with <kbd>Tab</kbd> key, just like regular snippets. On the other hand, due to dynamic nature and extensive syntax, sometimes you may get unexpected results. This section describes how Tab handler works and how you can fine-tune it.
 
-By default, Tab handler works in a limited _syntax scopes_: HTML, XML, HAML, CSS, SASS/SCSS, LESS and _strings in programming languages_ (like JavaScript, Python, Ruby etc.). It means:
+By default, Tab handler works in a limited _syntax scopes_: HTML, XML, HAML, CSS, SASS/SCSS, LESS, PostCSS and _strings in programming languages_ (like JavaScript, Python, Ruby etc.). It means:
 
 * You have to switch your document to one of the syntaxes listed above to expand abbreviations by Tab key.
 * With <kbd>Ctrl-E</kbd> shortcut, you can expand abbreviations everywhere, its scope is not limited.
