@@ -2,7 +2,7 @@ import os.path
 import json
 import copy
 
-TAB_HANDLER_SCOPES = "source.css, source.sass, source.less, source.scss, source.stylus, source.jade, text.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string"
+TAB_HANDLER_SCOPES = "source.css, source.sass, source.less, source.scss, source.stylus, source.postcss, source.jade, text.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string"
 
 keymap = {
 	"expand_abbreviation": "ctrl+e",
@@ -15,8 +15,8 @@ keymap = {
 		"mac": "alt+shift+forward_slash",
 		"pc": "ctrl+shift+forward_slash",
 		"context": [{
-			"key": "selector", 
-			"operand": "source.css, source.less, source.scss, text.xml, text.html - source",
+			"key": "selector",
+			"operand": "source.css, source.less, source.scss, source.postcss, text.xml, text.html - source",
 			"operator": "equal"
 		}]
 	},
