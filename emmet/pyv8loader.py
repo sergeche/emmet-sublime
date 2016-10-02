@@ -17,8 +17,10 @@ is_python3 = sys.version_info[0] > 2
 
 if is_python3:
 	import urllib.request as url_req
-	import urllib.error as url_err
-	import urllib.parse as url_parse
+	# import urllib.error as url_err
+	# import urllib.parse as url_parse
+	url_err = ''
+	url_parse = ''
 else:
 	import urllib
 	import urllib2
@@ -36,7 +38,7 @@ def load(dest_path, delegate=None):
 	Main function that attempts to load or update PyV8 binary.
 	First, it loads list of available PyV8 modules and check if
 	PyV8 should be downloaded or updated.
-	@param dest_path: Path where PyV8 lib should be downloaded 
+	@param dest_path: Path where PyV8 lib should be downloaded
 	@param delegate: instance of LoaderDelegate that will receive
 	loader progress events
 	@returns: `True` if download progress was initiated
@@ -55,9 +57,9 @@ def load(dest_path, delegate=None):
 	def on_complete(result, *args, **kwargs):
 		if result is not None:
 			# Most recent version was downloaded
-			config['last_id'] = result				
+			config['last_id'] = result
 			if 'PyV8' not in sys.modules:
-				# PyV8 is not loaded yet, we can safely unpack it 
+				# PyV8 is not loaded yet, we can safely unpack it
 				unpack_pyv8(dest_path)
 
 		config['last_update'] = time.time()
@@ -85,7 +87,7 @@ def load(dest_path, delegate=None):
 		thread.start()
 
 	delegate.on_start()
-	
+
 	# watch on download progress
 	prog = ThreadProgress(thread, delegate, thread_exists)
 	prog.on('complete', on_complete if not thread_exists else delegate.on_complete)
@@ -127,7 +129,7 @@ def get_loader_config(path):
 
 def save_loader_config(path, data):
 	config_path = os.path.join(path, 'config.json')
-	
+
 	if not os.path.exists(path):
 		os.makedirs(path)
 	fp = open(config_path, 'w')
@@ -269,7 +271,7 @@ class ThreadProgress():
 		if not self.thread.is_alive():
 			if self.thread.exit_code != 0:
 				return self.trigger('error', exit_code=self.thread.exit_code, progress=self)
-				
+
 			return self.trigger('complete', result=self.thread.result, progress=self)
 
 		self.trigger('progress', progress=self)
@@ -584,11 +586,11 @@ class PyV8Loader(threading.Thread):
 			os.makedirs(self.download_path)
 		except Exception as e:
 			pass
-		
+
 		fp = open(os.path.join(self.download_path, 'pack.zip'), 'wb')
 		fp.write(package)
 		fp.close()
 
 		self.result = cur_item['sha']
 		# Done!
-		
+
