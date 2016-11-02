@@ -6,7 +6,7 @@ Official [Emmet](http://emmet.io) plugin for Sublime Text.
 * [Available actions](#available-actions)
 * [Extensions support](#extensions-support)
 * [Overriding keyboard shortcuts](#overriding-keyboard-shortcuts)
-* [How to expand abbreviatoins with Tab key in other syntaxes](#how-to-expand-abbreviations-with-tab-in-other-syntaxes)
+* [How to expand abbreviations with Tab key in other syntaxes](#how-to-expand-abbreviations-with-tab-in-other-syntaxes)
 * [Notes about Tab key handler](#tab-key-handler)
 
 ## How to install
