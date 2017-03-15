@@ -166,7 +166,7 @@ function pyPreprocessText(value) {
 			if (ch == '\\') {
 				return '\\\\';
 			}
- 
+
 			return ch;
 		}
 	};
@@ -178,7 +178,7 @@ function pyPreprocessText(value) {
 	} else if (lastZero) {
 		value = utils.replaceSubstring(value, '${0}', lastZero);
 	}
-	
+
 	return value;
 }
 
@@ -187,12 +187,12 @@ function pyExpandAsYouType(abbr, options) {
 	var ix = (options.index || 0);
 	var cacheKey = 'expandParams' + ix;
 	if (!(cacheKey in __cache)) {
-		var capturePos = options.selectedRange 
-			? options.selectedRange.begin() 
+		var capturePos = options.selectedRange
+			? options.selectedRange.begin()
 			: editorProxy.getCaretPos();
 
 		__cache[cacheKey] = {
-			syntax: editorProxy.getSyntax(), 
+			syntax: editorProxy.getSyntax(),
 			profile: editorProxy.getProfileName() || null,
 			counter: ix + 1,
 			contextNode: actionUtils.captureContext(editorProxy, capturePos)
@@ -216,8 +216,8 @@ function pyUpdateAsYouType(abbr, options) {
 	var ix = (options.index || 0);
 	var cacheKey = 'updateParams' + ix;
 	if (!(cacheKey in __cache)) {
-		var capturePos = options.selectedRange 
-			? options.selectedRange.begin() 
+		var capturePos = options.selectedRange
+			? options.selectedRange.begin()
 			: editorProxy.getCaretPos();
 
 		__cache[cacheKey] = {
@@ -242,14 +242,14 @@ function pyUpdateAsYouType(abbr, options) {
 		}
 
 		var out = [{
-			start: cache.ctx.match.open.range.start, 
+			start: cache.ctx.match.open.range.start,
 			end: cache.ctx.match.open.range.end,
 			content: tag.source
 		}];
 
 		if (tag.name() != cache.ctx.name && cache.ctx.match.close) {
 			out.unshift({
-				start: cache.ctx.match.close.range.start, 
+				start: cache.ctx.match.close.range.start,
 				end: cache.ctx.match.close.range.end,
 				content: '</' + tag.name() + '>'
 			});
@@ -267,7 +267,7 @@ function pyCaptureWrappingRange() {
 	var range = editorProxy.getSelectionRange();
 	var startOffset = range.start;
 	var endOffset = range.end;
-	
+
 	if (startOffset == endOffset) {
 		// no selection, find tag pair
 		var match = htmlMatcher.find(info.content, startOffset);
@@ -275,7 +275,7 @@ function pyCaptureWrappingRange() {
 			// nothing to wrap
 			return null;
 		}
-		
+
 		var narrowedSel = utils.narrowToNonSpace(info.content, match.range);
 		startOffset = narrowedSel.start;
 		endOffset = narrowedSel.end;
@@ -287,7 +287,7 @@ function pyCaptureWrappingRange() {
 function pyGetTagNameRanges(pos) {
 	var ranges = [];
 	var info = editorUtils.outputInfo(editorProxy);
-		
+
 	// search for tag
 	try {
 		var tag = htmlMatcher.tag(info.content, pos);
@@ -308,7 +308,7 @@ function pyGetTagNameRanges(pos) {
 function pyGetTagRanges() {
 	var ranges = [];
 	var info = editorUtils.outputInfo(editorProxy);
-		
+
 	// search for tag
 	try {
 		var tag = htmlMatcher.tag(info.content, editorProxy.getCaretPos());
@@ -343,7 +343,7 @@ function pyGetCSSCompletions(dialect) {
 		var all = resources.getAllSnippets(dialect);
 		_completions[dialect] = Object.keys(all).map(function(k) {
 			var v = all[k];
-			var snippetValue = typeof v.parsedValue == 'object' 
+			var snippetValue = typeof v.parsedValue == 'object'
 				? v.parsedValue.data
 				: v.value;
 			var snippet = cssResolver.transformSnippet(snippetValue, false, dialect);
@@ -379,13 +379,16 @@ function pyGetSyntax() {
 
 	if (!/\bstring\b/.test(scope) && /\bsource\.([\w\-]+)/.test(scope) && resources.hasSyntax(RegExp.$1)) {
 		syntax = RegExp.$1;
-	} else if (/\b(less|scss|sass|css|stylus|postcss)\b/.test(scope)) {
+	} else if (/\b(less|scss|sass|css|stylus|postcss|sugarss)\b/.test(scope)) {
 		// detect CSS-like syntaxes independently,
 		// since it may cause collisions with some highlighters
 		syntax = RegExp.$1;
 
 		if (syntax === 'postcss') {
 			syntax = 'css';
+		}
+		if (syntax === 'sugarss') {
+			syntax = 'sass';
 		}
 	} else if (/\b(html|xml|haml|slim|jade)\b/.test(scope)) {
 		syntax = RegExp.$1;

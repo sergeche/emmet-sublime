@@ -2,7 +2,7 @@ import os.path
 import json
 import copy
 
-TAB_HANDLER_SCOPES = "source.css, source.sass, source.less, source.scss, source.stylus, source.postcss, source.jade, text.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string"
+TAB_HANDLER_SCOPES = "source.css, source.sass, source.less, source.scss, source.stylus, source.postcss, source.sugarss, source.jade, text.jade, text.slim, text.xml, text.html - source, text.haml, text.scala.html, source string"
 
 keymap = {
 	"expand_abbreviation": "ctrl+e",
@@ -16,7 +16,7 @@ keymap = {
 		"pc": "ctrl+shift+forward_slash",
 		"context": [{
 			"key": "selector",
-			"operand": "source.css, source.less, source.scss, source.postcss, text.xml, text.html - source",
+			"operand": "source.css, source.less, source.scss, source.postcss, source.sugarss, text.xml, text.html - source",
 			"operator": "equal"
 		}]
 	},
@@ -39,18 +39,18 @@ keymap = {
 	"expand_as_you_type": {
 		"keys": ["ctrl+alt+enter"],
 		"context": [{
-			"key": "setting.is_widget", 
-			"operand": False, 
+			"key": "setting.is_widget",
+			"operand": False,
 			"operator": "equal"
 		}]
 	},
 
 	"wrap_as_you_type": {
-		"mac": "ctrl+w", 
+		"mac": "ctrl+w",
 		"pc": "shift+ctrl+g",
 		"context": [{
-			"key": "setting.is_widget", 
-			"operand": False, 
+			"key": "setting.is_widget",
+			"operand": False,
 			"operator": "equal"
 		}]
 	},
@@ -58,8 +58,8 @@ keymap = {
 	"update_as_you_type": {
 		"keys": ["ctrl+shift+u"],
 		"context": [{
-			"key": "setting.is_widget", 
-			"operand": False, 
+			"key": "setting.is_widget",
+			"operand": False,
 			"operator": "equal"
 		}]
 	}
@@ -144,21 +144,21 @@ addon = [
 				"match_all": True
 			}
 		]
-	}, 
+	},
 
 	# insert linebreak with formatting
 	{
-		"keys": ["enter"], 
+		"keys": ["enter"],
 		"command": "insert_snippet",
 		"args": {"contents": "\n\t${0}\n"},
 		"context": [
 			{
 				"key": "selector",
-				"operand": "meta.scope.between-tag-pair.html, meta.scope.between-tag-pair.xml", 
+				"operand": "meta.scope.between-tag-pair.html, meta.scope.between-tag-pair.xml",
 				"match_all": True
 			}, {
 				"key": "auto_complete_visible",
-				"operand": False, 
+				"operand": False,
 				"match_all": True
 			}, {
 				"key": "clear_fields_on_enter_key",
@@ -225,8 +225,8 @@ def create_record(k, v, os_type):
 		v['keys'] = [v[os_type]]
 
 	if 'pc' in v:
-		del v['pc'] 
-	
+		del v['pc']
+
 	if 'mac' in v:
 		del v['mac']
 
