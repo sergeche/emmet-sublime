@@ -920,6 +920,10 @@
 		"profile": "xml"
 	},
 
+	"pug": {
+		"extends": "jade"
+	},
+
 	"jsx": {
 		"filters": "jsx, html",
 		"extends": "html",

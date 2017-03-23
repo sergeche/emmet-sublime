@@ -387,7 +387,7 @@ function pyGetSyntax() {
 		if (syntax === 'postcss') {
 			syntax = 'css';
 		}
-	} else if (/\b(html|xml|haml|slim|jade)\b/.test(scope)) {
+	} else if (/\b(html|xml|haml|slim|jade|pug)\b/.test(scope)) {
 		syntax = RegExp.$1;
 	}
 
