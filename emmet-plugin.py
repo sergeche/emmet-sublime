@@ -17,7 +17,7 @@ sys.path += [BASE_PATH] + [os.path.join(BASE_PATH, f) for f in ['emmet_completio
 
 # Make sure all dependencies are reloaded on upgrade
 if 'emmet.reloader' in sys.modules:
-	imp.reload(sys.modules['emmet.reloader'])
+  imp.reload(sys.modules['emmet.reloader'])
 import emmet.reloader
 
 # import completions as cmpl
