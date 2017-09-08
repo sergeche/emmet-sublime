@@ -631,7 +631,7 @@
 			"gr:e": "grid-row:end;",
 			"gr:s": "grid-row:start;",
 			"ga": "grid-area:|;",
-			"js": "justify-self:|;,
+			"js": "justify-self:|;",
 			"js:c": "justify-self:center;",
 			"js:e": "justify-self:end;",
 			"js:st": "justify-self:start;",
