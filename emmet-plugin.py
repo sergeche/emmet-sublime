@@ -280,10 +280,8 @@ def should_handle_tab_key(syntax=None):
 	scopes = settings.get('disabled_single_snippet_for_scopes', None)
 	cur_scope = get_scope(view)
 
-	if sublime.score_selector(cur_scope, 'source.css'):
-		return True
 
-	if not scopes or not sublime.score_selector(cur_scope, scopes):
+	if sublime.score_selector(cur_scope, 'source.css'):
 		return True
 
 	with ctx.js() as c:
@@ -310,6 +308,9 @@ def should_handle_tab_key(syntax=None):
 
 		known_tags = settings.get('known_html_tags', '').split()
 		if abbr in known_tags or c.locals.pyHasSnippet(abbr):
+			return True
+
+		if not scopes or not sublime.score_selector(cur_scope, scopes):
 			return True
 
 	return False
