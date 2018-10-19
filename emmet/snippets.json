@@ -930,6 +930,10 @@
 		"profile": "xml"
 	},
 
+	"tsx": {
+		"extends": "jsx"
+	},
+
 	"slim": {
 		"filters": "slim",
 		"extends": "html",
