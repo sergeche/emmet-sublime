@@ -87,7 +87,7 @@ Emmet expands abbreviations in limited syntaxes only: HTML, CSS, LESS, SCSS, Sty
 
 If you want to abbreviation with Tab in other syntaxes (for example, JSX, HAML etc.) you have to tweak your [keyboard shorcuts settings](http://sublime-text-unofficial-documentation.readthedocs.org/en/sublime-text-2/reference/key_bindings.html): add `expand_abbreviation_by_tab` command for `tab` key for required syntax *scope selectors*. To get current syntax scope selector, press <kbd>⇧⌃P</kbd> (OSX) or <kbd>Ctrl+Alt+Shift+P</kbd>, it will be displayed in editor status bar.
 
-Go to `Preferences` > `Key Bindings — User` and insert the following JSON snippet with properly configured scope selector instead of `SCOPE_SELECTOR` token:
+Go to `Preferences` > `Key Bindings` and insert the following JSON snippet with properly configured scope selector instead of `SCOPE_SELECTOR` token:
 
 ```js
 {
