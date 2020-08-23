@@ -1,3 +1,6 @@
+# This plugin is deprecated and no longer maintained, please use [new version](http://github.com/emmetio/sublime-text-plugin).
+---
+
 # Emmet for Sublime Text
 
 Official [Emmet](http://emmet.io) plugin for Sublime Text.
