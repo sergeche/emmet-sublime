@@ -3476,7 +3476,7 @@ define(function(require, exports, module) {
 	var range = require('./range');
 
 	// Regular Expressions for parsing tags and attributes
-	var reOpenTag = /^<([\w\:\-]+)((?:\s+[\w\-\.\@:]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/;
+	var reOpenTag = /^<([\w\:\-]+)((?:\s+[\w\-\.\@\[\]\(\)\*\#:]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>/;
 	var reCloseTag = /^<\/([\w\:\-]+)[^>]*>/;
 
 	function openTag(i, match) {
