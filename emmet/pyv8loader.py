@@ -424,7 +424,7 @@ class CurlDownloader(CliDownloader):
 				return self.execute(command)
 			except NonCleanExitError as e:
 				if e.returncode == 22:
-					code = re.sub('^.*?(\d+)\s*$', '\\1', e.output)
+					code = re.sub('^.*?(\d+)\s*$', '\\1', e.output.decode())
 					if code == '503':
 						# GitHub and BitBucket seem to rate limit via 503
 						print('%s: Downloading %s was rate limited, trying again' % (__name__, url))
@@ -519,7 +519,7 @@ class PyV8Loader(threading.Thread):
 		if (is_ssl and has_ssl) or not is_ssl:
 			downloader = UrlLib2Downloader(self.delegate.settings)
 		else:
-			for downloader_class in [CurlDownloader, WgetDownloader]:
+			for downloader_class in [WgetDownloader, CurlDownloader]:
 				try:
 					downloader = downloader_class(self.delegate.settings)
 					break
