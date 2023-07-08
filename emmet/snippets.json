@@ -783,6 +783,7 @@
 			"html:xml": "<html xmlns=\"http://www.w3.org/1999/xhtml\">",
 			"keygen": "<keygen/>",
 			"command": "<command/>",
+			"btn:b|button:b|button:button" : "button[type=button]",
 			"btn:s|button:s|button:submit" : "button[type=submit]",
 			"btn:r|button:r|button:reset" : "button[type=reset]",
 			"btn:d|button:d|button:disabled" : "button[disabled.]",
