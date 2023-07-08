@@ -25,8 +25,8 @@ var editorProxy = {
 		var view = activeView();
 		var sel = view.sel()[0];
 		return {
-			start: sel.begin(),
-			end: sel.end()
+			start: jsIndex(sel.begin()),
+			end: jsIndex(sel.end())
 		};
 	},
 
@@ -34,7 +34,7 @@ var editorProxy = {
 		var view = activeView();
 		view.sel().clear();
 
-		view.sel().add(new sublime.Region(start, end || start));
+		view.sel().add(new sublime.Region(pyIndex(start), pyIndex(end || start)));
 		view.show(view.sel());
 	},
 
@@ -43,19 +43,19 @@ var editorProxy = {
 		var selection = view.sel()[0];
 		var line = view.line(selection);
 		return {
-			start: line.begin(),
-			end: line.end()
+			start: jsIndex(line.begin()),
+			end: jsIndex(line.end())
 		};
 	},
 
 	getCaretPos: function() {
 		var view = activeView();
 		var sel = view.sel();
-		return sel && sel[0] ? sel[0].begin() : 0;
+		return jsIndex(sel && sel[0] ? sel[0].begin() : 0);
 	},
 
 	setCaretPos: function(pos){
-		this.createSelection(pos, pos);
+		this.createSelection(pyIndex(pos), pyIndex(pos));
 	},
 
 	getCurrentLine: function() {
@@ -74,7 +74,7 @@ var editorProxy = {
 		// positions but make sure that all other tabstops are not linked accidentally
 		value = pyPreprocessText(value);
 		value = editorUtils.normalize(value);
-		sublimeReplaceSubstring(start, end, value, !!noIndent);
+		sublimeReplaceSubstring(pyIndex(start), pyIndex(end), value, !!noIndent);
 	},
 
 	getContent: function() {
@@ -91,7 +91,7 @@ var editorProxy = {
 		var pos = this.getCaretPos();
 
 		var m = function(sel) {
-			return view.match_selector(pos, sel);
+			return view.match_selector(pyIndex(pos), sel);
 		}
 
 		if (m('text.html') && sublimeGetOption('autodetect_xhtml', false) && actionUtils.isXHTML(this)) {
@@ -401,3 +401,44 @@ function pyDetectProfile(syntax) {
 function pyResetCache() {
 	__cache = {};
 }
+
+/* Translates an index from the JS string of the active view to the equivalent
+ * index in sublime by accounting for UTF-16 surrogate pairs.
+ */
+function pyIndex(index) {
+	var surr = supplementary(activeView());
+	for(var i = 0; i < surr.length; ++i) {
+		if(surr[i] >= index) break;
+		--index;
+	}
+	return index;
+}
+
+/* Translates a character index from the active view into the equivalent JS
+ * string index by accounting for Supplementary Plane characters.
+ */
+function jsIndex(index) {
+	var surr = supplementary(activeView());
+	for(var i = 0; i < surr.length; ++i) {
+		if(surr[i] >= index) break;
+	}
+	return index + i;
+}
+
+var __supplementaryCache = {};
+
+function supplementary(view) {
+	if(sublime.version()[0] == "2") return [];
+	var s = __supplementaryCache[view.id()];
+	if(s === undefined || s.change_count != view.change_count()) {
+		__supplementaryCache[view.id()] = s = {
+			change_count: view.change_count(),
+			indices: []
+		};
+		var found = view.find_all("[𐀀-􏿿]");
+		for(var i = 0; found[i] !== undefined; ++i)
+			s.indices.push(found[i].a);
+	}
+	return s.indices;
+}
+
