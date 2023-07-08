@@ -28,7 +28,7 @@ Manually:
 
 --------------
 
-**WARNING**: When plugin is installed, it will automatically download required PyV8 binary so you have to wait a bit (see _Loading PyV8 binary_ message on status bar). If you experience issues with automatic PyV8 loader, try to [install it manually](https://github.com/emmetio/pyv8-binaries).
+**WARNING**: When plugin is installed, it will automatically download required PyV8 binary so you have to wait a bit (see _Loading PyV8 binary_ message on status bar). If you experience issues with automatic PyV8 loader, try to [install it manually](https://github.com/emmetio/pyv8-binaries).  For users who work behind a corporate firewall, you can enable PyV8 binaries downlaod and updates by specifying "http_proxy" in your Sublime User preferences (`User/Preferences.sublime-settings`), for example: `"http_proxy": "http://ihate.mycompany.proxies.com:8080"`.
 
 ## Available actions ##
 
